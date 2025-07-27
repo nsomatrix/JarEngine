@@ -105,6 +105,7 @@ import org.je.app.util.MidletURLReference;
 import org.je.device.Device;
 import org.je.device.DeviceDisplay;
 import org.je.device.DeviceFactory;
+import org.je.device.Device;
 import org.je.device.EmulatorContext;
 import org.je.device.FontManager;
 import org.je.device.InputMethod;
@@ -1037,21 +1038,18 @@ public class Main extends JFrame {
 			Logger.debug("arguments", debugArgs.toString());
 		}
 		
-		// Add shutdown hook for proper cleanup
-		Runtime.getRuntime().addShutdownHook(new Thread() {
-			public void run() {
-				try {
-					// Only save config, don't call notifyDestroyed during shutdown
-					// as it can cause issues with the MIDlet lifecycle
-					Config.saveConfig();
-				} catch (Exception e) {
-					// Ignore exceptions during shutdown
-				}
-			}
-		});
+		// Remove shutdown hook as it's causing issues with repeated notifyDestroyed calls
 		
 		app.common.initParams(params, null, J2SEDevice.class);
 		app.updateDevice();
+
+		// Ensure device is properly initialized before showing the window
+		Device device = DeviceFactory.getDevice();
+		if (device != null && device.getDeviceDisplay() != null) {
+			// Force device initialization
+			device.getDeviceDisplay().getFullWidth();
+			device.getDeviceDisplay().getFullHeight();
+		}
 
 		// Ensure device is properly initialized
 		javax.swing.SwingUtilities.invokeLater(new Runnable() {
@@ -1059,8 +1057,17 @@ public class Main extends JFrame {
 				app.validate();
 				app.setVisible(true);
 				
-				// Force a repaint after the window is visible
+				// Force multiple repaints to ensure graphics surface is created
 				app.repaint();
+				
+				// Schedule additional repaints to ensure initialization
+				javax.swing.Timer timer = new javax.swing.Timer(100, new ActionListener() {
+					public void actionPerformed(ActionEvent e) {
+						app.repaint();
+					}
+				});
+				timer.setRepeats(false);
+				timer.start();
 			}
 		});
 

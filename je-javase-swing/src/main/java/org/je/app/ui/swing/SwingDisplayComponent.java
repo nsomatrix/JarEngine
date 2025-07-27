@@ -256,6 +256,13 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 		addMouseListener(mouseListener);
 		addMouseMotionListener(mouseMotionListener);
 		addMouseWheelListener(mouseWheelListener);
+		
+		// Force immediate initialization of graphics surface
+		javax.swing.SwingUtilities.invokeLater(new Runnable() {
+			public void run() {
+				initializeGraphicsSurface();
+			}
+		});
 	}
 
 	public void init() {
@@ -300,7 +307,7 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 			initializeGraphicsSurface();
 		}
 		
-		if (graphicsSurface != null) {
+		if (graphicsSurface != null && graphicsSurface.getImage() != null) {
 			synchronized (graphicsSurface) {
 				try {
 					g.drawImage(graphicsSurface.getImage(), 0, 0, null);
@@ -308,15 +315,29 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 					// If drawing fails, reinitialize the graphics surface
 					graphicsSurface = null;
 					initializeGraphicsSurface();
-					if (graphicsSurface != null) {
+					if (graphicsSurface != null && graphicsSurface.getImage() != null) {
 						g.drawImage(graphicsSurface.getImage(), 0, 0, null);
 					}
 				}
 			}
 		} else {
-			// Fallback: draw a black background
-			g.setColor(java.awt.Color.BLACK);
+			// Fallback: draw a white background with launcher text
+			g.setColor(java.awt.Color.WHITE);
 			g.fillRect(0, 0, getWidth(), getHeight());
+			
+			// Draw launcher text
+			g.setColor(java.awt.Color.BLACK);
+			g.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 14));
+			String text = "Launcher";
+			java.awt.FontMetrics fm = g.getFontMetrics();
+			int textX = (getWidth() - fm.stringWidth(text)) / 2;
+			int textY = getHeight() / 2;
+			g.drawString(text, textX, textY);
+			
+			text = "[no midlets]";
+			textX = (getWidth() - fm.stringWidth(text)) / 2;
+			textY += 20;
+			g.drawString(text, textX, textY);
 		}
 	}
 	
@@ -324,13 +345,24 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 		Device device = DeviceFactory.getDevice();
 		if (device != null && device.getDeviceDisplay() != null) {
 			try {
-				graphicsSurface = new J2SEGraphicsSurface(
-					device.getDeviceDisplay().getFullWidth(), 
-					device.getDeviceDisplay().getFullHeight(), 
-					false, 0x000000);
-				
-				// Force an initial paint to ensure the surface is valid
-				repaintRequest(0, 0, device.getDeviceDisplay().getFullWidth(), device.getDeviceDisplay().getFullHeight());
+				// Ensure device is properly initialized
+				if (device.getDeviceDisplay().getFullWidth() > 0 && device.getDeviceDisplay().getFullHeight() > 0) {
+					graphicsSurface = new J2SEGraphicsSurface(
+						device.getDeviceDisplay().getFullWidth(), 
+						device.getDeviceDisplay().getFullHeight(), 
+						false, 0x000000);
+					
+					// Force an initial paint to ensure the surface is valid
+					// Use SwingUtilities to ensure this runs on the EDT
+					javax.swing.SwingUtilities.invokeLater(new Runnable() {
+						public void run() {
+							repaintRequest(0, 0, device.getDeviceDisplay().getFullWidth(), device.getDeviceDisplay().getFullHeight());
+						}
+					});
+				} else {
+					// Device display not properly initialized yet
+					graphicsSurface = null;
+				}
 			} catch (Exception e) {
 				graphicsSurface = null;
 			}
@@ -349,41 +381,44 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 		}
 
 		synchronized (this) {
+			// Always ensure graphics surface exists
 			if (graphicsSurface == null) {
+				initializeGraphicsSurface();
+			}
+			
+			// Double-check after initialization
+			if (graphicsSurface == null) {
+				return;
+			}
+
+			synchronized (graphicsSurface) {
 				try {
-					graphicsSurface = new J2SEGraphicsSurface(
-							device.getDeviceDisplay().getFullWidth(), device.getDeviceDisplay().getFullHeight(), false, 0x000000);
+					// Only paint displayable if we have a valid MIDlet context
+					MIDletAccess ma = MIDletBridge.getMIDletAccess();
+					if (ma != null) {
+						DisplayAccess da = ma.getDisplayAccess();
+						if (da != null) {
+							Displayable current = da.getCurrent();
+							if (current != null) {
+								deviceDisplay.paintDisplayable(graphicsSurface, x, y, width, height);
+							}
+						}
+					}
+					
+					// Always paint controls for the launcher
+					if (!deviceDisplay.isFullScreenMode()) {
+						deviceDisplay.paintControls(graphicsSurface.getGraphics());
+					}
 				} catch (Exception e) {
-					// If graphics surface creation fails, return without painting
+					// If painting fails, reinitialize graphics surface
+					graphicsSurface = null;
+					initializeGraphicsSurface();
 					return;
 				}
 			}
 
+			// Only fire repaint if graphics surface is still valid
 			if (graphicsSurface != null) {
-				synchronized (graphicsSurface) {
-					try {
-						// Only paint displayable if we have a valid MIDlet context
-						MIDletAccess ma = MIDletBridge.getMIDletAccess();
-						if (ma != null) {
-							DisplayAccess da = ma.getDisplayAccess();
-							if (da != null) {
-								Displayable current = da.getCurrent();
-								if (current != null) {
-									deviceDisplay.paintDisplayable(graphicsSurface, x, y, width, height);
-								}
-							}
-						}
-						
-						// Always paint controls for the launcher
-						if (!deviceDisplay.isFullScreenMode()) {
-							deviceDisplay.paintControls(graphicsSurface.getGraphics());
-						}
-					} catch (Exception e) {
-						// If painting fails, don't crash the application
-						return;
-					}
-				}
-
 				try {
 					if (deviceDisplay.isFullScreenMode()) {
 						fireDisplayRepaint(graphicsSurface, x, y, width, height);
