@@ -78,6 +78,7 @@ import org.je.DisplayAccess;
 import org.je.DisplayComponent;
 import org.je.MIDletAccess;
 import org.je.MIDletBridge;
+import org.je.MIDletContext;
 import org.je.app.capture.AnimatedGifEncoder;
 import org.je.app.classloader.MIDletClassLoader;
 import org.je.app.ui.DisplayRepaintListener;
@@ -509,6 +510,14 @@ public class Main extends JFrame {
 				if (encoder != null) {
 					encoder.finish();
 					encoder = null;
+				}
+			}
+
+			// Clean up MIDlet context
+			if (common != null) {
+				MIDletContext context = MIDletBridge.getMIDletContext();
+				if (context != null) {
+					common.notifyDestroyed(context);
 				}
 			}
 
@@ -993,6 +1002,13 @@ public class Main extends JFrame {
 		pack();
 
 		devicePanel.requestFocus();
+		
+		// Force a repaint after device update
+		javax.swing.SwingUtilities.invokeLater(new Runnable() {
+			public void run() {
+				repaint();
+			}
+		});
 	}
 
 	public static void main(String args[]) {
@@ -1021,11 +1037,32 @@ public class Main extends JFrame {
 			Logger.debug("arguments", debugArgs.toString());
 		}
 		
+		// Add shutdown hook for proper cleanup
+		Runtime.getRuntime().addShutdownHook(new Thread() {
+			public void run() {
+				try {
+					// Only save config, don't call notifyDestroyed during shutdown
+					// as it can cause issues with the MIDlet lifecycle
+					Config.saveConfig();
+				} catch (Exception e) {
+					// Ignore exceptions during shutdown
+				}
+			}
+		});
+		
 		app.common.initParams(params, null, J2SEDevice.class);
 		app.updateDevice();
 
-		app.validate();
-		app.setVisible(true);
+		// Ensure device is properly initialized
+		javax.swing.SwingUtilities.invokeLater(new Runnable() {
+			public void run() {
+				app.validate();
+				app.setVisible(true);
+				
+				// Force a repaint after the window is visible
+				app.repaint();
+			}
+		});
 
 		if (Config.isWindowOnStart("logConsole")) {
 			app.menuLogConsoleListener.actionPerformed(null);

@@ -26,6 +26,7 @@ package org.je.device.impl;
 
 import javax.microedition.lcdui.TextField;
 
+import org.je.MIDletAccess;
 import org.je.MIDletBridge;
 import org.je.device.DeviceFactory;
 import org.je.device.InputMethod;
@@ -96,19 +97,28 @@ public abstract class InputMethodImpl extends InputMethod implements Runnable {
 	
 	public void pointerPressed(int x, int y) {		
 		if (DeviceFactory.getDevice().hasPointerEvents()) {
-			MIDletBridge.getMIDletAccess().getDisplayAccess().pointerPressed(x, y);
+			MIDletAccess midletAccess = MIDletBridge.getMIDletAccess();
+			if (midletAccess != null) {
+				midletAccess.getDisplayAccess().pointerPressed(x, y);
+			}
 		}
 	}
 
 	public void pointerReleased(int x, int y) {
 		if (DeviceFactory.getDevice().hasPointerEvents()) {
-			MIDletBridge.getMIDletAccess().getDisplayAccess().pointerReleased(x, y);
+			MIDletAccess midletAccess = MIDletBridge.getMIDletAccess();
+			if (midletAccess != null) {
+				midletAccess.getDisplayAccess().pointerReleased(x, y);
+			}
 		}
 	}
 
 	public void pointerDragged(int x, int y) {
 		if (DeviceFactory.getDevice().hasPointerMotionEvents()) {
-			MIDletBridge.getMIDletAccess().getDisplayAccess().pointerDragged(x, y);
+			MIDletAccess midletAccess = MIDletBridge.getMIDletAccess();
+			if (midletAccess != null) {
+				midletAccess.getDisplayAccess().pointerDragged(x, y);
+			}
 		}
 	}
 	

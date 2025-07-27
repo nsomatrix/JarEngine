@@ -43,6 +43,7 @@ dependencies {
 
 // Create a fat JAR with all dependencies
 jar {
+    dependsOn subprojects*.jar
     manifest {
         attributes 'Main-Class': 'org.je.app.Main'
     }

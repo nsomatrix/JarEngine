@@ -263,6 +263,16 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 			graphicsSurface = null;
 			initialPressedSoftButton = null;
 		}
+		
+		// Force initialization of graphics surface
+		initializeGraphicsSurface();
+		
+		// Schedule a repaint after a short delay to ensure everything is ready
+		javax.swing.SwingUtilities.invokeLater(new Runnable() {
+			public void run() {
+				repaint();
+			}
+		});
 	}
 
 	public void addDisplayRepaintListener(DisplayRepaintListener l) {
@@ -285,51 +295,104 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 	}
 
 	protected void paintComponent(Graphics g) {
+		// Always ensure we have a valid graphics surface
+		if (graphicsSurface == null) {
+			initializeGraphicsSurface();
+		}
+		
 		if (graphicsSurface != null) {
 			synchronized (graphicsSurface) {
-				g.drawImage(graphicsSurface.getImage(), 0, 0, null);
+				try {
+					g.drawImage(graphicsSurface.getImage(), 0, 0, null);
+				} catch (Exception e) {
+					// If drawing fails, reinitialize the graphics surface
+					graphicsSurface = null;
+					initializeGraphicsSurface();
+					if (graphicsSurface != null) {
+						g.drawImage(graphicsSurface.getImage(), 0, 0, null);
+					}
+				}
+			}
+		} else {
+			// Fallback: draw a black background
+			g.setColor(java.awt.Color.BLACK);
+			g.fillRect(0, 0, getWidth(), getHeight());
+		}
+	}
+	
+	private void initializeGraphicsSurface() {
+		Device device = DeviceFactory.getDevice();
+		if (device != null && device.getDeviceDisplay() != null) {
+			try {
+				graphicsSurface = new J2SEGraphicsSurface(
+					device.getDeviceDisplay().getFullWidth(), 
+					device.getDeviceDisplay().getFullHeight(), 
+					false, 0x000000);
+				
+				// Force an initial paint to ensure the surface is valid
+				repaintRequest(0, 0, device.getDeviceDisplay().getFullWidth(), device.getDeviceDisplay().getFullHeight());
+			} catch (Exception e) {
+				graphicsSurface = null;
 			}
 		}
 	}
 
 	public void repaintRequest(int x, int y, int width, int height) {
-		MIDletAccess ma = MIDletBridge.getMIDletAccess();
-		if (ma == null) {
-			return;
-		}
-		DisplayAccess da = ma.getDisplayAccess();
-		if (da == null) {
-			return;
-		}
-		Displayable current = da.getCurrent();
-		if (current == null) {
-			return;
-		}
-
 		Device device = DeviceFactory.getDevice();
-		if (device != null) {
-			J2SEDeviceDisplay deviceDisplay = (J2SEDeviceDisplay) device.getDeviceDisplay();
+		if (device == null) {
+			return;
+		}
+		
+		J2SEDeviceDisplay deviceDisplay = (J2SEDeviceDisplay) device.getDeviceDisplay();
+		if (deviceDisplay == null) {
+			return;
+		}
 
-			synchronized (this) {
-				if (graphicsSurface == null) {
+		synchronized (this) {
+			if (graphicsSurface == null) {
+				try {
 					graphicsSurface = new J2SEGraphicsSurface(
 							device.getDeviceDisplay().getFullWidth(), device.getDeviceDisplay().getFullHeight(), false, 0x000000);
-				}
-
-				synchronized (graphicsSurface) {
-					deviceDisplay.paintDisplayable(graphicsSurface, x, y, width, height);
-					if (!deviceDisplay.isFullScreenMode()) {
-						deviceDisplay.paintControls(graphicsSurface.getGraphics());
-					}
+				} catch (Exception e) {
+					// If graphics surface creation fails, return without painting
+					return;
 				}
 			}
 
-            if (deviceDisplay.isFullScreenMode()) {
-                fireDisplayRepaint(
-                        graphicsSurface, x, y, width, height);
-			} else {
-                fireDisplayRepaint(
-                        graphicsSurface, 0, 0, graphicsSurface.getImage().getWidth(), graphicsSurface.getImage().getHeight());
+			if (graphicsSurface != null) {
+				synchronized (graphicsSurface) {
+					try {
+						// Only paint displayable if we have a valid MIDlet context
+						MIDletAccess ma = MIDletBridge.getMIDletAccess();
+						if (ma != null) {
+							DisplayAccess da = ma.getDisplayAccess();
+							if (da != null) {
+								Displayable current = da.getCurrent();
+								if (current != null) {
+									deviceDisplay.paintDisplayable(graphicsSurface, x, y, width, height);
+								}
+							}
+						}
+						
+						// Always paint controls for the launcher
+						if (!deviceDisplay.isFullScreenMode()) {
+							deviceDisplay.paintControls(graphicsSurface.getGraphics());
+						}
+					} catch (Exception e) {
+						// If painting fails, don't crash the application
+						return;
+					}
+				}
+
+				try {
+					if (deviceDisplay.isFullScreenMode()) {
+						fireDisplayRepaint(graphicsSurface, x, y, width, height);
+					} else {
+						fireDisplayRepaint(graphicsSurface, 0, 0, graphicsSurface.getImage().getWidth(), graphicsSurface.getImage().getHeight());
+					}
+				} catch (Exception e) {
+					// If repaint fails, don't crash the application
+				}
 			}
 		}
 	}
