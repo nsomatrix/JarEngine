@@ -1,0 +1,69 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+allprojects {
+    group = 'org.je'
+    version = '1.0.0'
+    
+    repositories {
+        mavenCentral()
+        maven { url 'https://repo1.maven.org/maven2/' }
+    }
+}
+
+subprojects {
+    apply plugin: 'java-library'
+    
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
+    
+    dependencies {
+        testImplementation 'junit:junit:4.13.2'
+    }
+}
+
+// Main application configuration
+application {
+    mainClass = 'org.je.app.Main'
+    applicationDefaultJvmArgs = ['-Djava.awt.headless=false']
+}
+
+// Dependencies for the main application
+dependencies {
+    implementation project(':je-cldc')
+    implementation project(':je-midp')
+    implementation project(':je-javase')
+    implementation project(':je-javase-swing')
+    implementation 'asm:asm:3.1'
+}
+
+
+
+// Create a fat JAR with all dependencies
+jar {
+    manifest {
+        attributes 'Main-Class': 'org.je.app.Main'
+    }
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+// Task to run the application
+task runJarEngine(type: JavaExec) {
+    group = 'application'
+    description = 'Run the JarEngine Java ME emulator'
+    mainClass = 'org.je.app.Main'
+    classpath = project(':je-javase-swing').sourceSets.main.runtimeClasspath
+    workingDir = projectDir
+    dependsOn ':je-javase-swing:build'
+}
+
+// Alternative run task that uses the application plugin
+run {
+    classpath = project(':je-javase-swing').sourceSets.main.runtimeClasspath
+    dependsOn ':je-javase-swing:build'
+} 

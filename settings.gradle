@@ -1,0 +1,6 @@
+rootProject.name = 'JarEngine'
+
+include ':je-cldc'
+include ':je-midp'
+include ':je-javase'
+include ':je-javase-swing' 
