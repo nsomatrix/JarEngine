@@ -817,20 +817,7 @@ public class Common implements MicroEmulator, CommonInterface {
                 } else if (arg.equals("--usesystemclassloader")) {
                     useSystemClassLoader = true;
                     clConfig.setDelegationType("system");
-                } else if (arg.equals("-d") || arg.equals("--device")) {
-                    if (argsIterator.hasNext()) {
-                        String tmpDevice = (String) argsIterator.next();
-                        argsIterator.remove();
-                        if (!tmpDevice.toLowerCase().endsWith(".xml")) {
-                            try {
-                                deviceClass = Class.forName(tmpDevice);
-                            } catch (ClassNotFoundException ex) {
-                            }
-                        }
-                        if (deviceClass == null) {
-                            deviceDescriptorLocation = tmpDevice;
-                        }
-                    }
+
                 } else if (arg.equals("--resizableDevice")) {
                     overrideDeviceWidth = Integer.parseInt((String) argsIterator.next());
                     argsIterator.remove();
@@ -898,12 +885,8 @@ public class Common implements MicroEmulator, CommonInterface {
         if (DeviceFactory.getDevice() == null) {
             try {
                 if (deviceClass == null) {
-                    if (defaultDevice.getFileName() != null) {
-                        URL[] urls = new URL[1];
-                        urls[0] = new File(Config.getConfigPath(), defaultDevice.getFileName()).toURI().toURL();
-                        classLoader = createExtensionsClassLoader(urls);
-                    }
-                    setDevice(DeviceImpl.create(emulatorContext, classLoader, defaultDevice.getDescriptorLocation(), defaultDeviceClass));
+                    // Always use resizable device as default
+                    setDevice(DeviceImpl.create(emulatorContext, classLoader, DeviceImpl.RESIZABLE_LOCATION, defaultDeviceClass));
                     defaultDeviceSelected = true;
                 } else {
                     DeviceImpl device = (DeviceImpl) deviceClass.newInstance();
@@ -1090,7 +1073,7 @@ public class Common implements MicroEmulator, CommonInterface {
     }
 
     public static String usage() {
-        return "[(-d | --device) ({device descriptor} | {device class name}) ] \n" + "[--rms (file | memory)] \n" + "[--id EmulatorID ] \n"
+        return "[--rms (file | memory)] \n" + "[--id EmulatorID ] \n"
                 + "[--impl {JSR implementation class name}]\n" + "[(--classpath|-cp) <JSR CLASSPATH>]\n" + "[(--appclasspath|--appcp) <MIDlet CLASSPATH>]\n"
                 + "[--appclass <library class name>]\n" + "[--appclassloader strict|relaxed|delegating|system] \n" + "[-Xautotest:<JAD file url>\n"
                 + "[--quit]\n" + "[--logCallLocation true|false]\n" + "[--traceClassLoading\n[--traceSystemClassLoading]\n[--enhanceCatchBlock]\n]"

@@ -96,7 +96,7 @@ import org.je.app.ui.swing.SwingDialogWindow;
 import org.je.app.ui.swing.SwingDisplayComponent;
 import org.je.app.ui.swing.SwingErrorMessageDialogPanel;
 import org.je.app.ui.swing.SwingLogConsoleDialog;
-import org.je.app.ui.swing.SwingSelectDevicePanel;
+
 import org.je.app.util.AppletProducer;
 import org.je.app.util.DeviceEntry;
 import org.je.app.util.IOUtils;
@@ -126,7 +126,7 @@ public class Main extends JFrame {
 
 	protected Common common;
 
-	protected SwingSelectDevicePanel selectDevicePanel = null;
+
 
 	private MIDletUrlPanel midletUrlPanel = null;
 
@@ -140,7 +140,7 @@ public class Main extends JFrame {
 
 	private JMenuItem menuOpenMIDletURL;
 
-	private JMenuItem menuSelectDevice;
+
 
 	private JMenuItem menuSaveForWeb;
 
@@ -327,10 +327,7 @@ public class Main extends JFrame {
 				}
 
 				String midletInput = common.jad.getJarURL();
-				DeviceEntry deviceInput = selectDevicePanel.getSelectedDeviceEntry();
-				if (deviceInput != null && deviceInput.getDescriptorLocation().equals(DeviceImpl.DEFAULT_LOCATION)) {
-					deviceInput = null;
-				}
+				DeviceEntry deviceInput = null;
 
 				File htmlOutputFile = new File(pathFile, name);
 				if (!allowOverride(htmlOutputFile)) {
@@ -535,39 +532,7 @@ public class Main extends JFrame {
 		}
 	};
 
-	private ActionListener menuSelectDeviceListener = new ActionListener() {
-		public void actionPerformed(ActionEvent e) {
-			if (SwingDialogWindow.show(Main.this, "Select device...", selectDevicePanel, true)) {
-				if (selectDevicePanel.getSelectedDeviceEntry().equals(deviceEntry)) {
-					return;
-				}
-				int restartMidlet = 1;
-				if (MIDletBridge.getCurrentMIDlet() != common.getLauncher()) {
-					restartMidlet = JOptionPane.showConfirmDialog(Main.this,
-							"Changing device may trigger MIDlet to the unpredictable state and restart of MIDlet is recommended. \n"
-									+ "Do you want to restart the MIDlet? All MIDlet data will be lost.", "Question?",
-							JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
-				}
-				if (!setDevice(selectDevicePanel.getSelectedDeviceEntry())) {
-					return;
-				}
-				if (restartMidlet == 0) {
-					try {
-						common.initMIDlet(true);
-					} catch (Exception ex) {
-						System.err.println(ex);
-					}
-				} else {
-					DeviceDisplay deviceDisplay = DeviceFactory.getDevice().getDeviceDisplay();
-					DisplayAccess da = MIDletBridge.getMIDletAccess().getDisplayAccess();
-					if (da != null) {
-						da.sizeChanged();
-						deviceDisplay.repaint(0, 0, deviceDisplay.getFullWidth(), deviceDisplay.getFullHeight());
-					}
-				}
-			}
-		}
-	};
+
 
 	private ActionListener menuScaledDisplayListener = new ActionListener() {
 		private DisplayRepaintListener updateScaledImageListener;
@@ -707,7 +672,6 @@ public class Main extends JFrame {
 		public void stateChanged(boolean state) {
 			menuOpenMIDletFile.setEnabled(state);
 			menuOpenMIDletURL.setEnabled(state);
-			menuSelectDevice.setEnabled(state);
 
 			if (common.jad.getJarURL() != null) {
 				menuSaveForWeb.setEnabled(state);
@@ -827,9 +791,7 @@ public class Main extends JFrame {
 
 		JMenu menuOptions = new JMenu("Options");
 
-		menuSelectDevice = new JMenuItem("Select device...");
-		menuSelectDevice.addActionListener(menuSelectDeviceListener);
-		menuOptions.add(menuSelectDevice);
+
 
 		JMenu menuScaleLCD = new JMenu("Scaled display");
 		menuOptions.add(menuScaleLCD);
@@ -900,7 +862,7 @@ public class Main extends JFrame {
 
 		addWindowListener(windowListener);
 
-		Config.loadConfig(defaultDevice, emulatorContext);
+		Config.loadConfig(null, emulatorContext);
 		Logger.setLocationEnabled(Config.isLogConsoleLocationEnabled());
 
 		Rectangle window = Config.getWindow("main", new Rectangle(0, 0, 160, 120));
@@ -908,7 +870,7 @@ public class Main extends JFrame {
 
 		getContentPane().add(createContents(getContentPane()), "Center");
 
-		selectDevicePanel = new SwingSelectDevicePanel(emulatorContext);
+
 
 		this.common = new Common(emulatorContext);
 		this.common.setStatusBarListener(statusBarListener);
@@ -1059,16 +1021,7 @@ public class Main extends JFrame {
 			Logger.debug("arguments", debugArgs.toString());
 		}
 		
-		if (app.common.initParams(params, app.selectDevicePanel.getSelectedDeviceEntry(), J2SEDevice.class)) {
-			app.deviceEntry = app.selectDevicePanel.getSelectedDeviceEntry();
-			DeviceDisplayImpl deviceDisplay = (DeviceDisplayImpl) DeviceFactory.getDevice().getDeviceDisplay();
-			if (deviceDisplay.isResizable()) {
-				Rectangle size = Config.getDeviceEntryDisplaySize(app.deviceEntry);
-				if (size != null) {
-					app.setDeviceSize(deviceDisplay, size.width, size.height);
-				}
-			}
-		}
+		app.common.initParams(params, null, J2SEDevice.class);
 		app.updateDevice();
 
 		app.validate();

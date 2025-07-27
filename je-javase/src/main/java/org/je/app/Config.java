@@ -259,16 +259,11 @@ public class Config {
 	public static Vector getDeviceEntries() {
 		Vector result = new Vector();
 
-		if (defaultDevice == null) {
-			defaultDevice = new DeviceEntry("Default device", null, DeviceImpl.DEFAULT_LOCATION, true, false);
-		}
-		defaultDevice.setDefaultDevice(true);
-		result.add(defaultDevice);
-		
 		if (resizableDevice == null) {
-			resizableDevice = new DeviceEntry("Resizable device", null, DeviceImpl.RESIZABLE_LOCATION, false, false);
-			addDeviceEntry(resizableDevice);
+			resizableDevice = new DeviceEntry("Resizable device", null, DeviceImpl.RESIZABLE_LOCATION, true, false);
 		}
+		resizableDevice.setDefaultDevice(true);
+		result.add(resizableDevice);
 
 		XMLElement devicesXml = configXml.getChild("devices");
 		if (devicesXml == null) {
@@ -282,7 +277,7 @@ public class Config {
 				if (tmp_device.getStringAttribute("default") != null
 						&& tmp_device.getStringAttribute("default").equals("true")) {
 					devDefault = true;
-					defaultDevice.setDefaultDevice(false);
+					resizableDevice.setDefaultDevice(false);
 				}
 				String devName = tmp_device.getChildString("name", null);
 				String devFile = tmp_device.getChildString("filename", null);

@@ -146,34 +146,15 @@ public class Main extends Applet implements MicroEmulator {
 		setLayout(new BorderLayout());
 		add(devicePanel, "Center");
 
+		// Always use resizable device
 		DeviceImpl device;
-		String deviceParameter = getParameter("device");
-		if (deviceParameter == null) {
-			device = new J2SEDevice();
+		try {
+			device = DeviceImpl.create(emulatorContext, Main.class.getClassLoader(), DeviceImpl.RESIZABLE_LOCATION,
+					J2SEDevice.class);
 			DeviceFactory.setDevice(device);
-			device.init(emulatorContext);
-		} else {
-			try {
-				Class cl = Class.forName(deviceParameter);
-				device = (DeviceImpl) cl.newInstance();
-				DeviceFactory.setDevice(device);
-				device.init(emulatorContext);
-			} catch (ClassNotFoundException ex) {
-				try {
-					device = DeviceImpl.create(emulatorContext, Main.class.getClassLoader(), deviceParameter,
-							J2SEDevice.class);
-					DeviceFactory.setDevice(device);
-				} catch (IOException ex1) {
-					Logger.error(ex);
-					return;
-				}
-			} catch (IllegalAccessException ex) {
-				Logger.error(ex);
-				return;
-			} catch (InstantiationException ex) {
-				Logger.error(ex);
-				return;
-			}
+		} catch (IOException ex) {
+			Logger.error(ex);
+			return;
 		}
 
 		devicePanel.init();
