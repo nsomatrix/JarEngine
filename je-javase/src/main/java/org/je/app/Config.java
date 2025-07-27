@@ -539,6 +539,20 @@ public class Config {
 		saveConfig();
 	}
 
+	public static String getCurrentTheme() {
+		XMLElement themeXml = configXml.getChild("theme");
+		if (themeXml == null) {
+			return "light"; // Default theme
+		}
+		return themeXml.getStringAttribute("current", "light");
+	}
+
+	public static void setCurrentTheme(String theme) {
+		XMLElement themeXml = configXml.getChildOrNew("theme");
+		themeXml.setAttribute("current", theme);
+		saveConfig();
+	}
+
 	public static MRUList getUrlsMRU() {
 		return urlsMRU;
 	}

@@ -7,4 +7,5 @@ dependencies {
     api project(':je-javase')
     implementation project(':je-midp')
     implementation project(':je-cldc')
+    implementation 'com.formdev:flatlaf:3.4'
 }

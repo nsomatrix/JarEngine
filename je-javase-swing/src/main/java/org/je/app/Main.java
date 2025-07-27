@@ -62,6 +62,7 @@ import java.util.TimerTask;
 import javax.microedition.midlet.MIDletStateChangeException;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.ButtonGroup;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
@@ -71,8 +72,12 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JRadioButtonMenuItem;
 import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import com.formdev.flatlaf.FlatLightLaf;
+import com.formdev.flatlaf.FlatDarkLaf;
 
 import org.je.DisplayAccess;
 import org.je.DisplayComponent;
@@ -157,6 +162,11 @@ public class Main extends JFrame {
 	private JCheckBoxMenuItem menuRecordStoreManager;
 
 	private JFrame scaledDisplayFrame;
+	
+	// Theme-related fields
+	private JRadioButtonMenuItem menuLightTheme;
+	private JRadioButtonMenuItem menuDarkTheme;
+	private ButtonGroup themeButtonGroup;
 
 	private JCheckBoxMenuItem[] zoomLevels;
 
@@ -505,6 +515,52 @@ public class Main extends JFrame {
 		}
 	};
 
+	private ActionListener menuLightThemeListener = new ActionListener() {
+		public void actionPerformed(ActionEvent e) {
+			try {
+				UIManager.setLookAndFeel(new FlatLightLaf());
+				SwingUtilities.updateComponentTreeUI(Main.this);
+				// Update child windows if they exist
+				if (logConsoleDialog != null) {
+					SwingUtilities.updateComponentTreeUI(logConsoleDialog);
+				}
+				if (recordStoreManagerDialog != null) {
+					SwingUtilities.updateComponentTreeUI(recordStoreManagerDialog);
+				}
+				if (scaledDisplayFrame != null) {
+					SwingUtilities.updateComponentTreeUI(scaledDisplayFrame);
+				}
+				// Save theme preference
+				Config.setCurrentTheme("light");
+			} catch (Exception ex) {
+				Logger.error("Failed to set light theme", ex);
+			}
+		}
+	};
+
+	private ActionListener menuDarkThemeListener = new ActionListener() {
+		public void actionPerformed(ActionEvent e) {
+			try {
+				UIManager.setLookAndFeel(new FlatDarkLaf());
+				SwingUtilities.updateComponentTreeUI(Main.this);
+				// Update child windows if they exist
+				if (logConsoleDialog != null) {
+					SwingUtilities.updateComponentTreeUI(logConsoleDialog);
+				}
+				if (recordStoreManagerDialog != null) {
+					SwingUtilities.updateComponentTreeUI(recordStoreManagerDialog);
+				}
+				if (scaledDisplayFrame != null) {
+					SwingUtilities.updateComponentTreeUI(scaledDisplayFrame);
+				}
+				// Save theme preference
+				Config.setCurrentTheme("dark");
+			} catch (Exception ex) {
+				Logger.error("Failed to set dark theme", ex);
+			}
+		}
+	};
+
 	private ActionListener menuExitListener = new ActionListener() {
 		public void actionPerformed(ActionEvent e) {
 			synchronized (Main.this) {
@@ -837,6 +893,30 @@ public class Main extends JFrame {
 		menuLogConsole.addActionListener(menuLogConsoleListener);
 		menuOptions.add(menuLogConsole);
 
+		// Theme selection menu
+		JMenu menuTheme = new JMenu("Theme");
+		themeButtonGroup = new ButtonGroup();
+		
+		menuLightTheme = new JRadioButtonMenuItem("Light");
+		menuLightTheme.addActionListener(menuLightThemeListener);
+		themeButtonGroup.add(menuLightTheme);
+		menuTheme.add(menuLightTheme);
+		
+		menuDarkTheme = new JRadioButtonMenuItem("Dark");
+		menuDarkTheme.addActionListener(menuDarkThemeListener);
+		themeButtonGroup.add(menuDarkTheme);
+		menuTheme.add(menuDarkTheme);
+		
+		// Set the current theme selection based on saved preference
+		String currentTheme = Config.getCurrentTheme();
+		if ("dark".equals(currentTheme)) {
+			menuDarkTheme.setSelected(true);
+		} else {
+			menuLightTheme.setSelected(true);
+		}
+		
+		menuOptions.add(menuTheme);
+
 		menuOptions.addSeparator();
 		JCheckBoxMenuItem menuShowMouseCoordinates = new JCheckBoxMenuItem("Mouse coordinates");
 		menuShowMouseCoordinates.setState(false);
@@ -1028,9 +1108,21 @@ public class Main extends JFrame {
 		}
 
 		try {
-			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+			// Load saved theme or use light theme as default
+			String savedTheme = Config.getCurrentTheme();
+			if ("dark".equals(savedTheme)) {
+				UIManager.setLookAndFeel(new FlatDarkLaf());
+			} else {
+				UIManager.setLookAndFeel(new FlatLightLaf());
+			}
 		} catch (Exception ex) {
 			Logger.error(ex);
+			// Fallback to system look and feel if FlatLaf fails
+			try {
+				UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+			} catch (Exception ex2) {
+				Logger.error(ex2);
+			}
 		}
 
 		final Main app = new Main();
