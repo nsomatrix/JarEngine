@@ -78,19 +78,18 @@ public class Launcher extends MIDlet implements CommandListener {
 	}
 
 	public void startApp() {
-		menuList = new List("Launcher", List.IMPLICIT);
-		menuList.addCommand(CMD_LAUNCH);
-		menuList.setCommandListener(this);
-
+		String theme = common.getCurrentTheme();
 		if (midletEntries.size() == 0) {
-			menuList.append(NOMIDLETS, null);
+			Display.getDisplay(this).setCurrent(new LauncherCanvas(this, "Welcome to MyApp! No MIDlets found.", theme));
 		} else {
+			menuList = new List("Launcher", List.IMPLICIT);
+			menuList.addCommand(CMD_LAUNCH);
+			menuList.setCommandListener(this);
 			for (int i = 0; i < midletEntries.size(); i++) {
 				menuList.append(((MIDletEntry) midletEntries.elementAt(i)).getName(), null);
 			}
+			Display.getDisplay(this).setCurrent(menuList);
 		}
-
-		Display.getDisplay(this).setCurrent(menuList);
 	}
 
 	public void commandAction(Command c, Displayable d) {

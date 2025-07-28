@@ -127,6 +127,8 @@ public class Common implements MicroEmulator, CommonInterface {
     private String jadURL = null;
     
     private String midletSuiteName = null;
+    
+    private String currentTheme = "light"; // Default theme
 
     private Object destroyNotify = new Object();
 
@@ -449,9 +451,7 @@ public class Common implements MicroEmulator, CommonInterface {
     }
 
     protected void startLauncher(MIDletContext midletContext) {
-        if ((midletContext != null) && (midletContext.isLauncher())) {
-            return;
-        }
+        // Always destroy existing launcher context to force recreation
         if (midletContext != null) {
             try {
                 MIDletAccess previousMidletAccess = midletContext.getMIDletAccess();
@@ -468,6 +468,8 @@ public class Common implements MicroEmulator, CommonInterface {
         }
 
         try {
+            // Force recreation of launcher by setting to null first
+            launcher = null;
             launcher = new Launcher(this);
             MIDletBridge.getMIDletAccess(launcher).startApp();
         } catch (Throwable e) {
@@ -653,6 +655,14 @@ public class Common implements MicroEmulator, CommonInterface {
     
     public void setSuiteName(String name) {
     	midletSuiteName = name;
+    }
+    
+    public String getCurrentTheme() {
+        return currentTheme;
+    }
+    
+    public void setCurrentTheme(String theme) {
+        this.currentTheme = theme;
     }
 
     public Device getDevice() {

@@ -127,6 +127,7 @@ import org.je.log.Logger;
 import org.je.log.QueueAppender;
 import org.je.util.JadMidletEntry;
 
+
 public class Main extends JFrame {
 
 	private static final long serialVersionUID = 1L;
@@ -530,8 +531,20 @@ public class Main extends JFrame {
 				if (scaledDisplayFrame != null) {
 					SwingUtilities.updateComponentTreeUI(scaledDisplayFrame);
 				}
+				if (resizeDeviceDisplayDialog != null) {
+					SwingUtilities.updateComponentTreeUI(resizeDeviceDisplayDialog);
+				}
 				// Save theme preference
 				Config.setCurrentTheme("light");
+				common.setCurrentTheme("light");
+				// Update device display colors
+				if (DeviceFactory.getDevice() != null && DeviceFactory.getDevice().getDeviceDisplay() instanceof org.je.device.j2se.J2SEDeviceDisplay) {
+					((org.je.device.j2se.J2SEDeviceDisplay) DeviceFactory.getDevice().getDeviceDisplay()).updateThemeColors("light");
+				}
+				// Restart launcher if we're in launcher mode (to update LauncherCanvas theme)
+				if (MIDletBridge.getMIDletContext() != null && MIDletBridge.getMIDletContext().isLauncher()) {
+					common.startLauncher(MIDletBridge.getMIDletContext());
+				}
 			} catch (Exception ex) {
 				Logger.error("Failed to set light theme", ex);
 			}
@@ -553,8 +566,20 @@ public class Main extends JFrame {
 				if (scaledDisplayFrame != null) {
 					SwingUtilities.updateComponentTreeUI(scaledDisplayFrame);
 				}
+				if (resizeDeviceDisplayDialog != null) {
+					SwingUtilities.updateComponentTreeUI(resizeDeviceDisplayDialog);
+				}
 				// Save theme preference
 				Config.setCurrentTheme("dark");
+				common.setCurrentTheme("dark");
+				// Update device display colors
+				if (DeviceFactory.getDevice() != null && DeviceFactory.getDevice().getDeviceDisplay() instanceof org.je.device.j2se.J2SEDeviceDisplay) {
+					((org.je.device.j2se.J2SEDeviceDisplay) DeviceFactory.getDevice().getDeviceDisplay()).updateThemeColors("dark");
+				}
+				// Restart launcher if we're in launcher mode (to update LauncherCanvas theme)
+				if (MIDletBridge.getMIDletContext() != null && MIDletBridge.getMIDletContext().isLauncher()) {
+					common.startLauncher(MIDletBridge.getMIDletContext());
+				}
 			} catch (Exception ex) {
 				Logger.error("Failed to set dark theme", ex);
 			}

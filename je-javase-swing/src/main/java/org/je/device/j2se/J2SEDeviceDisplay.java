@@ -150,7 +150,26 @@ public class J2SEDeviceDisplay implements DeviceDisplayImpl
 	public void paintControls(Graphics g) {
 		Device device = DeviceFactory.getDevice();
 
-		g.setColor(backgroundColor);
+		// Get theme colors for UI elements only
+		java.awt.Color uiBackgroundColor;
+		java.awt.Color uiForegroundColor;
+		try {
+			// Use proper FlatLaf theme colors for consistency
+			if ("dark".equals(currentTheme)) {
+				uiBackgroundColor = new java.awt.Color(0x222222); // Same as LauncherCanvas dark theme
+				uiForegroundColor = new java.awt.Color(0xFFFFFF); // White text
+			} else {
+				// Use proper FlatLaf light theme colors
+				uiBackgroundColor = new java.awt.Color(0xFFFFFF); // Pure white for light theme
+				uiForegroundColor = new java.awt.Color(0x000000); // Black text for light theme
+			}
+		} catch (Exception e) {
+			uiBackgroundColor = backgroundColor; // fallback to original
+			uiForegroundColor = foregroundColor; // fallback to original
+		}
+
+		// Use theme colors for UI areas only
+		g.setColor(uiBackgroundColor);
 		g.fillRect(0, 0, displayRectangle.width, displayPaintable.y);
 		g.fillRect(0, displayPaintable.y, displayPaintable.x, displayPaintable.height);
 		g.fillRect(displayPaintable.x + displayPaintable.width, displayPaintable.y, displayRectangle.width
@@ -158,7 +177,7 @@ public class J2SEDeviceDisplay implements DeviceDisplayImpl
 		g.fillRect(0, displayPaintable.y + displayPaintable.height, displayRectangle.width, displayRectangle.height
 				- displayPaintable.y - displayPaintable.height);
 
-		g.setColor(foregroundColor);
+		g.setColor(uiForegroundColor);
 		for (Enumeration s = device.getSoftButtons().elements(); s.hasMoreElements();) {
 			((J2SESoftButton) s.nextElement()).paint(g);
 		}
@@ -191,7 +210,7 @@ public class J2SEDeviceDisplay implements DeviceDisplayImpl
 		}
 		
 		Graphics g = graphicsSurface.getGraphics();
-		g.setColor(foregroundColor);
+		// Don't set color for MIDlet display area - let MIDlet control its own colors
 		java.awt.Shape oldclip = g.getClip();
 		if (!(current instanceof Canvas) || ((Canvas) current).getWidth() != displayRectangle.width
 				|| ((Canvas) current).getHeight() != displayRectangle.height) {
@@ -543,6 +562,28 @@ public class J2SEDeviceDisplay implements DeviceDisplayImpl
 	 */
 	public void setModeAbcUpperImage(PositionedImage object) {
 		modeAbcUpperImage = object;
+	}
+
+	private String currentTheme = "light"; // Track current theme
+
+	/**
+	 * Get the current theme
+	 */
+	public String getCurrentTheme() {
+		return currentTheme;
+	}
+
+	/**
+	 * Update the device display colors based on the current theme
+	 * Note: This only affects UI elements, not MIDlet display
+	 */
+	public void updateThemeColors(String theme) {
+		this.currentTheme = theme;
+		
+		// Force repaint of the entire device display
+		if (context != null && context.getDisplayComponent() != null) {
+			context.getDisplayComponent().repaintRequest(0, 0, getFullWidth(), getFullHeight());
+		}
 	}
 
 	public Image createSystemImage(URL url) throws IOException {

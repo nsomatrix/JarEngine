@@ -176,10 +176,29 @@ public class J2SESoftButton extends J2SEButton implements SoftButton {
 			int xoffset = 0;
 			Device device = DeviceFactory.getDevice();
 			J2SEDeviceDisplay deviceDisplay = (J2SEDeviceDisplay) device.getDeviceDisplay();
+			
+			// Get themed colors for soft buttons
+			java.awt.Color buttonBgColor;
+			java.awt.Color buttonFgColor;
+			try {
+				// Use proper FlatLaf theme colors for consistency
+				if ("dark".equals(deviceDisplay.getCurrentTheme())) {
+					buttonBgColor = new java.awt.Color(0x222222); // Same as LauncherCanvas dark theme
+					buttonFgColor = new java.awt.Color(0xFFFFFF); // White text
+				} else {
+					// Use proper FlatLaf light theme colors
+					buttonBgColor = new java.awt.Color(0xFFFFFF); // Pure white for light theme
+					buttonFgColor = new java.awt.Color(0x000000); // Black text for light theme
+				}
+			} catch (Exception e) {
+				buttonBgColor = deviceDisplay.backgroundColor;
+				buttonFgColor = deviceDisplay.foregroundColor;
+			}
+			
 			if (pressed) {
-				g.setColor(deviceDisplay.foregroundColor);
+				g.setColor(buttonFgColor);
 			} else {
-				g.setColor(deviceDisplay.backgroundColor);
+				g.setColor(buttonBgColor);
 			}
 			g.fillRect(paintable.x, paintable.y, paintable.width, paintable.height);
 			synchronized (this) {
@@ -194,9 +213,9 @@ public class J2SESoftButton extends J2SEButton implements SoftButton {
 						xoffset = paintable.width - metrics.stringWidth(command.getLabel()) - 1;
 					}
 					if (pressed) {
-						g.setColor(deviceDisplay.backgroundColor);
+						g.setColor(buttonBgColor);
 					} else {
-						g.setColor(deviceDisplay.foregroundColor);
+						g.setColor(buttonFgColor);
 					}
 					g.drawString(command.getLabel(), paintable.x + xoffset, paintable.y + paintable.height
 							- metrics.getDescent());
