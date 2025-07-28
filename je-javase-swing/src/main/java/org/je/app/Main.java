@@ -543,6 +543,12 @@ public class Main extends JFrame {
 				}
 				// Restart launcher if we're in launcher mode (to update LauncherCanvas theme)
 				if (MIDletBridge.getMIDletContext() != null && MIDletBridge.getMIDletContext().isLauncher()) {
+					// Add small delay to prevent rapid switching
+					try {
+						Thread.sleep(100);
+					} catch (InterruptedException ie) {
+						// Ignore
+					}
 					common.startLauncher(MIDletBridge.getMIDletContext());
 				}
 			} catch (Exception ex) {
@@ -573,11 +579,17 @@ public class Main extends JFrame {
 				Config.setCurrentTheme("dark");
 				common.setCurrentTheme("dark");
 				// Update device display colors
-				if (DeviceFactory.getDevice() != null && DeviceFactory.getDevice().getDeviceDisplay() instanceof org.je.device.j2se.J2SEDeviceDisplay) {
+				if (DeviceFactory.getDevice().getDeviceDisplay() instanceof org.je.device.j2se.J2SEDeviceDisplay) {
 					((org.je.device.j2se.J2SEDeviceDisplay) DeviceFactory.getDevice().getDeviceDisplay()).updateThemeColors("dark");
 				}
 				// Restart launcher if we're in launcher mode (to update LauncherCanvas theme)
 				if (MIDletBridge.getMIDletContext() != null && MIDletBridge.getMIDletContext().isLauncher()) {
+					// Add small delay to prevent rapid switching
+					try {
+						Thread.sleep(100);
+					} catch (InterruptedException ie) {
+						// Ignore
+					}
 					common.startLauncher(MIDletBridge.getMIDletContext());
 				}
 			} catch (Exception ex) {

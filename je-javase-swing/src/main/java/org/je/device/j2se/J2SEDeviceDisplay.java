@@ -578,11 +578,14 @@ public class J2SEDeviceDisplay implements DeviceDisplayImpl
 	 * Note: This only affects UI elements, not MIDlet display
 	 */
 	public void updateThemeColors(String theme) {
-		this.currentTheme = theme;
-		
-		// Force repaint of the entire device display
-		if (context != null && context.getDisplayComponent() != null) {
-			context.getDisplayComponent().repaintRequest(0, 0, getFullWidth(), getFullHeight());
+		// Only update if theme actually changed
+		if (!theme.equals(this.currentTheme)) {
+			this.currentTheme = theme;
+			
+			// Force repaint of the entire device display
+			if (context != null && context.getDisplayComponent() != null) {
+				context.getDisplayComponent().repaintRequest(0, 0, getFullWidth(), getFullHeight());
+			}
 		}
 	}
 

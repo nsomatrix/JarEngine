@@ -40,10 +40,25 @@ public class LauncherCanvas extends Canvas {
             g.drawImage(logo, imgX, imgY, Graphics.TOP | Graphics.LEFT);
         }
 
-        // Draw message centered below logo
-        g.setColor(textColor); // themed text
-        g.setFont(Font.getDefaultFont());
-        int msgY = h / 2;
-        g.drawString(message, w / 2, msgY, Graphics.TOP | Graphics.HCENTER);
+        // Draw main title
+        g.setColor(textColor);
+        g.setFont(Font.getFont(Font.FACE_PROPORTIONAL, Font.STYLE_BOLD, Font.SIZE_LARGE));
+        String title = "JarEngine";
+        int titleX = w / 2;
+        int titleY = h / 2;
+        g.drawString(title, titleX, titleY, Graphics.TOP | Graphics.HCENTER);
+
+        // Draw helpful instructions
+        g.setColor(0x666666); // Subtle gray for secondary text
+        if ("dark".equals(theme)) {
+            g.setColor(0xBBBBBB); // Light gray for dark mode
+        }
+        g.setFont(Font.getFont(Font.FACE_PROPORTIONAL, Font.STYLE_PLAIN, Font.SIZE_SMALL));
+        String instruction1 = "Drop a .jar file here";
+        String instruction2 = "or use File → Open";
+        
+        int instructionY = h * 3 / 4;
+        g.drawString(instruction1, w / 2, instructionY, Graphics.TOP | Graphics.HCENTER);
+        g.drawString(instruction2, w / 2, instructionY + 20, Graphics.TOP | Graphics.HCENTER);
     }
 } 
