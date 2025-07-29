@@ -642,7 +642,13 @@ public class Common implements MicroEmulator, CommonInterface {
                 Class midletClass = midletClassLoader.loadClass(jadEntry.getClassName());
                 Launcher.addMIDletEntry(new MIDletEntry(jadEntry.getName(), midletClass));
             }
-            startLauncher(MIDletBridge.getMIDletContext());
+            // Auto-start first MIDlet if available
+            if (Launcher.midletEntries != null && Launcher.midletEntries.size() > 0) {
+                MIDletEntry entry = (MIDletEntry) Launcher.midletEntries.elementAt(0);
+                initMIDlet(true, entry);
+            } else {
+                startLauncher(MIDletBridge.getMIDletContext());
+            }
             setStatusBar("");
         } finally {
             setResponseInterface(true);
@@ -1040,16 +1046,16 @@ public class Common implements MicroEmulator, CommonInterface {
             }
 
             if (midletClass == null) {
-            	if (launcher == null) {
-            		try {
-            			launcher = new Launcher(this);
-            		} finally {
-            			MIDletBridge.setThreadMIDletContext(null);
-            		}
-            	}
+                if (launcher == null) {
+                    try {
+                        launcher = new Launcher(this);
+                    } finally {
+                        MIDletBridge.setThreadMIDletContext(null);
+                    }
+                }
                 MIDletEntry entry = launcher.getSelectedMidletEntry();
                 if (entry != null) {
-                	midlet = initMIDlet(startMidlet, entry);
+                    midlet = initMIDlet(startMidlet, entry);
                 }
             } else {
                 midlet = loadMidlet(midletClass, MIDletBridge.getMIDletAccess());

@@ -46,7 +46,7 @@ public class Launcher extends MIDlet implements CommandListener {
 
 	protected List menuList;
 
-	protected static Vector midletEntries = new Vector();
+	public static Vector midletEntries = new Vector();
 
 	public Launcher(CommonInterface common) {
 		this.common = common;
