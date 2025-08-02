@@ -519,7 +519,18 @@ public class Main extends JFrame {
 	private ActionListener menuLightThemeListener = new ActionListener() {
 		public void actionPerformed(ActionEvent e) {
 			try {
-				UIManager.setLookAndFeel(new FlatLightLaf());
+				// Check if running on Windows
+				String osName = System.getProperty("os.name").toLowerCase();
+				if (osName.contains("windows")) {
+					// On Windows, use FlatLaf with specific settings to avoid menu bar integration
+					UIManager.setLookAndFeel(new FlatLightLaf());
+					// Set specific FlatLaf properties to prevent menu bar integration on Windows
+					UIManager.put("TitlePane.useWindowDecorations", false);
+					UIManager.put("TitlePane.menuBarEmbedded", false);
+				} else {
+					// On other platforms, use FlatLaf
+					UIManager.setLookAndFeel(new FlatLightLaf());
+				}
 				SwingUtilities.updateComponentTreeUI(Main.this);
 				// Update child windows if they exist
 				if (logConsoleDialog != null) {
@@ -560,7 +571,18 @@ public class Main extends JFrame {
 	private ActionListener menuDarkThemeListener = new ActionListener() {
 		public void actionPerformed(ActionEvent e) {
 			try {
-				UIManager.setLookAndFeel(new FlatDarkLaf());
+				// Check if running on Windows
+				String osName = System.getProperty("os.name").toLowerCase();
+				if (osName.contains("windows")) {
+					// On Windows, use FlatLaf with specific settings to avoid menu bar integration
+					UIManager.setLookAndFeel(new FlatDarkLaf());
+					// Set specific FlatLaf properties to prevent menu bar integration on Windows
+					UIManager.put("TitlePane.useWindowDecorations", false);
+					UIManager.put("TitlePane.menuBarEmbedded", false);
+				} else {
+					// On other platforms, use FlatLaf
+					UIManager.setLookAndFeel(new FlatDarkLaf());
+				}
 				SwingUtilities.updateComponentTreeUI(Main.this);
 				// Update child windows if they exist
 				if (logConsoleDialog != null) {
@@ -1145,12 +1167,27 @@ public class Main extends JFrame {
 		}
 
 		try {
-			// Load saved theme or use light theme as default
-			String savedTheme = Config.getCurrentTheme();
-			if ("dark".equals(savedTheme)) {
-				UIManager.setLookAndFeel(new FlatDarkLaf());
+			// Check if running on Windows
+			String osName = System.getProperty("os.name").toLowerCase();
+			if (osName.contains("windows")) {
+				// On Windows, use FlatLaf but with specific settings to avoid menu bar integration
+				String savedTheme = Config.getCurrentTheme();
+				if ("dark".equals(savedTheme)) {
+					UIManager.setLookAndFeel(new FlatDarkLaf());
+				} else {
+					UIManager.setLookAndFeel(new FlatLightLaf());
+				}
+				// Set specific FlatLaf properties to prevent menu bar integration on Windows
+				UIManager.put("TitlePane.useWindowDecorations", false);
+				UIManager.put("TitlePane.menuBarEmbedded", false);
 			} else {
-				UIManager.setLookAndFeel(new FlatLightLaf());
+				// On other platforms, use FlatLaf themes normally
+				String savedTheme = Config.getCurrentTheme();
+				if ("dark".equals(savedTheme)) {
+					UIManager.setLookAndFeel(new FlatDarkLaf());
+				} else {
+					UIManager.setLookAndFeel(new FlatLightLaf());
+				}
 			}
 		} catch (Exception ex) {
 			Logger.error(ex);
