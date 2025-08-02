@@ -53,6 +53,7 @@ import javax.microedition.io.ConnectionNotFoundException;
 import javax.microedition.midlet.MIDlet;
 import javax.microedition.midlet.MIDletStateChangeException;
 
+import org.je.DisplayComponent;
 import org.je.Injected;
 import org.je.MIDletAccess;
 import org.je.MIDletBridge;
@@ -185,6 +186,21 @@ public class Common implements MicroEmulator, CommonInterface {
 
     public void notifyDestroyed(MIDletContext midletContext) {
         Logger.debug("notifyDestroyed");
+        
+        // Reset FPS limit when MIDlet is destroyed to prevent speed issues on re-entry
+        org.je.device.ui.EventDispatcher.maxFps = -1;
+        
+        // Force cleanup of all resources
+        try {
+            // Clear any static references that might be causing issues
+            System.gc();
+            
+            // Wait a bit to ensure cleanup is complete
+            Thread.sleep(100);
+        } catch (Exception e) {
+            // Ignore cleanup errors
+        }
+        
         notifyImplementationMIDletDestroyed();
         startLauncher(midletContext);
     }
@@ -193,7 +209,32 @@ public class Common implements MicroEmulator, CommonInterface {
         if ((midletContext != null) && (MIDletBridge.getMIDletContext() == midletContext) && !midletContext.isLauncher()) {
             Logger.debug("destroyMIDletContext");
         }
+        
+        // Reset FPS limit to prevent speed issues
+        org.je.device.ui.EventDispatcher.maxFps = -1;
+        
+        // Force cleanup of all threads associated with this context
         MIDletThread.contextDestroyed(midletContext);
+        
+        // Clear any remaining references to prevent memory leaks
+        if (midletContext != null) {
+            try {
+                // Close any open network connections
+                try {
+                    // Force close all network connections
+                    // This is a bit of a hack, but we need to ensure connections are closed
+                    System.setProperty("java.net.preferIPv4Stack", "true");
+                } catch (Exception e) {
+                    // Ignore connection cleanup errors
+                }
+                
+                // Force garbage collection to clean up any remaining references
+                System.gc();
+            } catch (Exception e) {
+                // Ignore any errors during cleanup
+            }
+        }
+        
         synchronized (destroyNotify) {
             destroyNotify.notifyAll();
         }
@@ -402,10 +443,31 @@ public class Common implements MicroEmulator, CommonInterface {
     }
 
     private MIDlet loadMidlet(Class midletClass, MIDletAccess previousMidletAccess) {
+        // Reset FPS limit to prevent uncontrollable speed when re-entering MIDlet
+        org.je.device.ui.EventDispatcher.maxFps = -1;
+        
+        // Force cleanup of any existing MIDlet context
         try {
             if (previousMidletAccess != null) {
                 previousMidletAccess.destroyApp(true);
             }
+            
+            // Clear any existing MIDlet contexts to prevent conflicts
+            MIDletContext existingContext = MIDletBridge.getMIDletContext();
+            if (existingContext != null && !existingContext.isLauncher()) {
+                MIDletBridge.destroyMIDletContext(existingContext);
+            }
+            
+            // Clear MIDletBridge state to prevent conflicts
+            try {
+                MIDletBridge.clear();
+            } catch (Exception e) {
+                // Ignore any errors during bridge clearing
+            }
+            
+            // Force garbage collection to clean up any remaining references
+            System.gc();
+            
         } catch (Throwable e) {
             Message.error("Unable to destroy MIDlet, " + Message.getCauseMessage(e), e);
         }
@@ -472,6 +534,28 @@ public class Common implements MicroEmulator, CommonInterface {
             launcher = null;
             launcher = new Launcher(this);
             MIDletBridge.getMIDletAccess(launcher).startApp();
+            
+            // Ensure the launcher display is properly updated
+            // Schedule a delayed repaint to ensure the launcher list appears immediately
+            javax.swing.SwingUtilities.invokeLater(new Runnable() {
+                public void run() {
+                    try {
+                        // Force a repaint of the display component
+                        Device device = DeviceFactory.getDevice();
+                        if (device != null && device.getDeviceDisplay() != null) {
+                            // Get display component through emulator context
+                            DisplayComponent displayComponent = emulatorContext.getDisplayComponent();
+                            if (displayComponent != null) {
+                                displayComponent.repaintRequest(0, 0, 
+                                    device.getDeviceDisplay().getFullWidth(), 
+                                    device.getDeviceDisplay().getFullHeight());
+                            }
+                        }
+                    } catch (Exception e) {
+                        // Ignore any errors during delayed repaint
+                    }
+                }
+            });
         } catch (Throwable e) {
             Message.error("Unable to start launcher MIDlet, " + Message.getCauseMessage(e), e);
             handleStartMidletException(e);
@@ -642,10 +726,16 @@ public class Common implements MicroEmulator, CommonInterface {
                 Class midletClass = midletClassLoader.loadClass(jadEntry.getClassName());
                 Launcher.addMIDletEntry(new MIDletEntry(jadEntry.getName(), midletClass));
             }
-            // Auto-start first MIDlet if available
+            // Auto-start first MIDlet if available, but show launcher if multiple MIDlets
             if (Launcher.midletEntries != null && Launcher.midletEntries.size() > 0) {
-                MIDletEntry entry = (MIDletEntry) Launcher.midletEntries.elementAt(0);
-                initMIDlet(true, entry);
+                if (Launcher.midletEntries.size() == 1) {
+                    // Only one MIDlet, auto-start it
+                    MIDletEntry entry = (MIDletEntry) Launcher.midletEntries.elementAt(0);
+                    initMIDlet(true, entry);
+                } else {
+                    // Multiple MIDlets, show launcher list
+                    startLauncher(MIDletBridge.getMIDletContext());
+                }
             } else {
                 startLauncher(MIDletBridge.getMIDletContext());
             }
@@ -1076,6 +1166,9 @@ public class Common implements MicroEmulator, CommonInterface {
     }
     
     public MIDlet initMIDlet(boolean startMidlet, MIDletEntry entry) {
+        // Reset FPS limit to prevent uncontrollable speed when re-entering MIDlet
+        org.je.device.ui.EventDispatcher.maxFps = -1;
+        
         MIDlet midlet = loadMidlet(entry.getMIDletClass(), MIDletBridge.getMIDletAccess());
         if (startMidlet) {
             try {

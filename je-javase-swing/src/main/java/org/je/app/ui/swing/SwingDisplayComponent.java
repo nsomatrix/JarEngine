@@ -29,6 +29,8 @@ package org.je.app.ui.swing;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Point;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -393,7 +395,7 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 
 			synchronized (graphicsSurface) {
 				try {
-					// Only paint displayable if we have a valid MIDlet context
+					// Try to paint displayable if we have a valid MIDlet context
 					MIDletAccess ma = MIDletBridge.getMIDletAccess();
 					if (ma != null) {
 						DisplayAccess da = ma.getDisplayAccess();
@@ -405,9 +407,32 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 						}
 					}
 					
-					// Always paint controls for the launcher
+					// Always paint controls for the launcher, even if no displayable is set yet
 					if (!deviceDisplay.isFullScreenMode()) {
 						deviceDisplay.paintControls(graphicsSurface.getGraphics());
+					}
+					
+					// If no displayable is painted but we have a MIDlet context, 
+					// schedule a delayed repaint to ensure the launcher list appears
+					if (ma != null && ma.getDisplayAccess() != null && ma.getDisplayAccess().getCurrent() == null) {
+						javax.swing.SwingUtilities.invokeLater(new Runnable() {
+							public void run() {
+								repaintRequest(x, y, width, height);
+							}
+						});
+					}
+					
+					// Additional check: if we have a launcher context but no current displayable,
+					// force a full repaint after a short delay
+					if (ma != null && ma.midlet instanceof org.je.app.launcher.Launcher) {
+						javax.swing.Timer timer = new javax.swing.Timer(100, new ActionListener() {
+							public void actionPerformed(ActionEvent e) {
+								((javax.swing.Timer)e.getSource()).stop();
+								repaintRequest(0, 0, deviceDisplay.getFullWidth(), deviceDisplay.getFullHeight());
+							}
+						});
+						timer.setRepeats(false);
+						timer.start();
 					}
 				} catch (Exception e) {
 					// If painting fails, reinitialize graphics surface

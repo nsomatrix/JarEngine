@@ -111,6 +111,22 @@ public class EventDispatcher implements Runnable {
 			notify();
 		}
 	}
+	
+	/**
+	 * Reset the EventDispatcher state to prevent timing issues when re-entering MIDlets
+	 */
+	public void reset() {
+		synchronized (this) {
+			// Reset timing-related fields
+			lastPaintEventTime = 0;
+			
+			// Clear any pending events
+			head = null;
+			tail = null;
+			scheduledPaintEvent = null;
+			scheduledPointerDraggedEvent = null;
+		}
+	}
 
 	public void put(Event event) {
 		synchronized (this) {

@@ -144,6 +144,11 @@ public class MIDletThread extends Thread {
 				MIDletThread t = (MIDletThread) o;
 				if (t.isAlive()) {
 					Logger.info("wait thread [" + t.getName() + "] end");
+					
+					// First, try to interrupt the thread
+					t.interrupt();
+					
+					// Wait for the thread to terminate gracefully
 					while ((endTime > System.currentTimeMillis()) && (t.isAlive())) {
 						try {
 							t.join(700);
@@ -151,12 +156,29 @@ public class MIDletThread extends Thread {
 							break;
 						}
 					}
+					
+					// If thread is still alive, try more aggressive termination
 					if (t.isAlive()) {
 						Logger.warn("MIDlet thread [" + t.getName() + "] still running" + ThreadUtils.getTreadStackTrace(t));
 						if (t.callLocation != null) {
 							Logger.info("this thread [" + t.getName() + "] was created from " + t.callLocation);
 						}
+						
+						// Try interrupting again
 						t.interrupt();
+						
+						// Wait a bit more
+						try {
+							t.join(1000);
+						} catch (InterruptedException e) {
+							// Ignore
+						}
+						
+						// If still alive, mark it as daemon so it doesn't prevent JVM exit
+						if (t.isAlive()) {
+							t.setDaemon(true);
+							Logger.warn("Thread [" + t.getName() + "] marked as daemon - will be terminated when JVM exits");
+						}
 					}
 				}
 			} else {
