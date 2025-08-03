@@ -123,3 +123,6 @@ logs/
 # Test reports
 test-results/
 reports/
+
+# Temporary directory
+tmp/
