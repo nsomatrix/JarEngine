@@ -68,6 +68,7 @@ import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
+import javax.swing.Box;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
@@ -909,7 +910,13 @@ public class Main extends JFrame {
 
 		JMenuBar menuBar = new JMenuBar();
 
-		JMenu menuFile = new JMenu("File");
+		JMenu menuFile = new JMenu("Load");
+		try {
+			ImageIcon loadIcon = new ImageIcon(Main.class.getResource("/org/je/load.png"));
+			menuFile.setIcon(loadIcon);
+		} catch (Exception e) {
+			System.err.println("Warning: Could not load Load menu icon: " + e.getMessage());
+		}
 
 		menuOpenMIDletFile = new JMenuItem("Open MIDlet File...");
 		menuOpenMIDletFile.addActionListener(menuOpenMIDletFileListener);
@@ -955,7 +962,13 @@ public class Main extends JFrame {
 		menuItem.addActionListener(menuExitListener);
 		menuFile.add(menuItem);
 
-		JMenu menuOptions = new JMenu("Options");
+		JMenu menuOptions = new JMenu("Tune");
+		try {
+			ImageIcon tuneIcon = new ImageIcon(Main.class.getResource("/org/je/tune.png"));
+			menuOptions.setIcon(tuneIcon);
+		} catch (Exception e) {
+			System.err.println("Warning: Could not load Tune menu icon: " + e.getMessage());
+		}
 
 
 
@@ -1027,14 +1040,36 @@ public class Main extends JFrame {
 		});
 		menuOptions.add(menuShowMouseCoordinates);
 
-		JMenu menuHelp = new JMenu("Help");
+		JMenu menuTools = new JMenu("Tools");
+		try {
+			ImageIcon toolsIcon = new ImageIcon(Main.class.getResource("/org/je/tools.png"));
+			menuTools.setIcon(toolsIcon);
+		} catch (Exception e) {
+			System.err.println("Warning: Could not load Tools menu icon: " + e.getMessage());
+		}
+		// Add tools menu items here as needed
+		// Example: JMenuItem menuItem = new JMenuItem("Tool Name");
+		// menuItem.addActionListener(actionListener);
+		// menuTools.add(menuItem);
+
+		JMenu menuHelp = new JMenu("Settings");
+		try {
+			ImageIcon settingsIcon = new ImageIcon(Main.class.getResource("/org/je/settings.png"));
+			menuHelp.setIcon(settingsIcon);
+		} catch (Exception e) {
+			System.err.println("Warning: Could not load Settings menu icon: " + e.getMessage());
+		}
 		JMenuItem menuAbout = new JMenuItem("About");
 		menuAbout.addActionListener(menuAboutListener);
 		menuHelp.add(menuAbout);
 
+		// Center the menu items on the menu bar
+		menuBar.add(Box.createHorizontalGlue()); // Left glue
 		menuBar.add(menuFile);
 		menuBar.add(menuOptions);
+		menuBar.add(menuTools);
 		menuBar.add(menuHelp);
+		menuBar.add(Box.createHorizontalGlue()); // Right glue
 		setJMenuBar(menuBar);
 
 		setTitle("JarEngine");
