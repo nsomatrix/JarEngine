@@ -803,38 +803,78 @@ public class Main extends JFrame {
 			} else {
 				menuSaveForWeb.setEnabled(false);
 			}
+
+
 		}
 	};
 
 	private ComponentListener componentListener = new ComponentAdapter() {
 		Timer timer;
+		javax.swing.Timer restoreTimer;
+		String resizeRestoreStatus = null;
 
 		int count = 0;
 
 		public void componentResized(ComponentEvent e) {
 			count++;
-			DeviceDisplayImpl deviceDisplay = (DeviceDisplayImpl) DeviceFactory.getDevice().getDeviceDisplay();
-			if (deviceDisplay.isResizable()) {
-				// Disable device resizing to allow proper scaling
-				// setDeviceSize(deviceDisplay, devicePanel.getWidth(), devicePanel.getHeight());
-				devicePanel.revalidate();
-				statusBarListener.statusBarChanged("New size: " + deviceDisplay.getFullWidth() + "x"
-						+ deviceDisplay.getFullHeight());
-				synchronized (statusBarListener) {
-					if (timer == null) {
-						timer = new Timer();
+			// Check if we're in launcher mode (Launcher MIDlet) or user MIDlet mode
+			javax.microedition.midlet.MIDlet currentMIDlet = MIDletBridge.getCurrentMIDlet();
+			boolean isLauncherMode = (currentMIDlet == null || currentMIDlet instanceof org.je.app.launcher.Launcher);
+			
+			// Show live dimensions in status bar
+			Dimension size = devicePanel.getSize();
+			if (resizeRestoreStatus == null) {
+				resizeRestoreStatus = statusBar.getText();
+			}
+			statusBar.setText(size.width + "x" + size.height);
+			
+			// Restore original status after 2 seconds of no resize
+			if (restoreTimer != null && restoreTimer.isRunning()) {
+				restoreTimer.stop();
+			}
+			restoreTimer = new javax.swing.Timer(2000, evt -> {
+				if (resizeRestoreStatus != null) {
+					statusBar.setText(resizeRestoreStatus);
+					resizeRestoreStatus = null;
+				}
+				restoreTimer.stop();
+			});
+			restoreTimer.setRepeats(false);
+			restoreTimer.start();
+			
+			if (isLauncherMode) {
+				// In launcher mode: true resize
+				int width = getContentPane().getWidth();
+				int height = getContentPane().getHeight() - statusBar.getHeight();
+				if (width > 0 && height > 0) {
+					DeviceDisplayImpl deviceDisplay = (DeviceDisplayImpl) DeviceFactory.getDevice().getDeviceDisplay();
+					if (deviceDisplay.isResizable()) {
+						setDeviceSize(deviceDisplay, width, height);
+						devicePanel.revalidate();
+						devicePanel.repaint();
+						pack();
 					}
-					timer.schedule(new CountTimerTask(count) {
-						public void run() {
-							if (counter == count) {
-								Config.setDeviceEntryDisplaySize(deviceEntry, new Rectangle(0, 0, devicePanel
-										.getWidth(), devicePanel.getHeight()));
-								statusBarListener.statusBarChanged("");
-								timer.cancel();
-								timer = null;
-							}
+				}
+			} else {
+				// User MIDlet is running: only stretch/fill behavior
+				DeviceDisplayImpl deviceDisplay = (DeviceDisplayImpl) DeviceFactory.getDevice().getDeviceDisplay();
+				if (deviceDisplay.isResizable()) {
+					devicePanel.revalidate();
+					synchronized (statusBarListener) {
+						if (timer == null) {
+							timer = new Timer();
 						}
-					}, 2000);
+						timer.schedule(new CountTimerTask(count) {
+							public void run() {
+								if (counter == count) {
+									Config.setDeviceEntryDisplaySize(deviceEntry, new Rectangle(0, 0, devicePanel
+											.getWidth(), devicePanel.getHeight()));
+									timer.cancel();
+									timer = null;
+								}
+							}
+						}, 2000);
+					}
 				}
 			}
 		}
@@ -1118,6 +1158,8 @@ public class Main extends JFrame {
         deviceDisplay.setDisplayPaintable(new Rectangle(0, 0, width, height - menuh));
         deviceDisplay.setDisplayRectangle(new Rectangle(0, 0, width, height));
         ((SwingDisplayComponent) devicePanel.getDisplayComponent()).init();
+        // Reset the graphics surface so it is recreated at the new size
+        ((SwingDisplayComponent) devicePanel.getDisplayComponent()).resetGraphicsSurface();
         // update display
         MIDletAccess ma = MIDletBridge.getMIDletAccess();
         if (ma == null) {

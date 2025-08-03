@@ -80,9 +80,7 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 
 	private Point pressedPoint = new Point();
 	
-	// Store the original device size to prevent it from changing during window resize
-	private int originalDeviceWidth = -1;
-	private int originalDeviceHeight = -1;
+
 
 	private MouseAdapter mouseListener = new MouseAdapter() {
 
@@ -287,9 +285,6 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 		synchronized (this) {
 			graphicsSurface = null;
 			initialPressedSoftButton = null;
-			// Reset original device size so it can be captured again
-			originalDeviceWidth = -1;
-			originalDeviceHeight = -1;
 		}
 	}
 
@@ -357,28 +352,16 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 		Device device = DeviceFactory.getDevice();
 		if (device != null) {
 			J2SEDeviceDisplay deviceDisplay = (J2SEDeviceDisplay) device.getDeviceDisplay();
-			
-			// Capture the original device size only once
-			if (originalDeviceWidth == -1 || originalDeviceHeight == -1) {
-				// Get the original size from the device's normal image, which doesn't change
-				javax.microedition.lcdui.Image normalImage = device.getNormalImage();
-				if (normalImage != null) {
-					originalDeviceWidth = normalImage.getWidth();
-					originalDeviceHeight = normalImage.getHeight();
-				} else {
-					// Fallback to device display size
-					originalDeviceWidth = device.getDeviceDisplay().getFullWidth();
-					originalDeviceHeight = device.getDeviceDisplay().getFullHeight();
-				}
-			}
+			int deviceWidth = device.getDeviceDisplay().getFullWidth();
+			int deviceHeight = device.getDeviceDisplay().getFullHeight();
 
 			synchronized (this) {
 				// Only recreate graphicsSurface if it doesn't exist or has wrong size
 				boolean needsNewSurface = graphicsSurface == null
-					|| graphicsSurface.getImage().getWidth(null) != originalDeviceWidth
-					|| graphicsSurface.getImage().getHeight(null) != originalDeviceHeight;
+					|| graphicsSurface.getImage().getWidth(null) != deviceWidth
+					|| graphicsSurface.getImage().getHeight(null) != deviceHeight;
 				if (needsNewSurface) {
-					graphicsSurface = new J2SEGraphicsSurface(originalDeviceWidth, originalDeviceHeight, false, 0x000000);
+					graphicsSurface = new J2SEGraphicsSurface(deviceWidth, deviceHeight, false, 0x000000);
 				}
 				synchronized (graphicsSurface) {
 					deviceDisplay.paintDisplayable(graphicsSurface, x, y, width, height);
@@ -454,6 +437,8 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
             graphicsSurface = null;
         }
     }
+
+
 
     // Utility to map component coordinates to device coordinates
     private Point mapToDeviceCoordinates(int x, int y) {
