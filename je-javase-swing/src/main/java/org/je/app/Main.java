@@ -163,6 +163,8 @@ public class Main extends JFrame {
 
 	private JCheckBoxMenuItem menuRecordStoreManager;
 
+	private JMenuItem menuResize;
+
 	private JFrame scaledDisplayFrame;
 	
 	// Theme-related fields
@@ -185,8 +187,6 @@ public class Main extends JFrame {
 	private AnimatedGifEncoder encoder;
 
 	private JLabel statusBar = new JLabel("Status");
-
-	private JButton resizeButton = new JButton("Resize");
 
 	private ResizeDeviceDisplayDialog resizeDeviceDisplayDialog = null;
 
@@ -270,6 +270,8 @@ public class Main extends JFrame {
 	private ActionListener menuCloseMidletListener = new ActionListener() {
 		public void actionPerformed(ActionEvent e) {
 			common.startLauncher(MIDletBridge.getMIDletContext());
+			// Update resize menu state after closing MIDlet
+			updateResizeMenuState();
 		}
 	};
 
@@ -1006,6 +1008,27 @@ public class Main extends JFrame {
 		menuLogConsole.addActionListener(menuLogConsoleListener);
 		menuOptions.add(menuLogConsole);
 
+		menuOptions.addSeparator();
+
+		menuResize = new JMenuItem("Resize Device...");
+		menuResize.setEnabled(true); // Initially enabled, will be disabled when MIDlet is running
+		menuResize.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent ev) {
+				if (resizeDeviceDisplayDialog == null) {
+					resizeDeviceDisplayDialog = new ResizeDeviceDisplayDialog();
+				}
+				DeviceDisplayImpl deviceDisplay = (DeviceDisplayImpl) DeviceFactory.getDevice().getDeviceDisplay();
+				resizeDeviceDisplayDialog.setDeviceDisplaySize(deviceDisplay.getFullWidth(), deviceDisplay
+						.getFullHeight());
+				if (SwingDialogWindow.show(Main.this, "Enter new size...", resizeDeviceDisplayDialog, true)) {
+				    setDeviceSize(deviceDisplay, resizeDeviceDisplayDialog.getDeviceDisplayWidth(), resizeDeviceDisplayDialog.getDeviceDisplayHeight());
+					pack();
+					devicePanel.requestFocus();
+				}
+			}
+		});
+		menuOptions.add(menuResize);
+
 		// Theme selection menu
 		JMenu menuTheme = new JMenu("Theme");
 		themeButtonGroup = new ButtonGroup();
@@ -1102,32 +1125,20 @@ public class Main extends JFrame {
 		this.common.setResponseInterfaceListener(responseInterfaceListener);
 		this.common.loadImplementationsFromConfig();
 
-		this.resizeButton.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent ev) {
-				if (resizeDeviceDisplayDialog == null) {
-					resizeDeviceDisplayDialog = new ResizeDeviceDisplayDialog();
-				}
-				DeviceDisplayImpl deviceDisplay = (DeviceDisplayImpl) DeviceFactory.getDevice().getDeviceDisplay();
-				resizeDeviceDisplayDialog.setDeviceDisplaySize(deviceDisplay.getFullWidth(), deviceDisplay
-						.getFullHeight());
-				if (SwingDialogWindow.show(Main.this, "Enter new size...", resizeDeviceDisplayDialog, true)) {
-				    setDeviceSize(deviceDisplay, resizeDeviceDisplayDialog.getDeviceDisplayWidth(), resizeDeviceDisplayDialog.getDeviceDisplayHeight());
-					pack();
-					devicePanel.requestFocus();
-				}
-			}
-		});
+
 
 		JPanel statusPanel = new JPanel();
 		statusPanel.setLayout(new BorderLayout());
 		statusPanel.add(statusBar, "West");
-		statusPanel.add(this.resizeButton, "East");
 
 		getContentPane().add(statusPanel, "South");
 
 		Message.addListener(new SwingErrorMessageDialogPanel(this));
 
 		devicePanel.setTransferHandler(new DropTransferHandler());
+		
+		// Start timer to monitor MIDlet state
+		midletStateTimer.start();
 	}
 
 	protected Component createContents(Container parent) {
@@ -1168,6 +1179,7 @@ public class Main extends JFrame {
 			}
 			common.setDevice(device);
 			updateDevice();
+			
 			return true;
 		} catch (MalformedURLException e) {
 			Message.error(errorTitle, errorTitle + ", " + Message.getCauseMessage(e), e);
@@ -1211,15 +1223,16 @@ public class Main extends JFrame {
 		devicePanel.init();
 		if (((DeviceDisplayImpl) DeviceFactory.getDevice().getDeviceDisplay()).isResizable()) {
 			setResizable(true);
-			resizeButton.setVisible(true);
 		} else {
 			setResizable(false);
-			resizeButton.setVisible(false);
 		}
 
 		pack();
 
 		devicePanel.requestFocus();
+		
+		// Update resize menu state based on MIDlet status
+		updateResizeMenuState();
 		
 		// Force a repaint after device update
 		javax.swing.SwingUtilities.invokeLater(new Runnable() {
@@ -1228,6 +1241,33 @@ public class Main extends JFrame {
 			}
 		});
 	}
+	
+	/**
+	 * Updates the resize menu item state based on current MIDlet status.
+	 * Resize is enabled when Launcher is running or no MIDlet is running.
+	 * Resize is disabled when a user MIDlet is running.
+	 */
+	private void updateResizeMenuState() {
+		if (menuResize != null) {
+			Object currentMIDlet = MIDletBridge.getCurrentMIDlet();
+			boolean midletRunning = false;
+			
+			if (currentMIDlet != null) {
+				// Allow resizing when Launcher is running, disable for other MIDlets
+				String midletClassName = currentMIDlet.getClass().getName();
+				midletRunning = !midletClassName.contains("Launcher");
+			}
+			
+			menuResize.setEnabled(!midletRunning);
+		}
+	}
+	
+	// Timer to periodically check MIDlet state and update resize menu availability
+	private javax.swing.Timer midletStateTimer = new javax.swing.Timer(500, new ActionListener() {
+		public void actionPerformed(ActionEvent e) {
+			updateResizeMenuState();
+		}
+	});
 
 	public static void main(String args[]) {
 		List params = new ArrayList();
