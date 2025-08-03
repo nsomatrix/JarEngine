@@ -815,7 +815,8 @@ public class Main extends JFrame {
 			count++;
 			DeviceDisplayImpl deviceDisplay = (DeviceDisplayImpl) DeviceFactory.getDevice().getDeviceDisplay();
 			if (deviceDisplay.isResizable()) {
-			    setDeviceSize(deviceDisplay, devicePanel.getWidth(), devicePanel.getHeight());
+				// Disable device resizing to allow proper scaling
+				// setDeviceSize(deviceDisplay, devicePanel.getWidth(), devicePanel.getHeight());
 				devicePanel.revalidate();
 				statusBarListener.statusBarChanged("New size: " + deviceDisplay.getFullWidth() + "x"
 						+ deviceDisplay.getFullHeight());

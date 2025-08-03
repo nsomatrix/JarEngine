@@ -261,6 +261,7 @@ public class Config {
 
 		if (resizableDevice == null) {
 			resizableDevice = new DeviceEntry("Resizable device", null, DeviceImpl.RESIZABLE_LOCATION, true, false);
+			addDeviceEntry(resizableDevice);
 		}
 		resizableDevice.setDefaultDevice(true);
 		result.add(resizableDevice);

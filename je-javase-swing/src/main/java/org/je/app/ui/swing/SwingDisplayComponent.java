@@ -37,6 +37,8 @@ import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.util.Enumeration;
 import java.util.Iterator;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 
 import javax.microedition.lcdui.Command;
 import javax.microedition.lcdui.Displayable;
@@ -77,6 +79,10 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 	private boolean showMouseCoordinates = false;
 
 	private Point pressedPoint = new Point();
+	
+	// Store the original device size to prevent it from changing during window resize
+	private int originalDeviceWidth = -1;
+	private int originalDeviceHeight = -1;
 
 	private MouseAdapter mouseListener = new MouseAdapter() {
 
@@ -111,17 +117,24 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 						SoftButton button = (SoftButton) it.next();
 						if (button.isVisible()) {
 							org.je.device.impl.Rectangle pb = button.getPaintable();
-							if (pb != null && pb.contains(e.getX(), e.getY())) {
-								initialPressedSoftButton = button;
-								button.setPressed(true);
-								repaintRequest(pb.x, pb.y, pb.width, pb.height);
-								break;
+							if (pb != null) {
+								Point mapped = mapToDeviceCoordinates(e.getX(), e.getY());
+								if (pb.contains(mapped.x, mapped.y)) {
+									initialPressedSoftButton = button;
+									button.setPressed(true);
+									repaintRequest(pb.x, pb.y, pb.width, pb.height);
+									break;
+								}
 							}
 						}
 					}
 				}
-				Point p = deviceCoordinate(device.getDeviceDisplay(), e.getPoint());
-				inputMethod.pointerPressed(p.x, p.y);
+				// Map coordinates
+				Point mapped = mapToDeviceCoordinates(e.getX(), e.getY());
+				MIDletAccess ma = MIDletBridge.getMIDletAccess();
+				if (ma != null && ma.getDisplayAccess() != null) {
+					inputMethod.pointerPressed(mapped.x, mapped.y);
+				}
 			}
 		}
 
@@ -140,7 +153,8 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 						org.je.device.impl.Rectangle pb = initialPressedSoftButton.getPaintable();
 						if (pb != null) {
 							repaintRequest(pb.x, pb.y, pb.width, pb.height);
-							if (pb.contains(e.getX(), e.getY())) {
+							Point mapped = mapToDeviceCoordinates(e.getX(), e.getY());
+							if (pb.contains(mapped.x, mapped.y)) {
 								MIDletAccess ma = MIDletBridge.getMIDletAccess();
 								if (ma == null) {
 									return;
@@ -171,8 +185,9 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 					}
 					initialPressedSoftButton = null;
 				}
-				Point p = deviceCoordinate(device.getDeviceDisplay(), e.getPoint());
-				inputMethod.pointerReleased(p.x, p.y);
+				// Map coordinates
+				Point mapped = mapToDeviceCoordinates(e.getX(), e.getY());
+				inputMethod.pointerReleased(mapped.x, mapped.y);
 			}
 		}
 
@@ -198,7 +213,8 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 					if (initialPressedSoftButton != null) {
 						org.je.device.impl.Rectangle pb = initialPressedSoftButton.getPaintable();
 						if (pb != null) {
-							if (pb.contains(e.getX(), e.getY())) {
+							Point mapped = mapToDeviceCoordinates(e.getX(), e.getY());
+							if (pb.contains(mapped.x, mapped.y)) {
 								if (!initialPressedSoftButton.isPressed()) {
 									initialPressedSoftButton.setPressed(true);
 									repaintRequest(pb.x, pb.y, pb.width, pb.height);
@@ -212,8 +228,9 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 						}
 					}
 				}
-				Point p = deviceCoordinate(device.getDeviceDisplay(), e.getPoint());
-				inputMethod.pointerDragged(p.x, p.y);
+				// Map coordinates
+				Point mapped = mapToDeviceCoordinates(e.getX(), e.getY());
+				inputMethod.pointerDragged(mapped.x, mapped.y);
 			}
 		}
 
@@ -256,11 +273,12 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 		addMouseListener(mouseListener);
 		addMouseMotionListener(mouseMotionListener);
 		addMouseWheelListener(mouseWheelListener);
-		
-		// Force immediate initialization of graphics surface
-		javax.swing.SwingUtilities.invokeLater(new Runnable() {
-			public void run() {
-				initializeGraphicsSurface();
+
+		// Request focus after resize/maximize to ensure input works
+		addComponentListener(new ComponentAdapter() {
+			@Override
+			public void componentResized(ComponentEvent e) {
+				requestFocusInWindow();
 			}
 		});
 	}
@@ -269,17 +287,10 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 		synchronized (this) {
 			graphicsSurface = null;
 			initialPressedSoftButton = null;
+			// Reset original device size so it can be captured again
+			originalDeviceWidth = -1;
+			originalDeviceHeight = -1;
 		}
-		
-		// Force initialization of graphics surface
-		initializeGraphicsSurface();
-		
-		// Schedule a repaint after a short delay to ensure everything is ready
-		javax.swing.SwingUtilities.invokeLater(new Runnable() {
-			public void run() {
-				repaint();
-			}
-		});
 	}
 
 	public void addDisplayRepaintListener(DisplayRepaintListener l) {
@@ -295,140 +306,96 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 	public Dimension getPreferredSize() {
 		Device device = DeviceFactory.getDevice();
 		if (device == null) {
-			return new Dimension(0, 0);
+			return new Dimension(300, 300); // Default size when no device is available
 		}
 
+		// Return a reasonable default size, but allow the component to be resized
+		// The actual display will be scaled to fill the available space
 		return new Dimension(device.getDeviceDisplay().getFullWidth(), device.getDeviceDisplay().getFullHeight());
 	}
 
 	protected void paintComponent(Graphics g) {
-		// Always ensure we have a valid graphics surface
-		if (graphicsSurface == null) {
-			initializeGraphicsSurface();
-		}
-		
 		if (graphicsSurface != null && graphicsSurface.getImage() != null) {
 			synchronized (graphicsSurface) {
-				try {
-					g.drawImage(graphicsSurface.getImage(), 0, 0, null);
-				} catch (Exception e) {
-					// If drawing fails, reinitialize the graphics surface
-					graphicsSurface = null;
-					initializeGraphicsSurface();
-					if (graphicsSurface != null && graphicsSurface.getImage() != null) {
-						g.drawImage(graphicsSurface.getImage(), 0, 0, null);
-					}
+				int compW = getWidth();
+				int compH = getHeight();
+				int imgW = graphicsSurface.getImage().getWidth(null);
+				int imgH = graphicsSurface.getImage().getHeight(null);
+				
+				// Only draw if we have valid dimensions
+				if (compW > 0 && compH > 0 && imgW > 0 && imgH > 0) {
+					// Scale the image to fit the current component size
+					g.drawImage(
+						graphicsSurface.getImage(),
+						0, 0, compW, compH, // destination rectangle
+						0, 0, imgW, imgH, // source rectangle
+						null
+					);
 				}
 			}
 		} else {
-			// Fallback: draw a white background with launcher text
-			g.setColor(java.awt.Color.WHITE);
-			g.fillRect(0, 0, getWidth(), getHeight());
-			
-			// Draw launcher text
+			// Fallback: draw a black background when no graphics surface is available
 			g.setColor(java.awt.Color.BLACK);
-			g.setFont(new java.awt.Font("Arial", java.awt.Font.BOLD, 14));
-			String text = "Launcher";
-			java.awt.FontMetrics fm = g.getFontMetrics();
-			int textX = (getWidth() - fm.stringWidth(text)) / 2;
-			int textY = getHeight() / 2;
-			g.drawString(text, textX, textY);
-			
-			text = "[no midlets]";
-			textX = (getWidth() - fm.stringWidth(text)) / 2;
-			textY += 20;
-			g.drawString(text, textX, textY);
-		}
-	}
-	
-	private void initializeGraphicsSurface() {
-		Device device = DeviceFactory.getDevice();
-		if (device != null && device.getDeviceDisplay() != null) {
-			try {
-				// Ensure device is properly initialized
-				if (device.getDeviceDisplay().getFullWidth() > 0 && device.getDeviceDisplay().getFullHeight() > 0) {
-					graphicsSurface = new J2SEGraphicsSurface(
-						device.getDeviceDisplay().getFullWidth(), 
-						device.getDeviceDisplay().getFullHeight(), 
-						false, 0x000000);
-					
-					// Force an initial paint to ensure the surface is valid
-					// Use SwingUtilities to ensure this runs on the EDT
-					javax.swing.SwingUtilities.invokeLater(new Runnable() {
-						public void run() {
-							repaintRequest(0, 0, device.getDeviceDisplay().getFullWidth(), device.getDeviceDisplay().getFullHeight());
-						}
-					});
-				} else {
-					// Device display not properly initialized yet
-					graphicsSurface = null;
-				}
-			} catch (Exception e) {
-				graphicsSurface = null;
-			}
+			g.fillRect(0, 0, getWidth(), getHeight());
 		}
 	}
 
 	public void repaintRequest(int x, int y, int width, int height) {
+		MIDletAccess ma = MIDletBridge.getMIDletAccess();
+		if (ma == null) {
+			return;
+		}
+		DisplayAccess da = ma.getDisplayAccess();
+		if (da == null) {
+			return;
+		}
+		Displayable current = da.getCurrent();
+		if (current == null) {
+			return;
+		}
+
 		Device device = DeviceFactory.getDevice();
-		if (device == null) {
-			return;
-		}
-		
-		J2SEDeviceDisplay deviceDisplay = (J2SEDeviceDisplay) device.getDeviceDisplay();
-		if (deviceDisplay == null) {
-			return;
-		}
-
-		synchronized (this) {
-			// Always ensure graphics surface exists
-			if (graphicsSurface == null) {
-				initializeGraphicsSurface();
-			}
+		if (device != null) {
+			J2SEDeviceDisplay deviceDisplay = (J2SEDeviceDisplay) device.getDeviceDisplay();
 			
-			// Double-check after initialization
-			if (graphicsSurface == null) {
-				return;
+			// Capture the original device size only once
+			if (originalDeviceWidth == -1 || originalDeviceHeight == -1) {
+				// Get the original size from the device's normal image, which doesn't change
+				javax.microedition.lcdui.Image normalImage = device.getNormalImage();
+				if (normalImage != null) {
+					originalDeviceWidth = normalImage.getWidth();
+					originalDeviceHeight = normalImage.getHeight();
+				} else {
+					// Fallback to device display size
+					originalDeviceWidth = device.getDeviceDisplay().getFullWidth();
+					originalDeviceHeight = device.getDeviceDisplay().getFullHeight();
+				}
 			}
 
-			synchronized (graphicsSurface) {
-				try {
-					// Only paint displayable if we have a valid MIDlet context
-					MIDletAccess ma = MIDletBridge.getMIDletAccess();
-					if (ma != null) {
-						DisplayAccess da = ma.getDisplayAccess();
-						if (da != null) {
-							Displayable current = da.getCurrent();
-							if (current != null) {
-								deviceDisplay.paintDisplayable(graphicsSurface, x, y, width, height);
-							}
-						}
-					}
-					
-					// Always paint controls for the launcher
+			synchronized (this) {
+				// Only recreate graphicsSurface if it doesn't exist or has wrong size
+				boolean needsNewSurface = graphicsSurface == null
+					|| graphicsSurface.getImage().getWidth(null) != originalDeviceWidth
+					|| graphicsSurface.getImage().getHeight(null) != originalDeviceHeight;
+				if (needsNewSurface) {
+					graphicsSurface = new J2SEGraphicsSurface(originalDeviceWidth, originalDeviceHeight, false, 0x000000);
+				}
+				synchronized (graphicsSurface) {
+					deviceDisplay.paintDisplayable(graphicsSurface, x, y, width, height);
 					if (!deviceDisplay.isFullScreenMode()) {
 						deviceDisplay.paintControls(graphicsSurface.getGraphics());
 					}
-				} catch (Exception e) {
-					// If painting fails, reinitialize graphics surface
-					graphicsSurface = null;
-					initializeGraphicsSurface();
-					return;
 				}
 			}
 
-			// Only fire repaint if graphics surface is still valid
-			if (graphicsSurface != null) {
-				try {
-					if (deviceDisplay.isFullScreenMode()) {
-						fireDisplayRepaint(graphicsSurface, x, y, width, height);
-					} else {
-						fireDisplayRepaint(graphicsSurface, 0, 0, graphicsSurface.getImage().getWidth(), graphicsSurface.getImage().getHeight());
-					}
-				} catch (Exception e) {
-					// If repaint fails, don't crash the application
-				}
+			if (deviceDisplay.isFullScreenMode()) {
+				fireDisplayRepaint(
+						graphicsSurface, x, y, width, height);
+			} else {
+				fireDisplayRepaint(
+						graphicsSurface, 0, 0, graphicsSurface.getImage().getWidth(), graphicsSurface.getImage().getHeight());
 			}
+			repaint();
 		}
 	}
 
@@ -479,5 +446,32 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 		}
 
 		return null;
+	}
+
+    // Add a method to reset the graphics surface when device size changes
+    public void resetGraphicsSurface() {
+        synchronized (this) {
+            graphicsSurface = null;
+        }
+    }
+
+    // Utility to map component coordinates to device coordinates
+    private Point mapToDeviceCoordinates(int x, int y) {
+		Device device = DeviceFactory.getDevice();
+		if (device == null || graphicsSurface == null || graphicsSurface.getImage() == null) {
+			return new Point(x, y);
+		}
+		int deviceWidth = graphicsSurface.getImage().getWidth(null);
+		int deviceHeight = graphicsSurface.getImage().getHeight(null);
+		int compWidth = getWidth();
+		int compHeight = getHeight();
+
+		if (compWidth <= 0 || compHeight <= 0 || deviceWidth <= 0 || deviceHeight <= 0) {
+			return new Point(x, y);
+		}
+
+		int mappedX = (int) Math.round(x * (deviceWidth / (double) compWidth));
+		int mappedY = (int) Math.round(y * (deviceHeight / (double) compHeight));
+		return new Point(mappedX, mappedY);
 	}
 }

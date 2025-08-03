@@ -30,9 +30,8 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Image;
-import java.awt.Polygon;
-import java.awt.Shape;
 import java.awt.Toolkit;
+import java.awt.BorderLayout;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
@@ -55,7 +54,6 @@ import java.util.TimerTask;
 
 import javax.microedition.lcdui.Command;
 import javax.swing.JPanel;
-import javax.swing.UIManager;
 
 import org.je.DisplayAccess;
 import org.je.DisplayComponent;
@@ -73,7 +71,6 @@ import org.je.device.j2se.J2SEDeviceButtonsHelper;
 import org.je.device.j2se.J2SEDeviceDisplay;
 import org.je.device.j2se.J2SEImmutableImage;
 import org.je.device.j2se.J2SEInputMethod;
-import org.je.device.j2se.J2SEMutableImage;
 import org.je.log.Logger;
 
 public class SwingDeviceComponent extends JPanel implements KeyListener, InputMethodListener, InputMethodRequests {
@@ -89,10 +86,6 @@ public class SwingDeviceComponent extends JPanel implements KeyListener, InputMe
 	J2SEButton pressedButton;
 
 	private boolean mouseButtonDown = false;
-
-	Image offi;
-
-	Graphics offg;
 
 	private boolean showMouseCoordinates = false;
 
@@ -205,27 +198,23 @@ public class SwingDeviceComponent extends JPanel implements KeyListener, InputMe
 			mouseButtonDown = false;
 			MouseRepeatedTimerTask.stop();
 
-			if (pressedButton == null) {
-				return;
-			}
-
 			if (MIDletBridge.getCurrentMIDlet() == null) {
 				return;
 			}
 
 			Device device = DeviceFactory.getDevice();
 			J2SEInputMethod inputMethod = (J2SEInputMethod) device.getInputMethod();
-			J2SEButton prevOverButton = J2SEDeviceButtonsHelper.getSkinButton(e);
-			if (prevOverButton != null) {
-				inputMethod.buttonReleased(prevOverButton, '\0');
+			if (pressedButton != null) {
+				inputMethod.buttonReleased(pressedButton, '\0');
 			}
-			pressedButton = null;
 			// optimize for some video cards.
-			if (prevOverButton != null) {
-				repaint(prevOverButton.getShape().getBounds());
+			if (pressedButton != null) {
+				repaint(pressedButton.getShape().getBounds());
 			} else {
 				repaint();
 			}
+			prevOverButton = pressedButton;
+			pressedButton = null;
 		}
 
 	};
@@ -279,7 +268,7 @@ public class SwingDeviceComponent extends JPanel implements KeyListener, InputMe
 
 	public SwingDeviceComponent() {
 		dc = new SwingDisplayComponent(this);
-		setLayout(new XYLayout());
+		setLayout(new BorderLayout());
 
 		addMouseListener(mouseListener);
 		addMouseMotionListener(mouseMotionListener);
@@ -288,6 +277,9 @@ public class SwingDeviceComponent extends JPanel implements KeyListener, InputMe
  		enableInputMethods(true);
  		addInputMethodListener(this);
  		//End
+
+ 		// Add the display component to fill the parent
+ 		add(dc, BorderLayout.CENTER);
 	}
 
 	public DisplayComponent getDisplayComponent() {
@@ -298,9 +290,7 @@ public class SwingDeviceComponent extends JPanel implements KeyListener, InputMe
 		dc.init();
 
 		remove(dc);
-
-		Rectangle r = ((J2SEDeviceDisplay) DeviceFactory.getDevice().getDeviceDisplay()).getDisplayRectangle();
-		add(dc, new XYConstraints(r.x, r.y, -1, -1));
+		add(dc, BorderLayout.CENTER);
 
 		revalidate();
 	}
@@ -507,69 +497,57 @@ public class SwingDeviceComponent extends JPanel implements KeyListener, InputMe
 	}
 
 	protected void paintComponent(Graphics g) {
-		if (offg == null || offi.getWidth(null) != getSize().width || offi.getHeight(null) != getSize().height) {
-			offi = new J2SEMutableImage(getSize().width, getSize().height, false, 0x000000).getImage();
-			offg = offi.getGraphics();
-		}
-
-		Dimension size = getSize();
-		offg.setColor(UIManager.getColor("text"));
-		try {
-			offg.fillRect(0, 0, size.width, size.height);
-		} catch (NullPointerException ex) {
-			// Fix for NPE in sun.java2d.pipe.SpanShapeRenderer.renderRect(..) on Mac platform
-		}
 		Device device = DeviceFactory.getDevice();
 		if (device == null) {
-			g.drawRect(0, 0, getWidth() - 1, getHeight() - 1);
+			g.setColor(java.awt.Color.BLACK);
+			g.fillRect(0, 0, getWidth(), getHeight());
 			return;
 		}
-		if (((DeviceDisplayImpl) device.getDeviceDisplay()).isResizable()) {
-			return;
+
+		DeviceDisplayImpl deviceDisplay = (DeviceDisplayImpl) device.getDeviceDisplay();
+		if (deviceDisplay.isResizable()) {
+			return; // Let the display component handle the painting
 		}
 
-		offg.drawImage(((J2SEImmutableImage) device.getNormalImage()).getImage(), 0, 0, this);
+		// Aspect-ratio preserving scaling for non-resizable devices
+		javax.microedition.lcdui.Image normalImage = device.getNormalImage();
+		if (normalImage != null) {
+			Image gameImage = ((J2SEImmutableImage) normalImage).getImage();
+			int imgWidth = gameImage.getWidth(null);
+			int imgHeight = gameImage.getHeight(null);
+			int panelWidth = getWidth();
+			int panelHeight = getHeight();
+			double scale = Math.min((double)panelWidth / imgWidth, (double)panelHeight / imgHeight);
+			int drawWidth = (int)(imgWidth * scale);
+			int drawHeight = (int)(imgHeight * scale);
+			int x = (panelWidth - drawWidth) / 2;
+			int y = (panelHeight - drawHeight) / 2;
+			g.setColor(java.awt.Color.BLACK);
+			g.fillRect(0, 0, panelWidth, panelHeight);
+			g.drawImage(gameImage, x, y, drawWidth, drawHeight, null);
+		} else {
+			g.setColor(java.awt.Color.BLACK);
+			g.fillRect(0, 0, getWidth(), getHeight());
+		}
 
-		if (prevOverButton != null) {
-			org.je.device.impl.Shape shape = prevOverButton.getShape();
-			if (shape != null) {
-				drawImageInShape(offg, ((J2SEImmutableImage) device.getNormalImage()).getImage(), shape);
-			}
-			prevOverButton = null;
-		}
-		if (overButton != null) {
-			org.je.device.impl.Shape shape = overButton.getShape();
-			if (shape != null) {
-				drawImageInShape(offg, ((J2SEImmutableImage) device.getOverImage()).getImage(), shape);
-			}
-		}
-		if (pressedButton != null) {
-			org.je.device.impl.Shape shape = pressedButton.getShape();
-			if (shape != null) {
-				drawImageInShape(offg, ((J2SEImmutableImage) device.getPressedImage()).getImage(), shape);
-			}
+		// Draw over/pressed buttons if they exist
+		javax.microedition.lcdui.Image overImage = device.getOverImage();
+		if (overImage != null) {
+			Image gameImage = ((J2SEImmutableImage) overImage).getImage();
+			g.drawImage(gameImage, 0, 0, null);
 		}
 
-		g.drawImage(offi, 0, 0, null);
-	}
-
-	private void drawImageInShape(Graphics g, Image image, org.je.device.impl.Shape shape) {
-		Shape clipSave = g.getClip();
-		if (shape instanceof org.je.device.impl.Polygon) {
-			Polygon poly = new Polygon(((org.je.device.impl.Polygon) shape).xpoints,
-					((org.je.device.impl.Polygon) shape).ypoints,
-					((org.je.device.impl.Polygon) shape).npoints);
-			g.setClip(poly);
+		javax.microedition.lcdui.Image pressedImage = device.getPressedImage();
+		if (pressedImage != null) {
+			Image gameImage = ((J2SEImmutableImage) pressedImage).getImage();
+			g.drawImage(gameImage, 0, 0, null);
 		}
-		org.je.device.impl.Rectangle r = shape.getBounds();
-		g.drawImage(image, r.x, r.y, r.x + r.width, r.y + r.height, r.x, r.y, r.x + r.width, r.y + r.height, null);
-		g.setClip(clipSave);
 	}
 
 	public Dimension getPreferredSize() {
 		Device device = DeviceFactory.getDevice();
 		if (device == null) {
-			return new Dimension(0, 0);
+			return new Dimension(400, 600); // Default size when no device is available
 		}
 
 		DeviceDisplayImpl deviceDisplay = (DeviceDisplayImpl) DeviceFactory.getDevice().getDeviceDisplay();
@@ -577,7 +555,11 @@ public class SwingDeviceComponent extends JPanel implements KeyListener, InputMe
 			return new Dimension(deviceDisplay.getFullWidth(), deviceDisplay.getFullHeight());
 		} else {
 			javax.microedition.lcdui.Image img = device.getNormalImage();
-			return new Dimension(img.getWidth(), img.getHeight());
+			if (img != null) {
+				return new Dimension(img.getWidth(), img.getHeight());
+			} else {
+				return new Dimension(400, 600); // Fallback size
+			}
 		}
 	}
 
