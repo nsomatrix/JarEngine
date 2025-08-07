@@ -1071,24 +1071,76 @@ public class Main extends JFrame {
 			System.err.println("Warning: Could not load Tools menu icon: " + e.getMessage());
 		}
 		// Add tools menu items here as needed
-JMenuItem menuPerformance = new JMenuItem("Performance");
-menuPerformance.addActionListener(e -> JOptionPane.showMessageDialog(this, "Performance tool coming soon!", "Performance", JOptionPane.INFORMATION_MESSAGE));
+JMenu menuPerformance = new JMenu("Performance");
+
+JCheckBoxMenuItem doubleBufferingItem = new JCheckBoxMenuItem("Double Buffering");
+doubleBufferingItem.setSelected(org.je.app.PerformanceConfig.doubleBufferingEnabled);
+doubleBufferingItem.addActionListener(e -> org.je.app.PerformanceConfig.doubleBufferingEnabled = doubleBufferingItem.isSelected());
+menuPerformance.add(doubleBufferingItem);
+
+JCheckBoxMenuItem frameSkippingItem = new JCheckBoxMenuItem("Frame Skipping");
+frameSkippingItem.setSelected(org.je.app.PerformanceConfig.frameSkippingEnabled);
+frameSkippingItem.addActionListener(e -> org.je.app.PerformanceConfig.frameSkippingEnabled = frameSkippingItem.isSelected());
+menuPerformance.add(frameSkippingItem);
+
+JCheckBoxMenuItem imageCachingItem = new JCheckBoxMenuItem("Image Caching");
+imageCachingItem.setSelected(org.je.app.PerformanceConfig.imageCachingEnabled);
+imageCachingItem.addActionListener(e -> org.je.app.PerformanceConfig.imageCachingEnabled = imageCachingItem.isSelected());
+menuPerformance.add(imageCachingItem);
+
+JCheckBoxMenuItem hardwareAccelItem = new JCheckBoxMenuItem("Hardware Acceleration");
+hardwareAccelItem.setSelected(Boolean.getBoolean("sun.java2d.opengl"));
+hardwareAccelItem.addActionListener(e -> {
+    System.setProperty("sun.java2d.opengl", hardwareAccelItem.isSelected() ? "true" : "false");
+    javax.swing.JOptionPane.showMessageDialog(this, "Restart the emulator for Hardware Acceleration to take effect.");
+});
+menuPerformance.add(hardwareAccelItem);
+
+JCheckBoxMenuItem vsyncItem = new JCheckBoxMenuItem("VSync");
+vsyncItem.setSelected(Boolean.getBoolean("sun.java2d.vsync"));
+vsyncItem.addActionListener(e -> {
+    System.setProperty("sun.java2d.vsync", vsyncItem.isSelected() ? "true" : "false");
+    javax.swing.JOptionPane.showMessageDialog(this, "Restart the emulator for VSync to take effect.");
+});
+menuPerformance.add(vsyncItem);
+
+JMenuItem gcItem = new JMenuItem("Run GC");
+gcItem.addActionListener(e -> {
+    System.gc();
+    javax.swing.JOptionPane.showMessageDialog(this, "GC Requested");
+});
+menuPerformance.add(gcItem);
+
+JMenuItem heapSizeItem = new JMenuItem("Heap Size");
+heapSizeItem.addActionListener(e -> {
+    String currentHeap = System.getProperty("je.configured.heap", "128m");
+    org.je.app.ui.swing.HeapSizeTool dialog = new org.je.app.ui.swing.HeapSizeTool(this, currentHeap);
+    dialog.setVisible(true);
+    String selected = dialog.getSelectedHeapSize();
+    if (selected != null && !selected.equals(currentHeap)) {
+        System.setProperty("je.configured.heap", selected);
+        javax.swing.JOptionPane.showMessageDialog(this, "Heap size will be set to " + selected + " on next restart. Please restart the emulator.");
+    }
+});
+menuPerformance.addSeparator();
+menuPerformance.add(heapSizeItem);
+
 menuTools.add(menuPerformance);
 
 JMenuItem menuFPS = new JMenuItem("FPS");
-menuFPS.addActionListener(e -> JOptionPane.showMessageDialog(this, "FPS tool coming soon!", "FPS", JOptionPane.INFORMATION_MESSAGE));
+menuFPS.addActionListener(e -> new org.je.app.tools.FPSTool().setVisible(true));
 menuTools.add(menuFPS);
 
 JMenuItem menuKeymapper = new JMenuItem("Keymapper");
-menuKeymapper.addActionListener(e -> JOptionPane.showMessageDialog(this, "Keymapper tool coming soon!", "Keymapper", JOptionPane.INFORMATION_MESSAGE));
+menuKeymapper.addActionListener(e -> new org.je.app.tools.KeymapperTool().setVisible(true));
 menuTools.add(menuKeymapper);
 
 JMenuItem menuProxy = new JMenuItem("Proxy");
-menuProxy.addActionListener(e -> JOptionPane.showMessageDialog(this, "Proxy tool coming soon!", "Proxy", JOptionPane.INFORMATION_MESSAGE));
+menuProxy.addActionListener(e -> new org.je.app.tools.ProxyTool().setVisible(true));
 menuTools.add(menuProxy);
 
 JMenuItem menuFilter = new JMenuItem("Filter");
-menuFilter.addActionListener(e -> JOptionPane.showMessageDialog(this, "Filter tool coming soon!", "Filter", JOptionPane.INFORMATION_MESSAGE));
+menuFilter.addActionListener(e -> new org.je.app.tools.FilterTool().setVisible(true));
 menuTools.add(menuFilter);
 
 		JMenu menuHelp = new JMenu("Settings");
