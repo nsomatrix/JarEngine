@@ -137,7 +137,8 @@ public class Main extends JFrame {
 
 
 
-	private MIDletUrlPanel midletUrlPanel = null;
+    private org.je.app.tools.FPSTool fpsToolDialog = null;
+    private MIDletUrlPanel midletUrlPanel = null;
 
 	private JFileChooser saveForWebChooser;
 
@@ -1128,7 +1129,27 @@ menuPerformance.add(heapSizeItem);
 menuTools.add(menuPerformance);
 
 JMenuItem menuFPS = new JMenuItem("FPS");
-menuFPS.addActionListener(e -> new org.je.app.tools.FPSTool().setVisible(true));
+menuFPS.addActionListener(e -> {
+    if (fpsToolDialog == null || !fpsToolDialog.isDisplayable()) {
+        fpsToolDialog = new org.je.app.tools.FPSTool();
+        fpsToolDialog.addWindowListener(new java.awt.event.WindowAdapter() {
+            public void windowClosed(java.awt.event.WindowEvent e) {
+                fpsToolDialog = null;
+            }
+        });
+    }
+    if (!fpsToolDialog.isVisible()) {
+        javax.swing.SwingUtilities.invokeLater(() -> {
+            fpsToolDialog.pack();
+            fpsToolDialog.revalidate();
+            fpsToolDialog.repaint();
+            fpsToolDialog.setVisible(true);
+        });
+    } else {
+        fpsToolDialog.toFront();
+        fpsToolDialog.requestFocus();
+    }
+});
 menuTools.add(menuFPS);
 
 JMenuItem menuKeymapper = new JMenuItem("Keymapper");

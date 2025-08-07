@@ -67,6 +67,12 @@ import org.je.device.j2se.J2SEDeviceDisplay;
 import org.je.device.j2se.J2SEGraphicsSurface;
 import org.je.device.j2se.J2SEInputMethod;
 
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.BasicStroke;
+
 public class SwingDisplayComponent extends JComponent implements DisplayComponent {
 	private static final long serialVersionUID = 1L;
 
@@ -316,6 +322,9 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 	}
 
 	protected void paintComponent(Graphics g) {
+		// Increment frame counter for FPS calculation
+		org.je.app.tools.FPSTool.incrementFrameCount();
+		
 		if (graphicsSurface != null && graphicsSurface.getImage() != null) {
 			synchronized (graphicsSurface) {
 				int compW = getWidth();
@@ -339,6 +348,41 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 			g.setColor(java.awt.Color.BLACK);
 			g.fillRect(0, 0, getWidth(), getHeight());
 		}
+		
+		// Draw FPS overlay if enabled
+		if (org.je.app.tools.FPSTool.fpsOverlayEnabled) {
+			drawFpsOverlay(g);
+		}
+	}
+	
+	private void drawFpsOverlay(Graphics g) {
+		// Get current FPS from FPSTool
+		double currentFps = org.je.app.tools.FPSTool.currentFps;
+		int targetFps = org.je.app.tools.FPSTool.targetFps;
+		
+		// Set up graphics for overlay
+		Graphics2D g2d = (Graphics2D) g.create();
+		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+		
+		// Position overlay in top-left corner
+		int overlayX = 10;
+		int overlayY = 10;
+		int overlayWidth = 90;
+		int overlayHeight = 30;
+		
+		// Draw semi-transparent background
+		g2d.setColor(new Color(0, 0, 0, 140));
+		g2d.fillRoundRect(overlayX, overlayY, overlayWidth, overlayHeight, 8, 8);
+		
+		// Set font and color for text
+		g2d.setFont(new Font("Monospaced", Font.BOLD, 12));
+		// Draw shadow for better readability
+		g2d.setColor(new Color(0, 0, 0, 180));
+		g2d.drawString(String.format("%.1f FPS", currentFps), overlayX + 9, overlayY + 21);
+		g2d.setColor(Color.WHITE);
+		g2d.drawString(String.format("%.1f FPS", currentFps), overlayX + 8, overlayY + 20);
+		
+		g2d.dispose();
 	}
 
 	// For frame skipping: alternate skipping frames if enabled
