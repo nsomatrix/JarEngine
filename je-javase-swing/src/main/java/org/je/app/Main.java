@@ -1071,9 +1071,25 @@ public class Main extends JFrame {
 			System.err.println("Warning: Could not load Tools menu icon: " + e.getMessage());
 		}
 		// Add tools menu items here as needed
-		// Example: JMenuItem menuItem = new JMenuItem("Tool Name");
-		// menuItem.addActionListener(actionListener);
-		// menuTools.add(menuItem);
+JMenuItem menuPerformance = new JMenuItem("Performance");
+menuPerformance.addActionListener(e -> JOptionPane.showMessageDialog(this, "Performance tool coming soon!", "Performance", JOptionPane.INFORMATION_MESSAGE));
+menuTools.add(menuPerformance);
+
+JMenuItem menuFPS = new JMenuItem("FPS");
+menuFPS.addActionListener(e -> JOptionPane.showMessageDialog(this, "FPS tool coming soon!", "FPS", JOptionPane.INFORMATION_MESSAGE));
+menuTools.add(menuFPS);
+
+JMenuItem menuKeymapper = new JMenuItem("Keymapper");
+menuKeymapper.addActionListener(e -> JOptionPane.showMessageDialog(this, "Keymapper tool coming soon!", "Keymapper", JOptionPane.INFORMATION_MESSAGE));
+menuTools.add(menuKeymapper);
+
+JMenuItem menuProxy = new JMenuItem("Proxy");
+menuProxy.addActionListener(e -> JOptionPane.showMessageDialog(this, "Proxy tool coming soon!", "Proxy", JOptionPane.INFORMATION_MESSAGE));
+menuTools.add(menuProxy);
+
+JMenuItem menuFilter = new JMenuItem("Filter");
+menuFilter.addActionListener(e -> JOptionPane.showMessageDialog(this, "Filter tool coming soon!", "Filter", JOptionPane.INFORMATION_MESSAGE));
+menuTools.add(menuFilter);
 
 		JMenu menuHelp = new JMenu("Settings");
 		try {

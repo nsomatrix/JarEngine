@@ -42,7 +42,7 @@ import org.je.util.ThreadUtils;
  */
 public class MIDletThread extends Thread {
 
-	public static int graceTerminationPeriod = 1;
+	public static int graceTerminationPeriod = 500;
 	
 	private static final String THREAD_NAME_PREFIX = "";
 	
