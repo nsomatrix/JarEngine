@@ -20,19 +20,23 @@ public class FPSTool extends JFrame {
     public static volatile double currentFps = 0.0; // Current FPS for overlay
     private static volatile int frameCount = 0; // Frame counter for FPS calculation
     
-    public FPSTool() {
+    public FPSTool(Frame parent) {
         super("FPS Tool");
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        setSize(400, 260);
-        setLocationRelativeTo(null);
-        setResizable(false);
-        
+        // No hardcoded size or forced non-resizability
         initComponents();
         setupLayout();
         setupEventHandlers();
         startFpsMonitoring();
+        pack();
+        setLocationRelativeTo(parent);
         revalidate();
         repaint();
+    }
+
+    // For backward compatibility, keep no-arg constructor but delegate to center on screen
+    public FPSTool() {
+        this((Frame) null);
     }
     
     private void initComponents() {

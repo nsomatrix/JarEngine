@@ -68,17 +68,7 @@ public class SwingDialogWindow
     }
     dialog.getContentPane().add(actionPanel, BorderLayout.SOUTH);
     dialog.pack();
-    
-    Dimension frameSize = dialog.getSize();
-    int x = parent.getLocation().x + ((parent.getWidth() - frameSize.width) / 2);
-    if (x < 0) {
-    	x = 0;
-    }
-    int y = parent.getLocation().y + ((parent.getHeight() - frameSize.height) / 2);
-    if (y < 0) {
-    	y = 0;
-    }
-    dialog.setLocation(x, y);
+    dialog.setLocationRelativeTo(parent);
 
     ActionListener closeListener = new ActionListener() {
 		public void actionPerformed(ActionEvent event) {

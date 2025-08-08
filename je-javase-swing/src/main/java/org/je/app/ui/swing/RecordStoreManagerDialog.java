@@ -212,6 +212,10 @@ public class RecordStoreManagerDialog extends JFrame {
 
 		getContentPane().add(headerPanel, BorderLayout.NORTH);
 		getContentPane().add(viewPanel, BorderLayout.CENTER);
+
+		// Ensure proper sizing and centering
+		pack();
+		setLocationRelativeTo(owner);
 	}
 
 	public void refresh() {

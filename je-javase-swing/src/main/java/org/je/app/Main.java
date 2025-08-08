@@ -1131,7 +1131,7 @@ menuTools.add(menuPerformance);
 JMenuItem menuFPS = new JMenuItem("FPS");
 menuFPS.addActionListener(e -> {
     if (fpsToolDialog == null || !fpsToolDialog.isDisplayable()) {
-        fpsToolDialog = new org.je.app.tools.FPSTool();
+        fpsToolDialog = new org.je.app.tools.FPSTool(this);
         fpsToolDialog.addWindowListener(new java.awt.event.WindowAdapter() {
             public void windowClosed(java.awt.event.WindowEvent e) {
                 fpsToolDialog = null;
@@ -1153,11 +1153,11 @@ menuFPS.addActionListener(e -> {
 menuTools.add(menuFPS);
 
 JMenuItem menuProxy = new JMenuItem("Proxy");
-menuProxy.addActionListener(e -> new org.je.app.tools.ProxyTool().setVisible(true));
+menuProxy.addActionListener(e -> new org.je.app.tools.ProxyTool(this).setVisible(true));
 menuTools.add(menuProxy);
 
 JMenuItem menuFilter = new JMenuItem("Filter");
-menuFilter.addActionListener(e -> new org.je.app.tools.FilterTool().setVisible(true));
+menuFilter.addActionListener(e -> new org.je.app.tools.FilterTool(this).setVisible(true));
 menuTools.add(menuFilter);
 
 		JMenu menuHelp = new JMenu("Settings");

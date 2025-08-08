@@ -176,6 +176,10 @@ public class SwingLogConsoleDialog extends JFrame implements LoggerAppender {
 		Logger.addAppender(this);
 		Logger.removeAppender(logQueueAppender);
 
+		// Ensure proper sizing and centering
+		pack();
+		setLocationRelativeTo(owner);
+
 		LoggingEvent event = null;
 		while ((event = logQueueAppender.poll()) != null) {
 			append(event);
