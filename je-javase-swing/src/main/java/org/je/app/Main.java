@@ -1152,10 +1152,6 @@ menuFPS.addActionListener(e -> {
 });
 menuTools.add(menuFPS);
 
-JMenuItem menuKeymapper = new JMenuItem("Keymapper");
-menuKeymapper.addActionListener(e -> new org.je.app.tools.KeymapperTool().setVisible(true));
-menuTools.add(menuKeymapper);
-
 JMenuItem menuProxy = new JMenuItem("Proxy");
 menuProxy.addActionListener(e -> new org.je.app.tools.ProxyTool().setVisible(true));
 menuTools.add(menuProxy);
