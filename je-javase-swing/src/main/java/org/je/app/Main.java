@@ -664,6 +664,34 @@ public class Main extends JFrame {
 		}
 	};
 
+	private ActionListener menuImportConfigListener = new ActionListener() {
+		public void actionPerformed(ActionEvent e) {
+			// TODO: Implement Import Config functionality
+			JOptionPane.showMessageDialog(Main.this, "Import Config functionality will be implemented here.", "Import Config", JOptionPane.INFORMATION_MESSAGE);
+		}
+	};
+
+	private ActionListener menuExportConfigListener = new ActionListener() {
+		public void actionPerformed(ActionEvent e) {
+			// TODO: Implement Export Config functionality
+			JOptionPane.showMessageDialog(Main.this, "Export Config functionality will be implemented here.", "Export Config", JOptionPane.INFORMATION_MESSAGE);
+		}
+	};
+
+	private ActionListener menuSysInfoListener = new ActionListener() {
+		public void actionPerformed(ActionEvent e) {
+			// TODO: Implement System Info functionality
+			JOptionPane.showMessageDialog(Main.this, "System Info functionality will be implemented here.", "System Info", JOptionPane.INFORMATION_MESSAGE);
+		}
+	};
+
+	private ActionListener menuUpdateEmulatorListener = new ActionListener() {
+		public void actionPerformed(ActionEvent e) {
+			// TODO: Implement Update Emulator functionality
+			JOptionPane.showMessageDialog(Main.this, "Update Emulator functionality will be implemented here.", "Update Emulator", JOptionPane.INFORMATION_MESSAGE);
+		}
+	};
+
 	private StatusBarListener statusBarListener = new StatusBarListener() {
 		public void statusBarChanged(String text) {
 			// Add proxy status to status bar
@@ -1050,6 +1078,27 @@ menuTools.add(menuLogConsole);
 		} catch (Exception e) {
 			System.err.println("Warning: Could not load Settings menu icon: " + e.getMessage());
 		}
+		
+		JMenuItem menuImportConfig = new JMenuItem("Import Config");
+		menuImportConfig.addActionListener(menuImportConfigListener);
+		menuHelp.add(menuImportConfig);
+		
+		JMenuItem menuExportConfig = new JMenuItem("Export Config");
+		menuExportConfig.addActionListener(menuExportConfigListener);
+		menuHelp.add(menuExportConfig);
+		
+		menuHelp.addSeparator();
+		
+		JMenuItem menuSysInfo = new JMenuItem("SysInfo");
+		menuSysInfo.addActionListener(menuSysInfoListener);
+		menuHelp.add(menuSysInfo);
+		
+		JMenuItem menuUpdateEmulator = new JMenuItem("Update Emulator");
+		menuUpdateEmulator.addActionListener(menuUpdateEmulatorListener);
+		menuHelp.add(menuUpdateEmulator);
+		
+		menuHelp.addSeparator();
+		
 		JMenuItem menuAbout = new JMenuItem("About");
 		menuAbout.addActionListener(menuAboutListener);
 		menuHelp.add(menuAbout);
