@@ -1021,10 +1021,6 @@ JMenuItem menuProxy = new JMenuItem("Proxy");
 menuProxy.addActionListener(e -> new org.je.app.tools.ProxyTool(this).setVisible(true));
 menuTools.add(menuProxy);
 
-JMenuItem menuFilter = new JMenuItem("Filter");
-menuFilter.addActionListener(e -> new org.je.app.tools.FilterTool(this).setVisible(true));
-menuTools.add(menuFilter);
-
 // Record submenu
 JMenu menuRecord = new JMenu("Record");
 recordButtonGroup = new ButtonGroup();
