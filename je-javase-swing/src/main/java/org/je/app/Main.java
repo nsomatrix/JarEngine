@@ -100,6 +100,7 @@ import org.je.app.ui.swing.RecordStoreManagerDialog;
 import org.je.app.ui.swing.ResizeDeviceDisplayDialog;
 import org.je.app.ui.swing.SwingAboutDialog;
 import org.je.app.ui.swing.SwingDeviceComponent;
+import org.je.app.util.SleepManager;
 import org.je.app.ui.swing.SwingDialogWindow;
 import org.je.app.ui.swing.SwingDisplayComponent;
 import org.je.app.ui.swing.SwingErrorMessageDialogPanel;
@@ -191,6 +192,7 @@ public class Main extends JFrame {
 	private JLabel statusBar = new JLabel("Status");
 
 	private ResizeDeviceDisplayDialog resizeDeviceDisplayDialog = null;
+	private SleepManager sleepManager;
 
 	protected EmulatorContext emulatorContext = new EmulatorContext() {
 
@@ -792,6 +794,10 @@ public class Main extends JFrame {
 
 	private WindowAdapter windowListener = new WindowAdapter() {
 		public void windowClosing(WindowEvent ev) {
+			// Cleanup sleep manager
+			if (sleepManager != null) {
+				sleepManager.cleanup();
+			}
 			menuExitListener.actionPerformed(null);
 		}
 
@@ -918,6 +924,19 @@ public class Main extends JFrame {
 			}
 		});
 		menuOptions.add(menuResize);
+
+		// Sleep mode menu item
+		JCheckBoxMenuItem menuSleep = new JCheckBoxMenuItem("Sleep Mode");
+		menuSleep.setToolTipText("Enable sleep mode - emulator will sleep after 10 seconds of inactivity");
+		menuSleep.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent ev) {
+				if (sleepManager == null) {
+					sleepManager = new SleepManager(Main.this);
+				}
+				sleepManager.setSleepEnabled(menuSleep.isSelected());
+			}
+		});
+		menuOptions.add(menuSleep);
 
 		// Theme selection menu
 		JMenu menuTheme = new JMenu("Theme");
@@ -1162,8 +1181,147 @@ menuTools.add(menuLogConsole);
 		devicePanel = new SwingDeviceComponent();
 		devicePanel.addKeyListener(devicePanel);
 		addKeyListener(devicePanel);
+		
+		// Add sleep timer reset listeners
+		addSleepTimerResetListeners();
 
 		return devicePanel;
+	}
+	
+	/**
+	 * Add listeners to reset sleep timer on user interaction
+	 */
+	private void addSleepTimerResetListeners() {
+		// Add mouse listener to reset sleep timer (only on click, not movement)
+		addMouseListener(new java.awt.event.MouseAdapter() {
+			@Override
+			public void mouseClicked(java.awt.event.MouseEvent e) {
+				resetSleepTimer();
+			}
+			
+			@Override
+			public void mousePressed(java.awt.event.MouseEvent e) {
+				resetSleepTimer();
+			}
+		});
+		
+		// Add key listener to reset sleep timer
+		addKeyListener(new java.awt.event.KeyAdapter() {
+			@Override
+			public void keyPressed(java.awt.event.KeyEvent e) {
+				resetSleepTimer();
+			}
+		});
+		
+		// Add focus listener to reset sleep timer when window gains focus
+		addWindowFocusListener(new java.awt.event.WindowAdapter() {
+			@Override
+			public void windowGainedFocus(java.awt.event.WindowEvent e) {
+				resetSleepTimer();
+			}
+		});
+		
+		// Add listeners to device panel (where most user interaction happens)
+		if (devicePanel != null) {
+			devicePanel.addMouseListener(new java.awt.event.MouseAdapter() {
+				@Override
+				public void mouseClicked(java.awt.event.MouseEvent e) {
+					resetSleepTimer();
+				}
+				
+				@Override
+				public void mousePressed(java.awt.event.MouseEvent e) {
+					resetSleepTimer();
+				}
+			});
+			
+			devicePanel.addKeyListener(new java.awt.event.KeyAdapter() {
+				@Override
+				public void keyPressed(java.awt.event.KeyEvent e) {
+					resetSleepTimer();
+				}
+			});
+			
+			// Also add listeners to the display component inside device panel
+			try {
+				org.je.DisplayComponent displayComponent = devicePanel.getDisplayComponent();
+				if (displayComponent instanceof java.awt.Component) {
+					java.awt.Component awtComponent = (java.awt.Component) displayComponent;
+					awtComponent.addMouseListener(new java.awt.event.MouseAdapter() {
+						@Override
+						public void mouseClicked(java.awt.event.MouseEvent e) {
+							resetSleepTimer();
+						}
+						
+						@Override
+						public void mousePressed(java.awt.event.MouseEvent e) {
+							resetSleepTimer();
+						}
+					});
+					
+					awtComponent.addKeyListener(new java.awt.event.KeyAdapter() {
+						@Override
+						public void keyPressed(java.awt.event.KeyEvent e) {
+							resetSleepTimer();
+						}
+					});
+				}
+			} catch (Exception e) {
+				// Ignore if display component is not available yet
+			}
+		}
+	}
+	
+	/**
+	 * Reset the sleep timer if sleep manager exists
+	 */
+	private void resetSleepTimer() {
+		if (sleepManager != null) {
+			sleepManager.resetSleepTimer();
+		}
+	}
+	
+	/**
+	 * Refresh sleep timer listeners for the current device
+	 */
+	private void refreshSleepTimerListeners() {
+		if (devicePanel != null && sleepManager != null) {
+			try {
+				org.je.DisplayComponent displayComponent = devicePanel.getDisplayComponent();
+				if (displayComponent instanceof java.awt.Component) {
+					java.awt.Component awtComponent = (java.awt.Component) displayComponent;
+					
+					// Remove existing listeners first
+					for (java.awt.event.MouseListener ml : awtComponent.getMouseListeners()) {
+						if (ml.getClass().getName().contains("MouseAdapter")) {
+							awtComponent.removeMouseListener(ml);
+						}
+					}
+					
+					// Add new sleep timer reset listeners
+					awtComponent.addMouseListener(new java.awt.event.MouseAdapter() {
+						@Override
+						public void mouseClicked(java.awt.event.MouseEvent e) {
+							resetSleepTimer();
+						}
+						
+						@Override
+						public void mousePressed(java.awt.event.MouseEvent e) {
+							resetSleepTimer();
+						}
+					});
+					
+					awtComponent.addKeyListener(new java.awt.event.KeyAdapter() {
+						@Override
+						public void keyPressed(java.awt.event.KeyEvent e) {
+							resetSleepTimer();
+						}
+					});
+				}
+			} catch (Exception e) {
+				// Ignore if display component is not available
+			}
+		}
 	}
 
 	public boolean setDevice(DeviceEntry entry) {
@@ -1196,6 +1354,9 @@ menuTools.add(menuLogConsole);
 			}
 			common.setDevice(device);
 			updateDevice();
+			
+			// Refresh sleep timer listeners for the new device
+			refreshSleepTimerListeners();
 			
 			return true;
 		} catch (MalformedURLException e) {
