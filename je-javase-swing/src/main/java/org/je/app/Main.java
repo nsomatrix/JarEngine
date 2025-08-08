@@ -922,6 +922,20 @@ public class Main extends JFrame {
 			System.err.println("Warning: Could not load Tools menu icon: " + e.getMessage());
 		}
 		// Add tools menu items here as needed
+
+// Screenshot menu item
+JMenuItem menuScreenshot = new JMenuItem("Screenshot");
+menuScreenshot.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, ActionEvent.CTRL_MASK));
+menuScreenshot.addActionListener(e -> {
+    String path = ScreenshotUtil.captureAndSaveScreenshot(devicePanel, "jar_engine_screenshot_");
+    if (path != null) {
+        JOptionPane.showMessageDialog(this, "Screenshot saved to: " + path, "Screenshot", JOptionPane.INFORMATION_MESSAGE);
+    } else {
+        JOptionPane.showMessageDialog(this, "Failed to save screenshot", "Screenshot Error", JOptionPane.ERROR_MESSAGE);
+    }
+});
+menuTools.add(menuScreenshot);
+
 JMenu menuPerformance = new JMenu("Performance");
 
 JCheckBoxMenuItem doubleBufferingItem = new JCheckBoxMenuItem("Double Buffering");
