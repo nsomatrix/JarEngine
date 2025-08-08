@@ -459,9 +459,7 @@ public void repaintRequest(int x, int y, int width, int height) {
 		}
 	}
 
-	void switchShowMouseCoordinates() {
-		showMouseCoordinates = !showMouseCoordinates;
-	}
+
 
 	public J2SEGraphicsSurface getGraphicsSurface() {
 		return graphicsSurface;

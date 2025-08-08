@@ -861,7 +861,7 @@ public class Main extends JFrame {
 
 		menuOptions.addSeparator();
 
-		menuResize = new JMenuItem("Resize Device...");
+		menuResize = new JMenuItem("Resize Device");
 		menuResize.setEnabled(true); // Initially enabled, will be disabled when MIDlet is running
 		menuResize.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent ev) {
@@ -903,16 +903,6 @@ public class Main extends JFrame {
 		}
 		
 		menuOptions.add(menuTheme);
-
-		menuOptions.addSeparator();
-		JCheckBoxMenuItem menuShowMouseCoordinates = new JCheckBoxMenuItem("Mouse coordinates");
-		menuShowMouseCoordinates.setState(false);
-		menuShowMouseCoordinates.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent event) {
-				devicePanel.switchShowMouseCoordinates();
-			}
-		});
-		menuOptions.add(menuShowMouseCoordinates);
 
 		JMenu menuTools = new JMenu("Tools");
 		try {

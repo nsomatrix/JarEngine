@@ -87,12 +87,6 @@ public class SwingDeviceComponent extends JPanel implements KeyListener, InputMe
 
 	private boolean mouseButtonDown = false;
 
-	private boolean showMouseCoordinates = false;
-
-	private int pressedX;
-
-	private int pressedY;
-
 	private static class MouseRepeatedTimerTask extends TimerTask {
 
 		private static final int DELAY = 100;
@@ -151,8 +145,6 @@ public class SwingDeviceComponent extends JPanel implements KeyListener, InputMe
 		public void mousePressed(MouseEvent e) {
 			requestFocus();
 			mouseButtonDown = true;
-			pressedX = e.getX();
-			pressedY = e.getY();
 
 			MouseRepeatedTimerTask.stop();
 			if (MIDletBridge.getCurrentMIDlet() == null) {
@@ -226,19 +218,6 @@ public class SwingDeviceComponent extends JPanel implements KeyListener, InputMe
 		}
 
 		public void mouseMoved(MouseEvent e) {
-			if (showMouseCoordinates) {
-				StringBuffer buf = new StringBuffer();
-				if (mouseButtonDown) {
-					int width = e.getX() - pressedX;
-					int height = e.getY() - pressedY;
-					buf.append(pressedX).append(",").append(pressedY).append(" ").append(width).append("x").append(
-							height);
-				} else {
-					buf.append(e.getX()).append(",").append(e.getY());
-				}
-				Common.setStatusBar(buf.toString());
-			}
-
 			if (mouseButtonDown && pressedButton == null) {
 				return;
 			}
@@ -299,13 +278,8 @@ public class SwingDeviceComponent extends JPanel implements KeyListener, InputMe
 		repaint(r.x, r.y, r.width, r.height);
 	}
 
-	public void switchShowMouseCoordinates() {
-		// TODO skin editing mode.
-		// showMouseCoordinates = !showMouseCoordinates;
-		dc.switchShowMouseCoordinates();
-	}
-	
- 	//Input method support begin
+	// Mouse coordinates functionality removed
+
 	
  	private static final AttributedCharacterIterator EMPTY_TEXT = new AttributedString("").getIterator();
  	
