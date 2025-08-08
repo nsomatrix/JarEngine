@@ -77,8 +77,8 @@ import javax.swing.JRadioButtonMenuItem;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
-import com.formdev.flatlaf.FlatLightLaf;
-import com.formdev.flatlaf.FlatDarkLaf;
+import com.formdev.flatlaf.themes.FlatMacLightLaf;
+import com.formdev.flatlaf.themes.FlatMacDarkLaf;
 
 import org.je.DisplayAccess;
 import org.je.DisplayComponent;
@@ -527,13 +527,13 @@ public class Main extends JFrame {
 				String osName = System.getProperty("os.name").toLowerCase();
 				if (osName.contains("windows")) {
 					// On Windows, use FlatLaf with specific settings to avoid menu bar integration
-					UIManager.setLookAndFeel(new FlatLightLaf());
+					UIManager.setLookAndFeel(new FlatMacLightLaf());
 					// Set specific FlatLaf properties to prevent menu bar integration on Windows
 					UIManager.put("TitlePane.useWindowDecorations", false);
 					UIManager.put("TitlePane.menuBarEmbedded", false);
 				} else {
 					// On other platforms, use FlatLaf
-					UIManager.setLookAndFeel(new FlatLightLaf());
+					UIManager.setLookAndFeel(new FlatMacLightLaf());
 				}
 				SwingUtilities.updateComponentTreeUI(Main.this);
 				// Update child windows if they exist
@@ -579,13 +579,13 @@ public class Main extends JFrame {
 				String osName = System.getProperty("os.name").toLowerCase();
 				if (osName.contains("windows")) {
 					// On Windows, use FlatLaf with specific settings to avoid menu bar integration
-					UIManager.setLookAndFeel(new FlatDarkLaf());
+					UIManager.setLookAndFeel(new FlatMacDarkLaf());
 					// Set specific FlatLaf properties to prevent menu bar integration on Windows
 					UIManager.put("TitlePane.useWindowDecorations", false);
 					UIManager.put("TitlePane.menuBarEmbedded", false);
 				} else {
 					// On other platforms, use FlatLaf
-					UIManager.setLookAndFeel(new FlatDarkLaf());
+					UIManager.setLookAndFeel(new FlatMacDarkLaf());
 				}
 				SwingUtilities.updateComponentTreeUI(Main.this);
 				// Update child windows if they exist
@@ -605,7 +605,7 @@ public class Main extends JFrame {
 				Config.setCurrentTheme("dark");
 				common.setCurrentTheme("dark");
 				// Update device display colors
-				if (DeviceFactory.getDevice().getDeviceDisplay() instanceof org.je.device.j2se.J2SEDeviceDisplay) {
+				if (DeviceFactory.getDevice() != null && DeviceFactory.getDevice().getDeviceDisplay() instanceof org.je.device.j2se.J2SEDeviceDisplay) {
 					((org.je.device.j2se.J2SEDeviceDisplay) DeviceFactory.getDevice().getDeviceDisplay()).updateThemeColors("dark");
 				}
 				// Restart launcher if we're in launcher mode (to update LauncherCanvas theme)
@@ -1376,9 +1376,9 @@ menuTools.add(menuFilter);
 				// On Windows, use FlatLaf but with specific settings to avoid menu bar integration
 				String savedTheme = Config.getCurrentTheme();
 				if ("dark".equals(savedTheme)) {
-					UIManager.setLookAndFeel(new FlatDarkLaf());
+					UIManager.setLookAndFeel(new FlatMacDarkLaf());
 				} else {
-					UIManager.setLookAndFeel(new FlatLightLaf());
+					UIManager.setLookAndFeel(new FlatMacLightLaf());
 				}
 				// Set specific FlatLaf properties to prevent menu bar integration on Windows
 				UIManager.put("TitlePane.useWindowDecorations", false);
@@ -1387,9 +1387,9 @@ menuTools.add(menuFilter);
 				// On other platforms, use FlatLaf themes normally
 				String savedTheme = Config.getCurrentTheme();
 				if ("dark".equals(savedTheme)) {
-					UIManager.setLookAndFeel(new FlatDarkLaf());
+					UIManager.setLookAndFeel(new FlatMacDarkLaf());
 				} else {
-					UIManager.setLookAndFeel(new FlatLightLaf());
+					UIManager.setLookAndFeel(new FlatMacLightLaf());
 				}
 			}
 		} catch (Exception ex) {
