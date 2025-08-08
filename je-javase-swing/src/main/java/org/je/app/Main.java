@@ -93,6 +93,7 @@ import org.je.app.ui.ResponseInterfaceListener;
 import org.je.app.ui.StatusBarListener;
 import org.je.app.ui.swing.DropTransferHandler;
 import org.je.app.ui.swing.ExtensionFileFilter;
+
 import org.je.app.ui.swing.JMRUMenu;
 import org.je.app.ui.swing.MIDletUrlPanel;
 import org.je.app.ui.swing.RecordStoreManagerDialog;
@@ -104,7 +105,7 @@ import org.je.app.ui.swing.SwingDisplayComponent;
 import org.je.app.ui.swing.SwingErrorMessageDialogPanel;
 import org.je.app.ui.swing.SwingLogConsoleDialog;
 
-import org.je.app.util.AppletProducer;
+
 import org.je.app.util.DeviceEntry;
 import org.je.app.util.IOUtils;
 import org.je.app.util.MidletURLReference;
@@ -140,11 +141,11 @@ public class Main extends JFrame {
     private org.je.app.tools.FPSTool fpsToolDialog = null;
     private MIDletUrlPanel midletUrlPanel = null;
 
-	private JFileChooser saveForWebChooser;
+
 
 	private JFileChooser fileChooser = null;
 
-	private JFileChooser captureFileChooser = null;
+
 
 	private JMenuItem menuOpenMIDletFile;
 
@@ -152,11 +153,11 @@ public class Main extends JFrame {
 
 
 
-	private JMenuItem menuSaveForWeb;
 
-	private JMenuItem menuStartCapture;
 
-	private JMenuItem menuStopCapture;
+	private JRadioButtonMenuItem menuStartRecord;
+	private JRadioButtonMenuItem menuStopRecord;
+	private ButtonGroup recordButtonGroup;
 
 	private JCheckBoxMenuItem menuMIDletNetworkConnection;
 
@@ -276,198 +277,72 @@ public class Main extends JFrame {
 		}
 	};
 
-	private ActionListener menuSaveForWebListener = new ActionListener() {
+
+
+	private ActionListener menuStartRecordListener = new ActionListener() {
 		public void actionPerformed(ActionEvent e) {
-			if (saveForWebChooser == null) {
-				ExtensionFileFilter fileFilter = new ExtensionFileFilter("HTML files");
-				fileFilter.addExtension("html");
-				saveForWebChooser = new JFileChooser();
-				saveForWebChooser.setFileFilter(fileFilter);
-				saveForWebChooser.setDialogTitle("Save for Web...");
-				saveForWebChooser.setCurrentDirectory(new File(Config.getRecentDirectory("recentSaveForWebDirectory")));
+			// Get Pictures folder path
+			File picturesFolder = getPicturesFolder();
+			if (!picturesFolder.exists()) {
+				picturesFolder.mkdirs();
 			}
-			if (saveForWebChooser.showSaveDialog(Main.this) == JFileChooser.APPROVE_OPTION) {
-				Config.setRecentDirectory("recentSaveForWebDirectory", saveForWebChooser.getCurrentDirectory()
-						.getAbsolutePath());
-				File pathFile = saveForWebChooser.getSelectedFile().getParentFile();
-
-				String name = saveForWebChooser.getSelectedFile().getName();
-				if (!name.toLowerCase().endsWith(".html") && name.indexOf('.') == -1) {
-					name = name + ".html";
-				}
-
-				// try to get from distribution home location
-				String resource = MIDletClassLoader.getClassResourceName(this.getClass().getName());
-				URL url = this.getClass().getClassLoader().getResource(resource);
-				String path = url.getPath();
-				int prefix = path.indexOf(':');
-				String mainJarFileName = path.substring(prefix + 1, path.length() - resource.length());
-				File appletJarDir = new File(new File(mainJarFileName).getParent(), "lib");
-				File appletJarFile = new File(appletJarDir, "je-javase-applet.jar");
-				if (!appletJarFile.exists()) {
-					appletJarFile = null;
-				}
-
-				if (appletJarFile == null) {
-					// try to get from maven2 repository
-					/*
-					 * loc/org/je/je/2.0.1-SNAPSHOT/je-2.0.1-20070227.080140-1.jar String
-					 * version = doRegExpr(mainJarFileName, ); String basePath = "loc/org/je/" appletJarFile = new
-					 * File(basePath + "je-javase-applet/" + version + "/je-javase-applet" + version +
-					 * ".jar"); if (!appletJarFile.exists()) { appletJarFile = null; }
-					 */
-				}
-
-				if (appletJarFile == null) {
-					ExtensionFileFilter fileFilter = new ExtensionFileFilter("JAR packages");
-					fileFilter.addExtension("jar");
-					JFileChooser appletChooser = new JFileChooser();
-					appletChooser.setFileFilter(fileFilter);
-					appletChooser.setDialogTitle("Select JE applet jar package...");
-					appletChooser.setCurrentDirectory(new File(Config.getRecentDirectory("recentAppletJarDirectory")));
-					if (appletChooser.showOpenDialog(Main.this) == JFileChooser.APPROVE_OPTION) {
-						Config.setRecentDirectory("recentAppletJarDirectory", appletChooser.getCurrentDirectory()
-								.getAbsolutePath());
-						appletJarFile = appletChooser.getSelectedFile();
-					} else {
-						return;
-					}
-				}
-
-				JadMidletEntry jadMidletEntry;
-				Iterator it = common.jad.getMidletEntries().iterator();
-				if (it.hasNext()) {
-					jadMidletEntry = (JadMidletEntry) it.next();
-				} else {
-					Message.error("MIDlet Suite has no entries");
-					return;
-				}
-
-				String midletInput = common.jad.getJarURL();
-				DeviceEntry deviceInput = null;
-
-				File htmlOutputFile = new File(pathFile, name);
-				if (!allowOverride(htmlOutputFile)) {
-					return;
-				}
-				File appletPackageOutputFile = new File(pathFile, "je-javase-applet.jar");
-				if (!allowOverride(appletPackageOutputFile)) {
-					return;
-				}
-				File midletOutputFile = new File(pathFile, midletInput.substring(midletInput.lastIndexOf("/") + 1));
-				if (!allowOverride(midletOutputFile)) {
-					return;
-				}
-				File deviceOutputFile = null;
-				if (deviceInput != null && deviceInput.getFileName() != null) {
-					deviceOutputFile = new File(pathFile, deviceInput.getFileName());
-					if (!allowOverride(deviceOutputFile)) {
-						return;
-					}
-				}
-
-				try {
-					AppletProducer.createHtml(htmlOutputFile, (DeviceImpl) DeviceFactory.getDevice(), jadMidletEntry
-							.getClassName(), midletOutputFile, appletPackageOutputFile, deviceOutputFile);
-					AppletProducer.createMidlet(new URL(midletInput), midletOutputFile);
-					IOUtils.copyFile(appletJarFile, appletPackageOutputFile);
-					if (deviceInput != null && deviceInput.getFileName() != null) {
-						IOUtils.copyFile(new File(Config.getConfigPath(), deviceInput.getFileName()), deviceOutputFile);
-					}
-				} catch (IOException ex) {
-					Logger.error(ex);
-				}
-			}
-		}
-
-		private boolean allowOverride(File file) {
-			if (file.exists()) {
-				int answer = JOptionPane.showConfirmDialog(Main.this, "Override the file:" + file + "?", "Question?",
-						JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
-				if (answer == 1 /* no */) {
-					return false;
-				}
+			
+			// Generate auto filename with timestamp
+			String timestamp = new java.text.SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new java.util.Date());
+			String filename = "jar_engine_recording_" + timestamp + ".gif";
+			File captureFile = new File(picturesFolder, filename);
+			
+			// Handle file override automatically
+			int counter = 1;
+			while (captureFile.exists()) {
+				filename = "jar_engine_recording_" + timestamp + "_" + counter + ".gif";
+				captureFile = new File(picturesFolder, filename);
+				counter++;
 			}
 
-			return true;
-		}
-	};
+			encoder = new AnimatedGifEncoder();
+			encoder.start(captureFile.getAbsolutePath());
 
-	private ActionListener menuStartCaptureListener = new ActionListener() {
-		public void actionPerformed(ActionEvent e) {
-			if (captureFileChooser == null) {
-				ExtensionFileFilter fileFilter = new ExtensionFileFilter("GIF files");
-				fileFilter.addExtension("gif");
-				captureFileChooser = new JFileChooser();
-				captureFileChooser.setFileFilter(fileFilter);
-				captureFileChooser.setDialogTitle("Capture to GIF File...");
-				captureFileChooser.setCurrentDirectory(new File(Config.getRecentDirectory("recentCaptureDirectory")));
-			}
+			menuStartRecord.setSelected(true);
+			menuStopRecord.setSelected(false);
 
-			if (captureFileChooser.showSaveDialog(Main.this) == JFileChooser.APPROVE_OPTION) {
-				Config.setRecentDirectory("recentCaptureDirectory", captureFileChooser.getCurrentDirectory()
-						.getAbsolutePath());
-				String name = captureFileChooser.getSelectedFile().getName();
-				if (!name.toLowerCase().endsWith(".gif") && name.indexOf('.') == -1) {
-					name = name + ".gif";
-				}
-				File captureFile = new File(captureFileChooser.getSelectedFile().getParentFile(), name);
-				if (!allowOverride(captureFile)) {
-					return;
-				}
+			((SwingDisplayComponent) emulatorContext.getDisplayComponent())
+					.addDisplayRepaintListener(new DisplayRepaintListener() {
+				long start = 0;
 
-				encoder = new AnimatedGifEncoder();
-				encoder.start(captureFile.getAbsolutePath());
-
-				menuStartCapture.setEnabled(false);
-				menuStopCapture.setEnabled(true);
-
-				((SwingDisplayComponent) emulatorContext.getDisplayComponent())
-						.addDisplayRepaintListener(new DisplayRepaintListener() {
-					long start = 0;
-
-					public void repaintInvoked(Object repaintObject) {
-						synchronized (Main.this) {
-							if (encoder != null) {
-								if (start == 0) {
-									start = System.currentTimeMillis();
-								} else {
-									long current = System.currentTimeMillis();
-									encoder.setDelay((int) (current - start));
-									start = current;
-								}
-
-								encoder.addFrame(((J2SEGraphicsSurface) repaintObject).getImage());
+				public void repaintInvoked(Object repaintObject) {
+					synchronized (Main.this) {
+						if (encoder != null) {
+							if (start == 0) {
+								start = System.currentTimeMillis();
+							} else {
+								long current = System.currentTimeMillis();
+								encoder.setDelay((int) (current - start));
+								start = current;
 							}
+
+							encoder.addFrame(((J2SEGraphicsSurface) repaintObject).getImage());
 						}
 					}
-				});
-			}
-		}
-
-		private boolean allowOverride(File file) {
-			if (file.exists()) {
-				int answer = JOptionPane.showConfirmDialog(Main.this, "Override the file:" + file + "?", "Question?",
-						JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
-				if (answer == 1 /* no */) {
-					return false;
 				}
-			}
-
-			return true;
+			});
+			
+			Message.info("Recording started: " + captureFile.getName());
 		}
 	};
 
-	private ActionListener menuStopCaptureListener = new ActionListener() {
+	private ActionListener menuStopRecordListener = new ActionListener() {
 		public void actionPerformed(ActionEvent e) {
-			menuStopCapture.setEnabled(false);
-
 			synchronized (Main.this) {
-				encoder.finish();
-				encoder = null;
+				if (encoder != null) {
+					encoder.finish();
+					encoder = null;
+					Message.info("Recording stopped and saved");
+				}
 			}
 
-			menuStartCapture.setEnabled(true);
+			menuStartRecord.setSelected(false);
+			menuStopRecord.setSelected(true);
 		}
 	};
 
@@ -801,14 +676,6 @@ public class Main extends JFrame {
 		public void stateChanged(boolean state) {
 			menuOpenMIDletFile.setEnabled(state);
 			menuOpenMIDletURL.setEnabled(state);
-
-			if (common.jad.getJarURL() != null) {
-				menuSaveForWeb.setEnabled(state);
-			} else {
-				menuSaveForWeb.setEnabled(false);
-			}
-
-
 		}
 	};
 
@@ -921,22 +788,20 @@ public class Main extends JFrame {
 			System.err.println("Warning: Could not load Load menu icon: " + e.getMessage());
 		}
 
-		menuOpenMIDletFile = new JMenuItem("Open MIDlet File...");
+		menuOpenMIDletFile = new JMenuItem("Load JAR");
 		menuOpenMIDletFile.addActionListener(menuOpenMIDletFileListener);
 		menuFile.add(menuOpenMIDletFile);
 
-		menuOpenMIDletURL = new JMenuItem("Open MIDlet URL...");
+		menuOpenMIDletURL = new JMenuItem("Fetch via URL");
 		menuOpenMIDletURL.addActionListener(menuOpenMIDletURLListener);
 		menuFile.add(menuOpenMIDletURL);
 
-		JMenuItem menuItemTmp = new JMenuItem("Close MIDlet");
+		JMenuItem menuItemTmp = new JMenuItem("Terminate");
 		menuItemTmp.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_W, ActionEvent.CTRL_MASK));
 		menuItemTmp.addActionListener(menuCloseMidletListener);
 		menuFile.add(menuItemTmp);
 
-		menuFile.addSeparator();
-
-		JMRUMenu urlsMRU = new JMRUMenu("Recent MIDlets...");
+		JMRUMenu urlsMRU = new JMRUMenu("Recents Library");
 		urlsMRU.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent event) {
 				if (event instanceof JMRUMenu.MRUActionEvent) {
@@ -951,12 +816,6 @@ public class Main extends JFrame {
 
 		Config.getUrlsMRU().setListener(urlsMRU);
 		menuFile.add(urlsMRU);
-
-		menuFile.addSeparator();
-
-		menuSaveForWeb = new JMenuItem("Save for Web...");
-		menuSaveForWeb.addActionListener(menuSaveForWebListener);
-		menuFile.add(menuSaveForWeb);
 
 		menuFile.addSeparator();
 
@@ -985,14 +844,7 @@ public class Main extends JFrame {
 			menuScaleLCD.add(zoomLevels[i]);
 		}
 
-		menuStartCapture = new JMenuItem("Start capture to GIF...");
-		menuStartCapture.addActionListener(menuStartCaptureListener);
-		menuOptions.add(menuStartCapture);
 
-		menuStopCapture = new JMenuItem("Stop capture");
-		menuStopCapture.setEnabled(false);
-		menuStopCapture.addActionListener(menuStopCaptureListener);
-		menuOptions.add(menuStopCapture);
 
 		menuMIDletNetworkConnection = new JCheckBoxMenuItem("MIDlet Network access");
 		menuMIDletNetworkConnection.setState(true);
@@ -1002,12 +854,10 @@ public class Main extends JFrame {
 		menuRecordStoreManager = new JCheckBoxMenuItem("Record Store Manager");
 		menuRecordStoreManager.setState(false);
 		menuRecordStoreManager.addActionListener(menuRecordStoreManagerListener);
-		menuOptions.add(menuRecordStoreManager);
 
 		menuLogConsole = new JCheckBoxMenuItem("Log console");
 		menuLogConsole.setState(false);
 		menuLogConsole.addActionListener(menuLogConsoleListener);
-		menuOptions.add(menuLogConsole);
 
 		menuOptions.addSeparator();
 
@@ -1159,6 +1009,28 @@ menuTools.add(menuProxy);
 JMenuItem menuFilter = new JMenuItem("Filter");
 menuFilter.addActionListener(e -> new org.je.app.tools.FilterTool(this).setVisible(true));
 menuTools.add(menuFilter);
+
+// Record submenu
+JMenu menuRecord = new JMenu("Record");
+recordButtonGroup = new ButtonGroup();
+
+menuStartRecord = new JRadioButtonMenuItem("Start Capture");
+menuStartRecord.addActionListener(menuStartRecordListener);
+recordButtonGroup.add(menuStartRecord);
+menuRecord.add(menuStartRecord);
+
+menuStopRecord = new JRadioButtonMenuItem("Stop Capture");
+menuStopRecord.addActionListener(menuStopRecordListener);
+recordButtonGroup.add(menuStopRecord);
+menuRecord.add(menuStopRecord);
+
+// Initially set Stop Capture as selected (not recording)
+menuStopRecord.setSelected(true);
+
+menuTools.add(menuRecord);
+
+menuTools.add(menuRecordStoreManager);
+menuTools.add(menuLogConsole);
 
 		JMenu menuHelp = new JMenu("Settings");
 		try {
@@ -1460,6 +1332,28 @@ menuTools.add(menuFilter);
 		app.addComponentListener(app.componentListener);
 
 		app.responseInterfaceListener.stateChanged(true);
+	}
+
+	private File getPicturesFolder() {
+		String osName = System.getProperty("os.name").toLowerCase();
+		String userHome = System.getProperty("user.home");
+		
+		if (osName.contains("windows")) {
+			// Windows: %USERPROFILE%\Pictures
+			return new File(userHome, "Pictures");
+		} else if (osName.contains("mac")) {
+			// macOS: ~/Pictures
+			return new File(userHome, "Pictures");
+		} else {
+			// Linux: ~/Pictures (common) or fallback to user home
+			File pictures = new File(userHome, "Pictures");
+			if (pictures.exists() || pictures.mkdirs()) {
+				return pictures;
+			} else {
+				// Fallback to user home directory
+				return new File(userHome);
+			}
+		}
 	}
 
 	private abstract class CountTimerTask extends TimerTask {
