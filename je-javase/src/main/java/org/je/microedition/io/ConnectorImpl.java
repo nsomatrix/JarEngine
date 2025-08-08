@@ -132,6 +132,26 @@ public class ConnectorImpl extends ConnectorAdapter {
 		try {
 			try {
 				protocol = name.substring(0, name.indexOf(':'));
+				
+				// Check if proxy is enabled and use proxy connection classes
+				org.je.util.ProxyConfig proxyConfig = org.je.util.ProxyConfig.getInstance();
+				if (proxyConfig.isEnabled()) {
+					className = "org.je.cldc." + protocol + ".ProxyConnection";
+					try {
+						Class cl = Class.forName(className);
+						Object inst = cl.newInstance();
+						if (inst instanceof ConnectionImplementation) {
+							return ((ConnectionImplementation) inst).openConnection(name, mode, timeouts);
+						} else {
+							return ((ClosedConnection) inst).open(name);
+						}
+					} catch (ClassNotFoundException proxyEx) {
+						// Fall back to regular connection if proxy version doesn't exist
+						Logger.debug("Proxy connection [" + protocol + "] class not found, using regular connection", proxyEx);
+					}
+				}
+				
+				// Use regular connection classes
 				className = "org.je.cldc." + protocol + ".Connection";
 				Class cl = Class.forName(className);
 				Object inst = cl.newInstance();

@@ -666,9 +666,20 @@ public class Main extends JFrame {
 
 	private StatusBarListener statusBarListener = new StatusBarListener() {
 		public void statusBarChanged(String text) {
+			// Add proxy status to status bar
+			String proxyStatus = "";
+			try {
+				org.je.util.ProxyConfig proxyConfig = org.je.util.ProxyConfig.getInstance();
+				if (proxyConfig.isEnabled()) {
+					proxyStatus = " [PROXY: " + proxyConfig.getProxyHost() + ":" + proxyConfig.getProxyPort() + "]";
+				}
+			} catch (Exception e) {
+				// Ignore proxy status errors
+			}
+			String fullText = text + proxyStatus;
 			FontMetrics metrics = statusBar.getFontMetrics(statusBar.getFont());
-			statusBar.setPreferredSize(new Dimension(metrics.stringWidth(text), metrics.getHeight()));
-			statusBar.setText(text);
+			statusBar.setPreferredSize(new Dimension(metrics.stringWidth(fullText), metrics.getHeight()));
+			statusBar.setText(fullText);
 		}
 	};
 
