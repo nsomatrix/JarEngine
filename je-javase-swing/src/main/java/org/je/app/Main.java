@@ -940,7 +940,7 @@ public class Main extends JFrame {
 
 
 
-		menuMIDletNetworkConnection = new JCheckBoxMenuItem("MIDlet Network access");
+		menuMIDletNetworkConnection = new JCheckBoxMenuItem("Internet Access");
 		menuMIDletNetworkConnection.setState(true);
 		menuMIDletNetworkConnection.addActionListener(menuMIDletNetworkConnectionListener);
 		menuOptions.add(menuMIDletNetworkConnection);
