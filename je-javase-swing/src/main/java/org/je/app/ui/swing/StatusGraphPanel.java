@@ -70,14 +70,20 @@ public class StatusGraphPanel extends JPanel {
     
     public void addDataPoint(double value) {
         synchronized (dataPoints) {
-            dataPoints.add(new DataPoint(System.currentTimeMillis(), value));
+            // Add timestamp with current time for accurate real-time display
+            long currentTime = System.currentTimeMillis();
+            dataPoints.add(new DataPoint(currentTime, value));
             
             // Remove old data points if we exceed the maximum
             while (dataPoints.size() > maxDataPoints) {
                 dataPoints.remove(0);
             }
         }
-        repaint();
+        
+        // Force immediate repaint for real-time updates
+        SwingUtilities.invokeLater(() -> {
+            repaint();
+        });
     }
     
     public void clearData() {
@@ -101,32 +107,43 @@ public class StatusGraphPanel extends JPanel {
         int xOffset = 5;
         int yOffset = 20;
         
-        // Draw title
-        g2d.setColor(Color.BLACK);
-        g2d.setFont(new Font("Arial", Font.BOLD, 10));
+        // Draw title using system default font (adapts to themes)
+        g2d.setColor(getForeground());
+        Font titleFont = getFont().deriveFont(Font.PLAIN, 10);
+        g2d.setFont(titleFont);
         FontMetrics fm = g2d.getFontMetrics();
         int titleWidth = fm.stringWidth(title);
         g2d.drawString(title, (getWidth() - titleWidth) / 2, 12);
         
         synchronized (dataPoints) {
             if (dataPoints.isEmpty()) {
-                // Draw empty graph message
-                g2d.setColor(Color.GRAY);
-                g2d.setFont(new Font("Arial", Font.ITALIC, 8));
+                // Draw empty graph message using system default font
+                g2d.setColor(getForeground().darker());
+                Font messageFont = getFont().deriveFont(Font.PLAIN, 8);
+                g2d.setFont(messageFont);
                 String message = "No data available";
                 int messageWidth = g2d.getFontMetrics().stringWidth(message);
                 g2d.drawString(message, (getWidth() - messageWidth) / 2, getHeight() / 2);
                 return;
             }
             
-            // Find min and max values
-            double minValue = 0;
+            // Find max value for scaling
             double actualMaxValue = maxValue;
             if (actualMaxValue <= 0) {
                 actualMaxValue = dataPoints.stream()
                     .mapToDouble(dp -> dp.value)
                     .max()
                     .orElse(100);
+            }
+            
+            // Add some padding to the max value to show small changes better
+            if (actualMaxValue > 0) {
+                actualMaxValue = actualMaxValue * 1.1; // Add 10% padding
+            }
+            
+            // Ensure minimum range for better visibility
+            if (actualMaxValue < 10) {
+                actualMaxValue = 10;
             }
             
             // Draw grid if enabled
@@ -147,7 +164,8 @@ public class StatusGraphPanel extends JPanel {
     }
     
     private void drawGrid(Graphics2D g2d, int xOffset, int yOffset, int width, int height, double maxValue) {
-        g2d.setColor(new Color(240, 240, 240));
+        Color gridColor = getForeground().darker().darker();
+        g2d.setColor(gridColor);
         g2d.setStroke(new BasicStroke(1, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 0, new float[]{2, 2}, 0));
         
         // Vertical grid lines
@@ -164,8 +182,9 @@ public class StatusGraphPanel extends JPanel {
     }
     
     private void drawAxisLabels(Graphics2D g2d, int xOffset, int yOffset, int width, int height, double maxValue) {
-        g2d.setColor(Color.BLACK);
-        g2d.setFont(new Font("Arial", Font.PLAIN, 7));
+        g2d.setColor(getForeground());
+        Font labelFont = getFont().deriveFont(Font.PLAIN, 7);
+        g2d.setFont(labelFont);
         
         // Y-axis labels
         for (int i = 0; i <= 5; i++) {
@@ -182,11 +201,16 @@ public class StatusGraphPanel extends JPanel {
         
         synchronized (dataPoints) {
             if (dataPoints.size() > 1) {
-                long timeSpan = dataPoints.get(dataPoints.size() - 1).timestamp - dataPoints.get(0).timestamp;
-                String timeLabel = String.format("%ds", timeSpan / 1000);
-                FontMetrics fm = g2d.getFontMetrics();
-                int labelWidth = fm.stringWidth(timeLabel);
-                g2d.drawString(timeLabel, xOffset + width - labelWidth, yOffset + height + 10);
+                // Show the most recent timestamp
+                long mostRecentTime = dataPoints.get(dataPoints.size() - 1).timestamp;
+                long oldestTime = dataPoints.get(0).timestamp;
+                long timeSpan = mostRecentTime - oldestTime;
+                
+                if (timeSpan > 0) {
+                    String timeLabel = String.format("%.1fs", timeSpan / 1000.0);
+                    int timeLabelWidth = g2d.getFontMetrics().stringWidth(timeLabel);
+                    g2d.drawString(timeLabel, xOffset + width - timeLabelWidth, yOffset + height + 10);
+                }
             }
         }
     }
@@ -207,10 +231,8 @@ public class StatusGraphPanel extends JPanel {
             // Move to first point
             for (DataPoint dp : dataPoints) {
                 double x = xOffset + (double)(dp.timestamp - startTime) * width / timeRange;
-                // Ensure Y calculation is correct - Y increases downward in graphics coordinates
                 double y = yOffset + height - (dp.value * height / maxValue);
                 
-                // Clamp Y values to prevent drawing outside bounds
                 y = Math.max(yOffset, Math.min(yOffset + height, y));
                 
                 if (first) {
@@ -224,7 +246,6 @@ public class StatusGraphPanel extends JPanel {
                 }
             }
             
-            // Complete the fill path
             if (!dataPoints.isEmpty()) {
                 DataPoint last = dataPoints.get(dataPoints.size() - 1);
                 double lastX = xOffset + (double)(last.timestamp - startTime) * width / timeRange;
