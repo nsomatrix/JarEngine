@@ -98,10 +98,9 @@ import org.je.app.ui.swing.JMRUMenu;
 import org.je.app.ui.swing.MIDletUrlPanel;
 import org.je.app.ui.swing.RecordStoreManagerDialog;
 import org.je.app.ui.swing.ResizeDeviceDisplayDialog;
+import org.je.app.ui.swing.StatusDialog;
 import org.je.app.ui.swing.SwingAboutDialog;
 import org.je.app.ui.swing.SwingDeviceComponent;
-import org.je.app.util.SleepManager;
-import org.je.app.util.Fallback;
 import org.je.app.ui.swing.SwingDialogWindow;
 import org.je.app.ui.swing.SwingDisplayComponent;
 import org.je.app.ui.swing.SwingErrorMessageDialogPanel;
@@ -111,6 +110,8 @@ import org.je.app.ui.swing.SwingLogConsoleDialog;
 import org.je.app.util.DeviceEntry;
 import org.je.app.util.IOUtils;
 import org.je.app.util.MidletURLReference;
+import org.je.app.util.SleepManager;
+import org.je.app.util.Fallback;
 import org.je.device.Device;
 import org.je.device.DeviceDisplay;
 import org.je.device.DeviceFactory;
@@ -697,8 +698,8 @@ public class Main extends JFrame {
 
 	private ActionListener menuStatusListener = new ActionListener() {
 		public void actionPerformed(ActionEvent e) {
-			// TODO: Implement Status functionality
-			JOptionPane.showMessageDialog(Main.this, "Status functionality will be implemented here.", "Status", JOptionPane.INFORMATION_MESSAGE);
+			StatusDialog statusDialog = new StatusDialog(Main.this);
+			SwingDialogWindow.show(Main.this, "Status", statusDialog, false);
 		}
 	};
 
