@@ -111,6 +111,7 @@ import org.je.app.util.DeviceEntry;
 import org.je.app.util.IOUtils;
 import org.je.app.util.MidletURLReference;
 import org.je.app.util.SleepManager;
+import org.je.app.util.SelfDestructManager;
 import org.je.app.util.Fallback;
 import org.je.device.Device;
 import org.je.device.DeviceDisplay;
@@ -185,7 +186,6 @@ public class Main extends JFrame {
 
 	// New Tune menu items
 	private JMenuItem menuReplicateInstances;
-	private JMenuItem menuSelfDestruct;
 	private JRadioButtonMenuItem menuNetworkMeter;
 	private JRadioButtonMenuItem menuTimer;
 	private ButtonGroup uiManagerButtonGroup;
@@ -208,6 +208,7 @@ public class Main extends JFrame {
 
 	private ResizeDeviceDisplayDialog resizeDeviceDisplayDialog = null;
 	private SleepManager sleepManager;
+	private SelfDestructManager selfDestructManager;
 	private Fallback fallback;
 
 	protected EmulatorContext emulatorContext = new EmulatorContext() {
@@ -717,13 +718,6 @@ public class Main extends JFrame {
 		}
 	};
 
-	private ActionListener menuSelfDestructListener = new ActionListener() {
-		public void actionPerformed(ActionEvent e) {
-			// TODO: Implement Self-Destruct functionality
-			JOptionPane.showMessageDialog(Main.this, "Self-Destruct functionality will be implemented here.", "Self-Destruct", JOptionPane.INFORMATION_MESSAGE);
-		}
-	};
-
 	private ActionListener menuNetworkMeterListener = new ActionListener() {
 		public void actionPerformed(ActionEvent e) {
 			// TODO: Implement Network Meter functionality
@@ -841,6 +835,11 @@ public class Main extends JFrame {
 			// Cleanup sleep manager
 			if (sleepManager != null) {
 				sleepManager.cleanup();
+			}
+			
+			// Cleanup self destruct manager
+			if (selfDestructManager != null) {
+				selfDestructManager.cleanup();
 			}
 			
 			// Cleanup fallback monitoring
@@ -1017,10 +1016,35 @@ public class Main extends JFrame {
 		menuReplicateInstances.addActionListener(menuReplicateInstancesListener);
 		menuOptions.add(menuReplicateInstances);
 
-		// Self-Destruct menu item
-		menuSelfDestruct = new JMenuItem("Self-Destruct");
-		menuSelfDestruct.addActionListener(menuSelfDestructListener);
-		menuOptions.add(menuSelfDestruct);
+		// Self-Destruct submenu
+		JMenu menuSelfDestructSubmenu = new JMenu("Self-Destruct");
+		ButtonGroup selfDestructButtonGroup = new ButtonGroup();
+		
+		JRadioButtonMenuItem menuSelfDestructActivate = new JRadioButtonMenuItem("Activate");
+		menuSelfDestructActivate.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				if (selfDestructManager == null) {
+					selfDestructManager = new SelfDestructManager(Main.this);
+				}
+				selfDestructManager.showConfigDialog();
+			}
+		});
+		selfDestructButtonGroup.add(menuSelfDestructActivate);
+		menuSelfDestructSubmenu.add(menuSelfDestructActivate);
+		
+		JRadioButtonMenuItem menuSelfDestructDeactivate = new JRadioButtonMenuItem("Deactivate");
+		menuSelfDestructDeactivate.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				if (selfDestructManager == null) {
+					selfDestructManager = new SelfDestructManager(Main.this);
+				}
+				selfDestructManager.deactivateSelfDestruct();
+			}
+		});
+		selfDestructButtonGroup.add(menuSelfDestructDeactivate);
+		menuSelfDestructSubmenu.add(menuSelfDestructDeactivate);
+		
+		menuOptions.add(menuSelfDestructSubmenu);
 
 		// UI Manager submenu
 		JMenu menuUIManager = new JMenu("UI Manager");
