@@ -101,6 +101,7 @@ import org.je.app.ui.swing.ResizeDeviceDisplayDialog;
 import org.je.app.ui.swing.SwingAboutDialog;
 import org.je.app.ui.swing.SwingDeviceComponent;
 import org.je.app.util.SleepManager;
+import org.je.app.util.Fallback;
 import org.je.app.ui.swing.SwingDialogWindow;
 import org.je.app.ui.swing.SwingDisplayComponent;
 import org.je.app.ui.swing.SwingErrorMessageDialogPanel;
@@ -193,6 +194,7 @@ public class Main extends JFrame {
 
 	private ResizeDeviceDisplayDialog resizeDeviceDisplayDialog = null;
 	private SleepManager sleepManager;
+	private Fallback fallback;
 
 	protected EmulatorContext emulatorContext = new EmulatorContext() {
 
@@ -798,6 +800,12 @@ public class Main extends JFrame {
 			if (sleepManager != null) {
 				sleepManager.cleanup();
 			}
+			
+			// Cleanup fallback monitoring
+			if (fallback != null) {
+				fallback.stopMonitoring();
+			}
+			
 			menuExitListener.actionPerformed(null);
 		}
 
@@ -1161,7 +1169,9 @@ menuTools.add(menuLogConsole);
 		this.common.setResponseInterfaceListener(responseInterfaceListener);
 		this.common.loadImplementationsFromConfig();
 
-
+		// Initialize Fallback safety net
+		this.fallback = new Fallback(this, this.common, this.emulatorContext);
+		this.fallback.startMonitoring();
 
 		JPanel statusPanel = new JPanel();
 		statusPanel.setLayout(new BorderLayout());
@@ -1585,6 +1595,25 @@ menuTools.add(menuLogConsole);
 			this.counter = counter;
 		}
 
+	}
+
+	/**
+	 * Get current system health status from Fallback monitoring
+	 */
+	public Fallback.SystemHealth getSystemHealth() {
+		if (fallback != null) {
+			return fallback.getSystemHealth();
+		}
+		return null;
+	}
+	
+	/**
+	 * Force a recovery attempt using Fallback system
+	 */
+	public void forceRecovery() {
+		if (fallback != null) {
+			fallback.forceRecovery();
+		}
 	}
 
 }
