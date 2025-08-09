@@ -130,6 +130,7 @@ import org.je.device.j2se.J2SEInputMethod;
 import org.je.log.Logger;
 import org.je.log.QueueAppender;
 import org.je.util.JadMidletEntry;
+import org.je.app.tools.ReplicateInstancesTool;
 
 
 public class Main extends JFrame {
@@ -710,8 +711,8 @@ public class Main extends JFrame {
 
 	private ActionListener menuReplicateInstancesListener = new ActionListener() {
 		public void actionPerformed(ActionEvent e) {
-			// TODO: Implement Replicate Instances functionality
-			JOptionPane.showMessageDialog(Main.this, "Replicate Instances functionality will be implemented here.", "Replicate Instances", JOptionPane.INFORMATION_MESSAGE);
+			ReplicateInstancesTool replicateTool = new ReplicateInstancesTool(Main.this);
+			replicateTool.setVisible(true);
 		}
 	};
 
