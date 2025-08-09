@@ -176,6 +176,18 @@ public class Main extends JFrame {
 	private JRadioButtonMenuItem menuDarkTheme;
 	private ButtonGroup themeButtonGroup;
 
+	// Config Manager radio buttons
+	private JRadioButtonMenuItem menuImportConfig;
+	private JRadioButtonMenuItem menuExportConfig;
+	private ButtonGroup configManagerButtonGroup;
+
+	// New Tune menu items
+	private JMenuItem menuReplicateInstances;
+	private JMenuItem menuSelfDestruct;
+	private JRadioButtonMenuItem menuNetworkMeter;
+	private JRadioButtonMenuItem menuTimer;
+	private ButtonGroup uiManagerButtonGroup;
+
 	private JCheckBoxMenuItem[] zoomLevels;
 
 	private SwingDeviceComponent devicePanel;
@@ -682,10 +694,10 @@ public class Main extends JFrame {
 		}
 	};
 
-	private ActionListener menuSysInfoListener = new ActionListener() {
+	private ActionListener menuStatusListener = new ActionListener() {
 		public void actionPerformed(ActionEvent e) {
-			// TODO: Implement System Info functionality
-			JOptionPane.showMessageDialog(Main.this, "System Info functionality will be implemented here.", "System Info", JOptionPane.INFORMATION_MESSAGE);
+			// TODO: Implement Status functionality
+			JOptionPane.showMessageDialog(Main.this, "Status functionality will be implemented here.", "Status", JOptionPane.INFORMATION_MESSAGE);
 		}
 	};
 
@@ -693,6 +705,34 @@ public class Main extends JFrame {
 		public void actionPerformed(ActionEvent e) {
 			// TODO: Implement Update Emulator functionality
 			JOptionPane.showMessageDialog(Main.this, "Update Emulator functionality will be implemented here.", "Update Emulator", JOptionPane.INFORMATION_MESSAGE);
+		}
+	};
+
+	private ActionListener menuReplicateInstancesListener = new ActionListener() {
+		public void actionPerformed(ActionEvent e) {
+			// TODO: Implement Replicate Instances functionality
+			JOptionPane.showMessageDialog(Main.this, "Replicate Instances functionality will be implemented here.", "Replicate Instances", JOptionPane.INFORMATION_MESSAGE);
+		}
+	};
+
+	private ActionListener menuSelfDestructListener = new ActionListener() {
+		public void actionPerformed(ActionEvent e) {
+			// TODO: Implement Self-Destruct functionality
+			JOptionPane.showMessageDialog(Main.this, "Self-Destruct functionality will be implemented here.", "Self-Destruct", JOptionPane.INFORMATION_MESSAGE);
+		}
+	};
+
+	private ActionListener menuNetworkMeterListener = new ActionListener() {
+		public void actionPerformed(ActionEvent e) {
+			// TODO: Implement Network Meter functionality
+			JOptionPane.showMessageDialog(Main.this, "Network Meter functionality will be implemented here.", "Network Meter", JOptionPane.INFORMATION_MESSAGE);
+		}
+	};
+
+	private ActionListener menuTimerListener = new ActionListener() {
+		public void actionPerformed(ActionEvent e) {
+			// TODO: Implement Timer functionality
+			JOptionPane.showMessageDialog(Main.this, "Timer functionality will be implemented here.", "Timer", JOptionPane.INFORMATION_MESSAGE);
 		}
 	};
 
@@ -908,7 +948,7 @@ public class Main extends JFrame {
 		menuRecordStoreManager.setState(false);
 		menuRecordStoreManager.addActionListener(menuRecordStoreManagerListener);
 
-		menuLogConsole = new JCheckBoxMenuItem("Log console");
+		menuLogConsole = new JCheckBoxMenuItem("Console");
 		menuLogConsole.setState(false);
 		menuLogConsole.addActionListener(menuLogConsoleListener);
 
@@ -969,6 +1009,35 @@ public class Main extends JFrame {
 		}
 		
 		menuOptions.add(menuTheme);
+
+		// Replicate Instances menu item
+		menuReplicateInstances = new JMenuItem("Replicate Instances");
+		menuReplicateInstances.addActionListener(menuReplicateInstancesListener);
+		menuOptions.add(menuReplicateInstances);
+
+		// Self-Destruct menu item
+		menuSelfDestruct = new JMenuItem("Self-Destruct");
+		menuSelfDestruct.addActionListener(menuSelfDestructListener);
+		menuOptions.add(menuSelfDestruct);
+
+		// UI Manager submenu
+		JMenu menuUIManager = new JMenu("UI Manager");
+		uiManagerButtonGroup = new ButtonGroup();
+		
+		menuNetworkMeter = new JRadioButtonMenuItem("Network Meter");
+		menuNetworkMeter.addActionListener(menuNetworkMeterListener);
+		uiManagerButtonGroup.add(menuNetworkMeter);
+		menuUIManager.add(menuNetworkMeter);
+		
+		menuTimer = new JRadioButtonMenuItem("Timer");
+		menuTimer.addActionListener(menuTimerListener);
+		uiManagerButtonGroup.add(menuTimer);
+		menuUIManager.add(menuTimer);
+		
+		// Set the current UI Manager selection (default to Network Meter)
+		menuNetworkMeter.setSelected(true);
+		
+		menuOptions.add(menuUIManager);
 
 		JMenu menuTools = new JMenu("Tools");
 		try {
@@ -1106,19 +1175,30 @@ menuTools.add(menuLogConsole);
 			System.err.println("Warning: Could not load Settings menu icon: " + e.getMessage());
 		}
 		
-		JMenuItem menuImportConfig = new JMenuItem("Import Config");
-		menuImportConfig.addActionListener(menuImportConfigListener);
-		menuHelp.add(menuImportConfig);
+		// Config Manager submenu
+		JMenu menuConfigManager = new JMenu("Config Manager");
+		configManagerButtonGroup = new ButtonGroup();
 		
-		JMenuItem menuExportConfig = new JMenuItem("Export Config");
+		menuImportConfig = new JRadioButtonMenuItem("Import");
+		menuImportConfig.addActionListener(menuImportConfigListener);
+		configManagerButtonGroup.add(menuImportConfig);
+		menuConfigManager.add(menuImportConfig);
+		
+		menuExportConfig = new JRadioButtonMenuItem("Export");
 		menuExportConfig.addActionListener(menuExportConfigListener);
-		menuHelp.add(menuExportConfig);
+		configManagerButtonGroup.add(menuExportConfig);
+		menuConfigManager.add(menuExportConfig);
+		
+		// Set the current config manager selection (default to Import)
+		menuImportConfig.setSelected(true);
+		
+		menuHelp.add(menuConfigManager);
 		
 		menuHelp.addSeparator();
 		
-		JMenuItem menuSysInfo = new JMenuItem("SysInfo");
-		menuSysInfo.addActionListener(menuSysInfoListener);
-		menuHelp.add(menuSysInfo);
+		JMenuItem menuStatus = new JMenuItem("Status");
+		menuStatus.addActionListener(menuStatusListener);
+		menuHelp.add(menuStatus);
 		
 		JMenuItem menuUpdateEmulator = new JMenuItem("Update Emulator");
 		menuUpdateEmulator.addActionListener(menuUpdateEmulatorListener);
