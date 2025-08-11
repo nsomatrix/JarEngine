@@ -131,6 +131,7 @@ import org.je.device.j2se.J2SEInputMethod;
 import org.je.log.Logger;
 import org.je.log.QueueAppender;
 import org.je.util.JadMidletEntry;
+import org.je.app.tools.ReplicateInstancesTool;
 
 
 public class Main extends JFrame {
@@ -684,6 +685,13 @@ public class Main extends JFrame {
 		}
 	};
 
+	private ActionListener menuReplicateInstancesListener = new ActionListener() {
+		public void actionPerformed(ActionEvent e) {
+			ReplicateInstancesTool replicateTool = new ReplicateInstancesTool(Main.this);
+			replicateTool.setVisible(true);
+		}
+	};
+
 	private StatusBarListener statusBarListener = new StatusBarListener() {
 		public void statusBarChanged(String text) {
 			// Add proxy status to status bar
@@ -951,6 +959,12 @@ public class Main extends JFrame {
 		}
 		
 		menuOptions.add(menuTheme);
+
+		menuOptions.addSeparator();
+
+		JMenuItem menuReplicateInstances = new JMenuItem("Replicate Instances");
+		menuReplicateInstances.addActionListener(menuReplicateInstancesListener);
+		menuOptions.add(menuReplicateInstances);
 
 		JMenu menuTools = new JMenu("Tools");
 		try {
