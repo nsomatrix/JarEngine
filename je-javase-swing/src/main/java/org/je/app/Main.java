@@ -1014,9 +1014,41 @@ menuFPS.addActionListener(e -> {
 });
 menuTools.add(menuFPS);
 
-JMenuItem menuProxy = new JMenuItem("Proxy");
+// Performance submenu
+JMenu menuPerformance = new JMenu("Performance");
+JMenuItem menuCpuMonitor = new JMenuItem("CPU Monitor");
+menuCpuMonitor.addActionListener(e -> JOptionPane.showMessageDialog(this, "CPU Monitor functionality will be implemented here.", "CPU Monitor", JOptionPane.INFORMATION_MESSAGE));
+menuPerformance.add(menuCpuMonitor);
+
+JMenuItem menuMemoryProfiler = new JMenuItem("Memory Profiler");
+menuMemoryProfiler.addActionListener(e -> JOptionPane.showMessageDialog(this, "Memory Profiler functionality will be implemented here.", "Memory Profiler", JOptionPane.INFORMATION_MESSAGE));
+menuPerformance.add(menuMemoryProfiler);
+
+JMenuItem menuThreadAnalyzer = new JMenuItem("Thread Analyzer");
+menuThreadAnalyzer.addActionListener(e -> JOptionPane.showMessageDialog(this, "Thread Analyzer functionality will be implemented here.", "Thread Analyzer", JOptionPane.INFORMATION_MESSAGE));
+menuPerformance.add(menuThreadAnalyzer);
+menuTools.add(menuPerformance);
+
+// Networking submenu
+JMenu menuNetworking = new JMenu("Networking");
+JMenuItem menuProxy = new JMenuItem("Proxy Settings");
 menuProxy.addActionListener(e -> new org.je.app.tools.ProxyTool(this).setVisible(true));
-menuTools.add(menuProxy);
+menuNetworking.add(menuProxy);
+
+menuNetworking.addSeparator();
+
+JMenuItem menuNetworkMonitor = new JMenuItem("Network Monitor");
+menuNetworkMonitor.addActionListener(e -> JOptionPane.showMessageDialog(this, "Network Monitor functionality will be implemented here.", "Network Monitor", JOptionPane.INFORMATION_MESSAGE));
+menuNetworking.add(menuNetworkMonitor);
+
+JMenuItem menuConnectionTester = new JMenuItem("Connection Tester");
+menuConnectionTester.addActionListener(e -> JOptionPane.showMessageDialog(this, "Connection Tester functionality will be implemented here.", "Connection Tester", JOptionPane.INFORMATION_MESSAGE));
+menuNetworking.add(menuConnectionTester);
+
+JMenuItem menuPacketCapture = new JMenuItem("Packet Capture");
+menuPacketCapture.addActionListener(e -> JOptionPane.showMessageDialog(this, "Packet Capture functionality will be implemented here.", "Packet Capture", JOptionPane.INFORMATION_MESSAGE));
+menuNetworking.add(menuPacketCapture);
+menuTools.add(menuNetworking);
 
 // Record submenu
 JMenu menuRecord = new JMenu("Record");
