@@ -98,6 +98,7 @@ import org.je.app.ui.swing.JMRUMenu;
 import org.je.app.ui.swing.MIDletUrlPanel;
 import org.je.app.ui.swing.RecordStoreManagerDialog;
 import org.je.app.ui.swing.ResizeDeviceDisplayDialog;
+import org.je.app.ui.swing.StatusDialog;
 import org.je.app.ui.swing.SwingAboutDialog;
 import org.je.app.ui.swing.SwingDeviceComponent;
 import org.je.app.util.SleepManager;
@@ -668,10 +669,10 @@ public class Main extends JFrame {
 
 
 
-	private ActionListener menuSysInfoListener = new ActionListener() {
+	private ActionListener menuStatusListener = new ActionListener() {
 		public void actionPerformed(ActionEvent e) {
-			// TODO: Implement System Info functionality
-			JOptionPane.showMessageDialog(Main.this, "System Info functionality will be implemented here.", "System Info", JOptionPane.INFORMATION_MESSAGE);
+			StatusDialog statusDialog = new StatusDialog(Main.this);
+			SwingDialogWindow.show(Main.this, "Status", statusDialog, false);
 		}
 	};
 
@@ -1032,8 +1033,8 @@ menuTools.add(menuLogConsole);
 			System.err.println("Warning: Could not load Settings menu icon: " + e.getMessage());
 		}
 		
-		JMenuItem menuSysInfo = new JMenuItem("SysInfo");
-		menuSysInfo.addActionListener(menuSysInfoListener);
+		JMenuItem menuSysInfo = new JMenuItem("Status");
+		menuSysInfo.addActionListener(menuStatusListener);
 		menuHelp.add(menuSysInfo);
 		
 		JMenuItem menuUpdateEmulator = new JMenuItem("Update Emulator");
