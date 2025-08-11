@@ -98,6 +98,7 @@ import org.je.app.ui.swing.JMRUMenu;
 import org.je.app.ui.swing.MIDletUrlPanel;
 import org.je.app.ui.swing.RecordStoreManagerDialog;
 import org.je.app.ui.swing.ResizeDeviceDisplayDialog;
+import org.je.app.ui.swing.UpdateDialog;
 import org.je.app.ui.swing.StatusDialog;
 import org.je.app.ui.swing.SwingAboutDialog;
 import org.je.app.ui.swing.SwingDeviceComponent;
@@ -678,8 +679,8 @@ public class Main extends JFrame {
 
 	private ActionListener menuUpdateEmulatorListener = new ActionListener() {
 		public void actionPerformed(ActionEvent e) {
-			// TODO: Implement Update Emulator functionality
-			JOptionPane.showMessageDialog(Main.this, "Update Emulator functionality will be implemented here.", "Update Emulator", JOptionPane.INFORMATION_MESSAGE);
+			UpdateDialog updateDialog = new UpdateDialog(Main.this);
+			updateDialog.setVisible(true);
 		}
 	};
 
