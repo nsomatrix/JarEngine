@@ -666,19 +666,7 @@ public class Main extends JFrame {
 		}
 	};
 
-	private ActionListener menuImportConfigListener = new ActionListener() {
-		public void actionPerformed(ActionEvent e) {
-			// TODO: Implement Import Config functionality
-			JOptionPane.showMessageDialog(Main.this, "Import Config functionality will be implemented here.", "Import Config", JOptionPane.INFORMATION_MESSAGE);
-		}
-	};
 
-	private ActionListener menuExportConfigListener = new ActionListener() {
-		public void actionPerformed(ActionEvent e) {
-			// TODO: Implement Export Config functionality
-			JOptionPane.showMessageDialog(Main.this, "Export Config functionality will be implemented here.", "Export Config", JOptionPane.INFORMATION_MESSAGE);
-		}
-	};
 
 	private ActionListener menuSysInfoListener = new ActionListener() {
 		public void actionPerformed(ActionEvent e) {
@@ -1043,16 +1031,6 @@ menuTools.add(menuLogConsole);
 		} catch (Exception e) {
 			System.err.println("Warning: Could not load Settings menu icon: " + e.getMessage());
 		}
-		
-		JMenuItem menuImportConfig = new JMenuItem("Import Config");
-		menuImportConfig.addActionListener(menuImportConfigListener);
-		menuHelp.add(menuImportConfig);
-		
-		JMenuItem menuExportConfig = new JMenuItem("Export Config");
-		menuExportConfig.addActionListener(menuExportConfigListener);
-		menuHelp.add(menuExportConfig);
-		
-		menuHelp.addSeparator();
 		
 		JMenuItem menuSysInfo = new JMenuItem("SysInfo");
 		menuSysInfo.addActionListener(menuSysInfoListener);
