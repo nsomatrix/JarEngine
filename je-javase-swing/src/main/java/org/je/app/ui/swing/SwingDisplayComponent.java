@@ -45,7 +45,6 @@ import java.awt.event.ComponentEvent;
 import javax.microedition.lcdui.Command;
 import javax.microedition.lcdui.Displayable;
 import javax.microedition.lcdui.Screen;
-import javax.microedition.lcdui.game.GameCanvas;
 import javax.swing.JComponent;
 import javax.swing.SwingUtilities;
 
