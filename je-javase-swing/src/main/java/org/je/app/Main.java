@@ -984,61 +984,7 @@ menuScreenshot.addActionListener(e -> {
 });
 menuTools.add(menuScreenshot);
 
-JMenu menuPerformance = new JMenu("Performance");
 
-JCheckBoxMenuItem doubleBufferingItem = new JCheckBoxMenuItem("Double Buffering");
-doubleBufferingItem.setSelected(org.je.app.PerformanceConfig.doubleBufferingEnabled);
-doubleBufferingItem.addActionListener(e -> org.je.app.PerformanceConfig.doubleBufferingEnabled = doubleBufferingItem.isSelected());
-menuPerformance.add(doubleBufferingItem);
-
-JCheckBoxMenuItem frameSkippingItem = new JCheckBoxMenuItem("Frame Skipping");
-frameSkippingItem.setSelected(org.je.app.PerformanceConfig.frameSkippingEnabled);
-frameSkippingItem.addActionListener(e -> org.je.app.PerformanceConfig.frameSkippingEnabled = frameSkippingItem.isSelected());
-menuPerformance.add(frameSkippingItem);
-
-JCheckBoxMenuItem imageCachingItem = new JCheckBoxMenuItem("Image Caching");
-imageCachingItem.setSelected(org.je.app.PerformanceConfig.imageCachingEnabled);
-imageCachingItem.addActionListener(e -> org.je.app.PerformanceConfig.imageCachingEnabled = imageCachingItem.isSelected());
-menuPerformance.add(imageCachingItem);
-
-JCheckBoxMenuItem hardwareAccelItem = new JCheckBoxMenuItem("Hardware Acceleration");
-hardwareAccelItem.setSelected(Boolean.getBoolean("sun.java2d.opengl"));
-hardwareAccelItem.addActionListener(e -> {
-    System.setProperty("sun.java2d.opengl", hardwareAccelItem.isSelected() ? "true" : "false");
-    javax.swing.JOptionPane.showMessageDialog(this, "Restart the emulator for Hardware Acceleration to take effect.");
-});
-menuPerformance.add(hardwareAccelItem);
-
-JCheckBoxMenuItem vsyncItem = new JCheckBoxMenuItem("VSync");
-vsyncItem.setSelected(Boolean.getBoolean("sun.java2d.vsync"));
-vsyncItem.addActionListener(e -> {
-    System.setProperty("sun.java2d.vsync", vsyncItem.isSelected() ? "true" : "false");
-    javax.swing.JOptionPane.showMessageDialog(this, "Restart the emulator for VSync to take effect.");
-});
-menuPerformance.add(vsyncItem);
-
-JMenuItem gcItem = new JMenuItem("Run GC");
-gcItem.addActionListener(e -> {
-    System.gc();
-    javax.swing.JOptionPane.showMessageDialog(this, "GC Requested");
-});
-menuPerformance.add(gcItem);
-
-JMenuItem heapSizeItem = new JMenuItem("Heap Size");
-heapSizeItem.addActionListener(e -> {
-    String currentHeap = System.getProperty("je.configured.heap", "128m");
-    org.je.app.ui.swing.HeapSizeTool dialog = new org.je.app.ui.swing.HeapSizeTool(this, currentHeap);
-    dialog.setVisible(true);
-    String selected = dialog.getSelectedHeapSize();
-    if (selected != null && !selected.equals(currentHeap)) {
-        System.setProperty("je.configured.heap", selected);
-        javax.swing.JOptionPane.showMessageDialog(this, "Heap size will be set to " + selected + " on next restart. Please restart the emulator.");
-    }
-});
-menuPerformance.addSeparator();
-menuPerformance.add(heapSizeItem);
-
-menuTools.add(menuPerformance);
 
 JMenuItem menuFPS = new JMenuItem("FPS");
 menuFPS.addActionListener(e -> {

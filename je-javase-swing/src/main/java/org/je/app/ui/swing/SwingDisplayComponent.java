@@ -26,7 +26,7 @@
 
 package org.je.app.ui.swing;
 
-import org.je.app.PerformanceConfig;
+
 
 import java.awt.Dimension;
 import java.awt.Graphics;
@@ -272,10 +272,6 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 	};
 
 	SwingDisplayComponent(SwingDeviceComponent deviceComponent) {
-		// Set double buffering according to config
-		setDoubleBuffered(PerformanceConfig.doubleBufferingEnabled);
-		// Note: To reflect changes at runtime, you would need to call setDoubleBuffered again when the config changes.
-		// This could be done by polling or by wiring a listener pattern if more advanced config management is added.
 		this.deviceComponent = deviceComponent;
 
 		setFocusable(false);
@@ -385,16 +381,8 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 		g2d.dispose();
 	}
 
-	// For frame skipping: alternate skipping frames if enabled
-private boolean skipNextFrame = false;
 
-public void repaintRequest(int x, int y, int width, int height) {
-	if (PerformanceConfig.frameSkippingEnabled) {
-		skipNextFrame = !skipNextFrame;
-		if (skipNextFrame) {
-			return; // Skip this frame
-		}
-	}
+	public void repaintRequest(int x, int y, int width, int height) {
 
 		MIDletAccess ma = MIDletBridge.getMIDletAccess();
 		if (ma == null) {

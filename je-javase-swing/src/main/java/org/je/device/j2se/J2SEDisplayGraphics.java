@@ -28,7 +28,7 @@
 
 package org.je.device.j2se;
 
-import org.je.app.PerformanceConfig;
+
 import java.util.WeakHashMap;
 
 import java.awt.Color;
@@ -171,8 +171,7 @@ public class J2SEDisplayGraphics extends javax.microedition.lcdui.Graphics {
         g.drawArc(x, y, width, height, startAngle, arcAngle);
     }
 
-    // Simple image cache for immutable images
-    private static final WeakHashMap<Image, java.awt.Image> imageCache = new WeakHashMap<>();
+
 
     public void drawImage(Image img, int x, int y, int anchor) {
         int newx = x;
@@ -196,19 +195,7 @@ public class J2SEDisplayGraphics extends javax.microedition.lcdui.Graphics {
         if (img.isMutable()) {
             g.drawImage(((J2SEMutableImage) img).getImage(), newx, newy, null);
         } else {
-            java.awt.Image awtImg;
-            if (PerformanceConfig.imageCachingEnabled) {
-                // Use cache for immutable images
-                awtImg = imageCache.get(img);
-                if (awtImg == null) {
-                    awtImg = ((J2SEImmutableImage) img).getImage();
-                    imageCache.put(img, awtImg);
-                }
-            } else {
-                // Bypass cache: always get a new image instance
-                awtImg = ((J2SEImmutableImage) img).getImage();
-            }
-            g.drawImage(awtImg, newx, newy, null);
+            g.drawImage(((J2SEImmutableImage) img).getImage(), newx, newy, null);
         }
     }
 
