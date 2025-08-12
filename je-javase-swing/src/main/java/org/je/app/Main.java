@@ -705,8 +705,6 @@ public class Main extends JFrame {
 				// Ignore proxy status errors
 			}
 			String fullText = text + proxyStatus;
-			FontMetrics metrics = statusBar.getFontMetrics(statusBar.getFont());
-			statusBar.setPreferredSize(new Dimension(metrics.stringWidth(fullText), metrics.getHeight()));
 			statusBar.setText(fullText);
 		}
 	};
@@ -752,7 +750,7 @@ public class Main extends JFrame {
 			restoreTimer.setRepeats(false);
 			restoreTimer.start();
 			
-			if (isLauncherMode) {
+            if (isLauncherMode) {
 				// In launcher mode: true resize
 				int width = getContentPane().getWidth();
 				int height = getContentPane().getHeight() - statusBar.getHeight();
@@ -762,7 +760,7 @@ public class Main extends JFrame {
 						setDeviceSize(deviceDisplay, width, height);
 						devicePanel.revalidate();
 						devicePanel.repaint();
-						pack();
+                        // Avoid pack() during user-resize; it enforces preferred sizes and blocks shrinking
 					}
 				}
 			} else {
@@ -821,7 +819,9 @@ public class Main extends JFrame {
 		this.logQueueAppender = new QueueAppender(1024);
 		Logger.addAppender(logQueueAppender);
 
-		JMenuBar menuBar = new JMenuBar();
+        JMenuBar menuBar = new JMenuBar();
+        // Allow shrinking the window freely; do not let the menu bar enforce a minimum width
+        menuBar.setMinimumSize(new Dimension(0, 0));
 
 		JMenu menuFile = new JMenu("Load");
 		try {
@@ -1135,11 +1135,22 @@ menuTools.add(menuLogConsole);
 
 
 
-		JPanel statusPanel = new JPanel();
+        JPanel statusPanel = new JPanel();
 		statusPanel.setLayout(new BorderLayout());
 		statusPanel.add(statusBar, "West");
+        // Avoid status bar enforcing a minimum width
+        try {
+            int barHeight = Math.max(1, statusBar.getPreferredSize().height);
+            statusBar.setMinimumSize(new Dimension(0, barHeight));
+            statusPanel.setMinimumSize(new Dimension(0, barHeight));
+        } catch (Exception ignore) {
+            // Best-effort; safe to ignore
+        }
 
-		getContentPane().add(statusPanel, "South");
+        getContentPane().add(statusPanel, "South");
+
+        // Ensure the frame itself doesn't keep an artificial minimum size
+        setMinimumSize(new Dimension(0, 0));
 
 		Message.addListener(new SwingErrorMessageDialogPanel(this));
 

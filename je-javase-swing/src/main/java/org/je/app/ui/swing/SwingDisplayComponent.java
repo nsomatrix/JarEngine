@@ -308,11 +308,10 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 	public Dimension getPreferredSize() {
 		Device device = DeviceFactory.getDevice();
 		if (device == null) {
-			return new Dimension(300, 300); // Default size when no device is available
+			return new Dimension(0, 0); // Allow free shrinking when no device
 		}
 
-		// Return a reasonable default size, but allow the component to be resized
-		// The actual display will be scaled to fill the available space
+		// Return device size but do not enforce as minimum
 		return new Dimension(device.getDeviceDisplay().getFullWidth(), device.getDeviceDisplay().getFullHeight());
 	}
 

@@ -521,7 +521,7 @@ public class SwingDeviceComponent extends JPanel implements KeyListener, InputMe
 	public Dimension getPreferredSize() {
 		Device device = DeviceFactory.getDevice();
 		if (device == null) {
-			return new Dimension(400, 600); // Default size when no device is available
+			return new Dimension(0, 0);
 		}
 
 		DeviceDisplayImpl deviceDisplay = (DeviceDisplayImpl) DeviceFactory.getDevice().getDeviceDisplay();
@@ -532,7 +532,7 @@ public class SwingDeviceComponent extends JPanel implements KeyListener, InputMe
 			if (img != null) {
 				return new Dimension(img.getWidth(), img.getHeight());
 			} else {
-				return new Dimension(400, 600); // Fallback size
+				return new Dimension(0, 0);
 			}
 		}
 	}
