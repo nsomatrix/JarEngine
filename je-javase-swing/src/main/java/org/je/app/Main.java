@@ -756,7 +756,15 @@ public class Main extends JFrame {
 			restoreTimer.start();
 			
             if (isLauncherMode) {
-                // In launcher mode: stretch device display to fill available space without changing device size
+                // In launcher mode: resize device to match content area for pre-MIDlet workflows
+                int width = getContentPane().getWidth();
+                int height = getContentPane().getHeight() - statusBar.getHeight();
+                if (width > 0 && height > 0) {
+                    DeviceDisplayImpl deviceDisplay = (DeviceDisplayImpl) DeviceFactory.getDevice().getDeviceDisplay();
+                    if (deviceDisplay.isResizable()) {
+                        setDeviceSize(deviceDisplay, width, height);
+                    }
+                }
                 devicePanel.revalidate();
                 devicePanel.repaint();
             } else {
@@ -1158,6 +1166,8 @@ menuTools.add(menuLogConsole);
         }
 
         getContentPane().add(statusPanel, "South");
+        statusPanel.setVisible(true);
+        statusBar.setVisible(true);
 
         // Ensure the frame itself doesn't keep an artificial minimum size
         setMinimumSize(new Dimension(0, 0));

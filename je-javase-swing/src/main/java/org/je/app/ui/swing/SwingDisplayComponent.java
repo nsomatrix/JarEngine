@@ -312,9 +312,7 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 		}
 
         // Return device size but do not enforce as minimum
-        int w = Math.max(1, getParent() != null ? getParent().getWidth() : device.getDeviceDisplay().getFullWidth());
-        int h = Math.max(1, getParent() != null ? getParent().getHeight() : device.getDeviceDisplay().getFullHeight());
-        return new Dimension(w, h);
+        return new Dimension(device.getDeviceDisplay().getFullWidth(), device.getDeviceDisplay().getFullHeight());
 	}
 
 	protected void paintComponent(Graphics g) {
