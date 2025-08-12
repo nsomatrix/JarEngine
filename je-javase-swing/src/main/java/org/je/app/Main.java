@@ -194,8 +194,10 @@ public class Main extends JFrame {
 
 	private JLabel statusBar = new JLabel("Status");
 
-	private ResizeDeviceDisplayDialog resizeDeviceDisplayDialog = null;
-	private SleepManager sleepManager;
+    private ResizeDeviceDisplayDialog resizeDeviceDisplayDialog = null;
+    private SleepManager sleepManager;
+    // Prevent auto-resize handler from overriding explicit menu-based resize
+    private volatile boolean suppressAutoResize = false;
 
 	protected EmulatorContext emulatorContext = new EmulatorContext() {
 
@@ -723,7 +725,10 @@ public class Main extends JFrame {
 
 		int count = 0;
 
-		public void componentResized(ComponentEvent e) {
+        public void componentResized(ComponentEvent e) {
+            if (suppressAutoResize) {
+                return;
+            }
 			count++;
 			// Check if we're in launcher mode (Launcher MIDlet) or user MIDlet mode
 			javax.microedition.midlet.MIDlet currentMIDlet = MIDletBridge.getCurrentMIDlet();
@@ -914,11 +919,25 @@ public class Main extends JFrame {
 				DeviceDisplayImpl deviceDisplay = (DeviceDisplayImpl) DeviceFactory.getDevice().getDeviceDisplay();
 				resizeDeviceDisplayDialog.setDeviceDisplaySize(deviceDisplay.getFullWidth(), deviceDisplay
 						.getFullHeight());
-				if (SwingDialogWindow.show(Main.this, "Enter new size...", resizeDeviceDisplayDialog, true)) {
-				    setDeviceSize(deviceDisplay, resizeDeviceDisplayDialog.getDeviceDisplayWidth(), resizeDeviceDisplayDialog.getDeviceDisplayHeight());
-					pack();
-					devicePanel.requestFocus();
-				}
+                if (SwingDialogWindow.show(Main.this, "Enter new size...", resizeDeviceDisplayDialog, true)) {
+                    int newW = resizeDeviceDisplayDialog.getDeviceDisplayWidth();
+                    int newH = resizeDeviceDisplayDialog.getDeviceDisplayHeight();
+                    try {
+                        suppressAutoResize = true;
+                        setDeviceSize(deviceDisplay, newW, newH);
+                        // Explicitly size the frame so content area matches desired device size
+                        java.awt.Insets insets = getInsets();
+                        int statusH = statusBar.getHeight() > 0 ? statusBar.getHeight() : statusBar.getPreferredSize().height;
+                        int menuH = (getJMenuBar() != null) ? getJMenuBar().getPreferredSize().height : 0;
+                        int frameW = newW + insets.left + insets.right;
+                        int frameH = newH + statusH + menuH + insets.top + insets.bottom;
+                        setSize(frameW, frameH);
+                        validate();
+                    } finally {
+                        suppressAutoResize = false;
+                    }
+                    devicePanel.requestFocus();
+                }
 			}
 		});
 		menuOptions.add(menuResize);
@@ -1160,16 +1179,24 @@ menuTools.add(menuLogConsole);
 		midletStateTimer.start();
 	}
 
-	protected Component createContents(Container parent) {
-		devicePanel = new SwingDeviceComponent();
-		devicePanel.addKeyListener(devicePanel);
-		addKeyListener(devicePanel);
-		
-		// Add sleep timer reset listeners
-		addSleepTimerResetListeners();
+    protected Component createContents(Container parent) {
+        devicePanel = new SwingDeviceComponent();
+        devicePanel.addKeyListener(devicePanel);
+        addKeyListener(devicePanel);
 
-		return devicePanel;
-	}
+        // Center the device panel and do not force it to stretch to full width
+        javax.swing.JPanel deviceWrapper = new javax.swing.JPanel(new java.awt.GridBagLayout());
+        java.awt.GridBagConstraints gbc = new java.awt.GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.anchor = java.awt.GridBagConstraints.CENTER;
+        deviceWrapper.add(devicePanel, gbc);
+
+        // Add sleep timer reset listeners
+        addSleepTimerResetListeners();
+
+        return deviceWrapper;
+    }
 	
 	/**
 	 * Add listeners to reset sleep timer on user interaction
