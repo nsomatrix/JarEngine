@@ -315,6 +315,12 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
         return new Dimension(device.getDeviceDisplay().getFullWidth(), device.getDeviceDisplay().getFullHeight());
 	}
 
+	@Override
+	public Dimension getMinimumSize() {
+		// Never block layout from showing the status bar
+		return new Dimension(0, 0);
+	}
+
 	protected void paintComponent(Graphics g) {
 		// Increment frame counter for FPS calculation
 		org.je.app.tools.FPSTool.incrementFrameCount();

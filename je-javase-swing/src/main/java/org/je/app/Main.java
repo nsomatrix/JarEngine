@@ -1156,11 +1156,12 @@ menuTools.add(menuLogConsole);
         JPanel statusPanel = new JPanel();
 		statusPanel.setLayout(new BorderLayout());
 		statusPanel.add(statusBar, "West");
-        // Avoid status bar enforcing a minimum width
+        // Avoid status bar enforcing a minimum width and ensure it's always visible
         try {
             int barHeight = Math.max(1, statusBar.getPreferredSize().height);
             statusBar.setMinimumSize(new Dimension(0, barHeight));
             statusPanel.setMinimumSize(new Dimension(0, barHeight));
+            statusPanel.setPreferredSize(new Dimension(1, barHeight));
         } catch (Exception ignore) {
             // Best-effort; safe to ignore
         }

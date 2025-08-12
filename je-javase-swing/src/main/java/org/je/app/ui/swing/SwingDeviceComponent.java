@@ -537,4 +537,10 @@ public class SwingDeviceComponent extends JPanel implements KeyListener, InputMe
 		}
 	}
 
+	@Override
+	public Dimension getMinimumSize() {
+		// Ensure panel never forces status bar off-screen
+		return new Dimension(0, 0);
+	}
+
 }
