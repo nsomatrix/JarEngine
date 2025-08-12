@@ -756,19 +756,10 @@ public class Main extends JFrame {
 			restoreTimer.start();
 			
             if (isLauncherMode) {
-				// In launcher mode: true resize
-				int width = getContentPane().getWidth();
-				int height = getContentPane().getHeight() - statusBar.getHeight();
-				if (width > 0 && height > 0) {
-					DeviceDisplayImpl deviceDisplay = (DeviceDisplayImpl) DeviceFactory.getDevice().getDeviceDisplay();
-					if (deviceDisplay.isResizable()) {
-						setDeviceSize(deviceDisplay, width, height);
-						devicePanel.revalidate();
-						devicePanel.repaint();
-                        // Avoid pack() during user-resize; it enforces preferred sizes and blocks shrinking
-					}
-				}
-			} else {
+                // In launcher mode: stretch device display to fill available space without changing device size
+                devicePanel.revalidate();
+                devicePanel.repaint();
+            } else {
 				// User MIDlet is running: only stretch/fill behavior
 				DeviceDisplayImpl deviceDisplay = (DeviceDisplayImpl) DeviceFactory.getDevice().getDeviceDisplay();
 				if (deviceDisplay.isResizable()) {
@@ -1184,18 +1175,11 @@ menuTools.add(menuLogConsole);
         devicePanel.addKeyListener(devicePanel);
         addKeyListener(devicePanel);
 
-        // Center the device panel and do not force it to stretch to full width
-        javax.swing.JPanel deviceWrapper = new javax.swing.JPanel(new java.awt.GridBagLayout());
-        java.awt.GridBagConstraints gbc = new java.awt.GridBagConstraints();
-        gbc.gridx = 0;
-        gbc.gridy = 0;
-        gbc.anchor = java.awt.GridBagConstraints.CENTER;
-        deviceWrapper.add(devicePanel, gbc);
-
         // Add sleep timer reset listeners
         addSleepTimerResetListeners();
 
-        return deviceWrapper;
+        // Return the device panel directly so it stretches to fill the center
+        return devicePanel;
     }
 	
 	/**

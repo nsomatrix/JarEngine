@@ -311,8 +311,10 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 			return new Dimension(0, 0); // Allow free shrinking when no device
 		}
 
-		// Return device size but do not enforce as minimum
-		return new Dimension(device.getDeviceDisplay().getFullWidth(), device.getDeviceDisplay().getFullHeight());
+        // Return device size but do not enforce as minimum
+        int w = Math.max(1, getParent() != null ? getParent().getWidth() : device.getDeviceDisplay().getFullWidth());
+        int h = Math.max(1, getParent() != null ? getParent().getHeight() : device.getDeviceDisplay().getFullHeight());
+        return new Dimension(w, h);
 	}
 
 	protected void paintComponent(Graphics g) {
