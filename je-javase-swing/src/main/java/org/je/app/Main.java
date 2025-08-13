@@ -103,6 +103,7 @@ import org.je.app.ui.swing.StatusDialog;
 import org.je.app.ui.swing.SwingAboutDialog;
 import org.je.app.ui.swing.SwingDeviceComponent;
 import org.je.app.util.SleepManager;
+import org.je.app.util.SelfDestructManager;
 import org.je.app.ui.swing.SwingDialogWindow;
 import org.je.app.ui.swing.SwingDisplayComponent;
 import org.je.app.ui.swing.SwingErrorMessageDialogPanel;
@@ -196,6 +197,7 @@ public class Main extends JFrame {
 
     private ResizeDeviceDisplayDialog resizeDeviceDisplayDialog = null;
     private SleepManager sleepManager;
+    private SelfDestructManager selfDestructManager;
     // Prevent auto-resize handler from overriding explicit menu-based resize
     private volatile boolean suppressAutoResize = false;
 
@@ -774,6 +776,10 @@ public class Main extends JFrame {
 			if (sleepManager != null) {
 				sleepManager.cleanup();
 			}
+            // Cleanup self-destruct manager
+            if (selfDestructManager != null) {
+                selfDestructManager.cleanup();
+            }
 			menuExitListener.actionPerformed(null);
 		}
 
@@ -964,6 +970,36 @@ public class Main extends JFrame {
 		menuReplicateInstances.addActionListener(menuReplicateInstancesListener);
 		menuOptions.add(menuReplicateInstances);
 
+		// Self-Destruct submenu
+		JMenu menuSelfDestructSubmenu = new JMenu("Self-Destruct");
+		ButtonGroup selfDestructButtonGroup = new ButtonGroup();
+
+		JRadioButtonMenuItem menuSelfDestructActivate = new JRadioButtonMenuItem("Activate");
+		menuSelfDestructActivate.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				if (selfDestructManager == null) {
+					selfDestructManager = new SelfDestructManager(Main.this);
+				}
+				selfDestructManager.showConfigDialog();
+			}
+		});
+		selfDestructButtonGroup.add(menuSelfDestructActivate);
+		menuSelfDestructSubmenu.add(menuSelfDestructActivate);
+
+		JRadioButtonMenuItem menuSelfDestructDeactivate = new JRadioButtonMenuItem("Deactivate");
+		menuSelfDestructDeactivate.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				if (selfDestructManager == null) {
+					selfDestructManager = new SelfDestructManager(Main.this);
+				}
+				selfDestructManager.deactivateSelfDestruct();
+			}
+		});
+		selfDestructButtonGroup.add(menuSelfDestructDeactivate);
+		menuSelfDestructSubmenu.add(menuSelfDestructDeactivate);
+
+		menuOptions.add(menuSelfDestructSubmenu);
+
 		JMenu menuTools = new JMenu("Tools");
 		try {
 			ImageIcon toolsIcon = new ImageIcon(Main.class.getResource("/org/je/tools.png"));
@@ -1088,14 +1124,14 @@ menuTools.add(menuLogConsole);
 		
 		menuHelp.addSeparator();
 		
-		JMenuItem menuAbout = new JMenuItem("About");
+        JMenuItem menuAbout = new JMenuItem("About");
 		menuAbout.addActionListener(menuAboutListener);
 		menuHelp.add(menuAbout);
 
 		// Center the menu items on the menu bar
 		menuBar.add(Box.createHorizontalGlue()); // Left glue
 		menuBar.add(menuFile);
-		menuBar.add(menuOptions);
+        menuBar.add(menuOptions);
 		menuBar.add(menuTools);
 		menuBar.add(menuHelp);
 		menuBar.add(Box.createHorizontalGlue()); // Right glue
