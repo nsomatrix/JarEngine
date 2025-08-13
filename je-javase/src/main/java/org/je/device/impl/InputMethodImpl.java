@@ -41,7 +41,7 @@ public abstract class InputMethodImpl extends InputMethod implements Runnable {
 	
 	protected int lastButtonCharIndex;
 
-	private boolean cancel;
+    private volatile boolean cancel;
 	
 	private Thread t;
 

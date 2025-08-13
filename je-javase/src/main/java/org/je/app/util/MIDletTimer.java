@@ -57,7 +57,7 @@ public class MIDletTimer extends Timer implements Runnable {
 	// TODO use better data structure
 	List tasks;
 	
-	private boolean cancelled;
+    private volatile boolean cancelled;
 
 	private MIDletThread thread;
 	
@@ -183,9 +183,13 @@ public class MIDletTimer extends Timer implements Runnable {
 		}
 	}
 
-	private void terminate() {
-		cancelled = true;
-	}
+    private void terminate() {
+        // Ensure visibility and wake the waiting thread
+        cancelled = true;
+        synchronized (tasks) {
+            tasks.notifyAll();
+        }
+    }
 	
 	private void schedule(TimerTask task, long time, long period, boolean fixedRate) {
 		synchronized (tasks) {

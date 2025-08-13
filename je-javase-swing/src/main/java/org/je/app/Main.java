@@ -718,8 +718,9 @@ public class Main extends JFrame {
 		}
 	};
 
-	private ComponentListener componentListener = new ComponentAdapter() {
-		Timer timer;
+    private ComponentListener componentListener = new ComponentAdapter() {
+        Timer timer;
+        final Object resizeTimerLock = new Object();
 		javax.swing.Timer restoreTimer;
 		String resizeRestoreStatus = null;
 
@@ -772,23 +773,25 @@ public class Main extends JFrame {
                 Device deviceSafe = DeviceFactory.getDevice();
                 DeviceDisplayImpl deviceDisplay = deviceSafe != null ? (DeviceDisplayImpl) deviceSafe.getDeviceDisplay() : null;
                 if (deviceDisplay != null && deviceDisplay.isResizable()) {
-					devicePanel.revalidate();
-					synchronized (statusBarListener) {
-						if (timer == null) {
-							timer = new Timer();
-						}
-						timer.schedule(new CountTimerTask(count) {
-							public void run() {
-								if (counter == count) {
-									Config.setDeviceEntryDisplaySize(deviceEntry, new Rectangle(0, 0, devicePanel
-											.getWidth(), devicePanel.getHeight()));
-									timer.cancel();
-									timer = null;
-								}
-							}
-						}, 2000);
-					}
-				}
+                    devicePanel.revalidate();
+                    synchronized (resizeTimerLock) {
+                        if (timer == null) {
+                            timer = new Timer();
+                        }
+                        timer.schedule(new CountTimerTask(count) {
+                            public void run() {
+                                if (counter == count) {
+                                    Config.setDeviceEntryDisplaySize(deviceEntry, new Rectangle(0, 0, devicePanel
+                                            .getWidth(), devicePanel.getHeight()));
+                                    synchronized (resizeTimerLock) {
+                                        timer.cancel();
+                                        timer = null;
+                                    }
+                                }
+                            }
+                        }, 2000);
+                    }
+                }
 			}
 		}
 	};
