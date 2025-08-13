@@ -162,10 +162,9 @@ public final class PerformanceManager {
         try {
             int sz = img.getWidth() * img.getHeight() * 4;
             if (spriteCacheBytes + sz > emulatedHeapLimitBytes) {
+                // Try trimming cache; if still over budget, skip caching to honor cap
                 trimSpriteCacheIfNeeded();
-                if (spriteCacheBytes + sz > emulatedHeapLimitBytes) {
-                    return;
-                }
+                if (spriteCacheBytes + sz > emulatedHeapLimitBytes) return;
             }
             spriteCache.put(key, img);
             spriteCacheBytes += sz;

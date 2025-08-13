@@ -137,6 +137,8 @@ import org.je.performance.PerformanceManager;
 
 
 public class Main extends JFrame {
+	// Preserve original launch args to allow restart with same params
+	private static String[] launchArgs = new String[0];
 
 	private static final long serialVersionUID = 1L;
 
@@ -1052,82 +1054,71 @@ menuTools.add(menuFPS);
 // Performance submenu with functional toggles
 JMenu menuPerformance = new JMenu("Performance");
 
-// Heap size dialog with presets up to 4096 MB (no ellipsis per user request)
-JMenuItem menuHeapSize = new JMenuItem("Heap Size");
-menuHeapSize.addActionListener(e -> {
-	long currentMb = PerformanceManager.getEmulatedHeapLimitBytes() / (1024 * 1024);
-	// Preset list (small to large) + Custom
-	final int[] presets = {512, 768, 1024, 1536, 2048, 2560, 3072, 3584, 4096};
+// (Removed legacy "Heap Size" emulated cap menu – JVM Heap (Restart) retained)
+
+// JVM Heap (Restart) – relaunch app with selected -Xmx
+JMenuItem menuJvmHeap = new JMenuItem("JVM Heap (Restart)");
+menuJvmHeap.addActionListener(e -> {
+	long currentJvmMb;
+	try {
+		long maxBytes = Runtime.getRuntime().maxMemory();
+		currentJvmMb = maxBytes > 0 && maxBytes < Long.MAX_VALUE ? Math.max(1, maxBytes / (1024 * 1024)) : 1024;
+	} catch (Throwable ignored) { currentJvmMb = 1024; }
+
 	java.util.List<String> labels = new java.util.ArrayList<>();
-	labels.add("256"); // include some legacy smaller values
-	labels.add("384");
-	labels.add("448");
-	labels.add("512");
-	labels.add("640");
-	labels.add("768");
-	labels.add("896");
-	labels.add("1024");
-	labels.add("1280");
-	labels.add("1536");
-	labels.add("1792");
-	labels.add("2048");
-	labels.add("2304");
-	labels.add("2560");
-	labels.add("2816");
-	labels.add("3072");
-	labels.add("3328");
-	labels.add("3584");
-	labels.add("3840");
-	labels.add("4096");
+	int[] steps = new int[]{256,384,512,640,768,896,1024,1280,1536,1792,2048,2304,2560,2816,3072,3328,3584,3840,4096};
+	for (int mb : steps) labels.add(Integer.toString(mb));
 	labels.add("Custom");
 
-	String currentStr = Long.toString(currentMb);
+	String currentStr = Long.toString(currentJvmMb);
 	Object selection = javax.swing.JOptionPane.showInputDialog(
 			this,
-			"Select emulated heap size (MB):",
-			"Heap Size",
+			"Set JVM heap (Xmx) in MB. App will restart:",
+			"JVM Heap (Restart)",
 			javax.swing.JOptionPane.PLAIN_MESSAGE,
 			null,
 			labels.toArray(),
 			labels.contains(currentStr) ? currentStr : "1024");
-	if (selection == null) return; // cancelled
+	if (selection == null) return; // canceled
 	String chosen = selection.toString();
-	long chosenMb = currentMb;
+	long chosenMb = currentJvmMb;
 	if ("Custom".equals(chosen)) {
-		String input = javax.swing.JOptionPane.showInputDialog(this, "Enter custom heap size in MB (min 16, max 4096):", currentMb);
-		if (input == null) return; // cancelled
-		try {
-			chosenMb = Long.parseLong(input.trim());
-		} catch (NumberFormatException ex) {
-			javax.swing.JOptionPane.showMessageDialog(this, "Invalid number", "Heap Size", javax.swing.JOptionPane.ERROR_MESSAGE);
+		String input = javax.swing.JOptionPane.showInputDialog(this, "Enter JVM heap in MB (min 256, max 4096):", currentJvmMb);
+		if (input == null) return; // canceled
+		try { chosenMb = Long.parseLong(input.trim()); } catch (NumberFormatException ex) {
+			javax.swing.JOptionPane.showMessageDialog(this, "Invalid number", "JVM Heap", javax.swing.JOptionPane.ERROR_MESSAGE);
 			return;
 		}
 	} else {
 		try { chosenMb = Long.parseLong(chosen); } catch (NumberFormatException ignored) {}
 	}
-	if (chosenMb < 16) {
-		javax.swing.JOptionPane.showMessageDialog(this, "Minimum heap size is 16 MB", "Heap Size", javax.swing.JOptionPane.WARNING_MESSAGE);
+	if (chosenMb < 256) {
+		javax.swing.JOptionPane.showMessageDialog(this, "Minimum JVM heap is 256 MB", "JVM Heap", javax.swing.JOptionPane.WARNING_MESSAGE);
 		return;
 	}
 	if (chosenMb > 4096) {
-		javax.swing.JOptionPane.showMessageDialog(this, "Maximum heap size is 4096 MB", "Heap Size", javax.swing.JOptionPane.WARNING_MESSAGE);
+		javax.swing.JOptionPane.showMessageDialog(this, "Maximum JVM heap is 4096 MB", "JVM Heap", javax.swing.JOptionPane.WARNING_MESSAGE);
 		chosenMb = 4096;
 	}
-	// Warn for very large sizes > 2048
-	if (chosenMb > 2048) {
-		int res = javax.swing.JOptionPane.showConfirmDialog(this,
-				"Huge heap (" + chosenMb + " MB) may hide leaks and impact host memory. Apply anyway?",
-				"Confirm Large Heap",
-				javax.swing.JOptionPane.OK_CANCEL_OPTION,
-				javax.swing.JOptionPane.WARNING_MESSAGE);
-		if (res != javax.swing.JOptionPane.OK_OPTION) return;
+
+	javax.swing.JCheckBox syncEmu = new javax.swing.JCheckBox("Also set Emulated (MIDP) Heap to this size", true);
+	javax.swing.JPanel panel = new javax.swing.JPanel(new java.awt.BorderLayout());
+	panel.add(new javax.swing.JLabel("Apply -Xmx" + chosenMb + "m and restart now?"), java.awt.BorderLayout.NORTH);
+	panel.add(syncEmu, java.awt.BorderLayout.CENTER);
+	int res = javax.swing.JOptionPane.showConfirmDialog(this, panel, "Restart Required", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.WARNING_MESSAGE);
+	if (res != javax.swing.JOptionPane.OK_OPTION) return;
+
+	if (syncEmu.isSelected()) {
+		long emuTargetMb = Math.min(chosenMb, 4096);
+		try {
+			org.je.performance.PerformanceManager.setEmulatedHeapLimitBytes(emuTargetMb * 1024L * 1024L);
+			if (statusBar != null) statusBar.showTemporaryStatus("Emulated heap set: " + emuTargetMb + " MB", 2500);
+		} catch (Throwable ignored) {}
 	}
-	PerformanceManager.setEmulatedHeapLimitBytes(chosenMb * 1024L * 1024L);
-	if (statusBar != null) {
-		statusBar.showTemporaryStatus("Heap limit set: " + chosenMb + " MB", 3000);
-	}
+
+	restartWithJvmHeap(chosenMb);
 });
-menuPerformance.add(menuHeapSize);
+menuPerformance.add(menuJvmHeap);
 menuPerformance.addSeparator();
 
 // Generic toggle factory (no 'Enable' prefix; checked state implies enabled)
@@ -1569,6 +1560,39 @@ menuTools.add(menuLogConsole);
 		}
 	});
 
+	// Relaunch the current JVM with -Xmx set to mb, preserving classpath and original args
+	private void restartWithJvmHeap(long mb) {
+		try {
+			String javaBin = System.getProperty("java.home") + File.separator + "bin" + File.separator + "java";
+			String classpath = System.getProperty("java.class.path", "");
+			java.util.List<String> cmd = new java.util.ArrayList<>();
+			cmd.add(javaBin);
+			// Preserve important system properties
+			cmd.add("-Djava.awt.headless=false");
+			// Apply requested Xmx
+			cmd.add("-Xmx" + mb + "m");
+			// Pass through je.emulatorID if set
+			String emuId = System.getProperty("je.emulatorID");
+			if (emuId != null && !emuId.isEmpty()) cmd.add("-Dje.emulatorID=" + emuId);
+			// Classpath and main class
+			cmd.add("-cp");
+			cmd.add(classpath);
+			cmd.add(Main.class.getName());
+			// Original args
+			if (launchArgs != null) for (String a : launchArgs) cmd.add(a);
+
+			ProcessBuilder pb = new ProcessBuilder(cmd);
+			pb.inheritIO();
+			pb.start();
+		} catch (Exception ex) {
+			Logger.error("Failed to restart with new JVM heap", ex);
+			javax.swing.JOptionPane.showMessageDialog(this, "Failed to restart: " + ex.getMessage(), "JVM Heap", javax.swing.JOptionPane.ERROR_MESSAGE);
+			return;
+		}
+		// Exit current process after spawn
+		System.exit(0);
+	}
+
 	// Attempts to locate the event dispatcher thread by its constant name.
 	private Thread findEventThread() {
 		ThreadGroup root = Thread.currentThread().getThreadGroup();
@@ -1587,6 +1611,8 @@ menuTools.add(menuLogConsole);
 	}
 
 	public static void main(String args[]) {
+	// Keep a copy of the original args for restart
+	launchArgs = args != null ? args.clone() : new String[0];
 		List params = new ArrayList();
 		StringBuffer debugArgs = new StringBuffer();
 		for (int i = 0; i < args.length; i++) {
