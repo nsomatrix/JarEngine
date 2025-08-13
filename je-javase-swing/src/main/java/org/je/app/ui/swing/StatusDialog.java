@@ -59,7 +59,6 @@ import javax.swing.Timer;
 import org.je.app.Main;
 import org.je.app.Config;
 import org.je.app.util.BuildVersion;
-import org.je.performance.PerformanceManager;
 import org.je.log.Logger;
 
 /**
@@ -86,7 +85,6 @@ public class StatusDialog extends SwingDialogPanel {
     // Performance panel labels (JVM stats)
     private JLabel heapMemoryLabel;
     private JLabel nonHeapMemoryLabel;
-    private JLabel emuHeapLabel;
     private JLabel activeThreadsLabel;
     private JLabel peakThreadsLabel;
     private JLabel uptimeLabel;
@@ -269,17 +267,15 @@ public class StatusDialog extends SwingDialogPanel {
         
         heapMemoryLabel = new JLabel();
         nonHeapMemoryLabel = new JLabel();
-    emuHeapLabel = new JLabel();
         activeThreadsLabel = new JLabel();
         peakThreadsLabel = new JLabel();
         uptimeLabel = new JLabel();
         
         addLabelPair(panel, c, 0, "Heap Memory:", heapMemoryLabel);
         addLabelPair(panel, c, 1, "Non-Heap Memory:", nonHeapMemoryLabel);
-    addLabelPair(panel, c, 2, "Emulated MIDP Heap:", emuHeapLabel);
-    addLabelPair(panel, c, 3, "Active Threads:", activeThreadsLabel);
-    addLabelPair(panel, c, 4, "Peak Thread Count:", peakThreadsLabel);
-    addLabelPair(panel, c, 5, "JVM Uptime:", uptimeLabel);
+        addLabelPair(panel, c, 2, "Active Threads:", activeThreadsLabel);
+        addLabelPair(panel, c, 3, "Peak Thread Count:", peakThreadsLabel);
+        addLabelPair(panel, c, 4, "JVM Uptime:", uptimeLabel);
         
         return panel;
     }
@@ -370,16 +366,6 @@ public class StatusDialog extends SwingDialogPanel {
                 activeThreadsLabel.setText(String.valueOf(threadBean.getThreadCount()));
                 peakThreadsLabel.setText(String.valueOf(threadBean.getPeakThreadCount()));
                 
-                // Emulated MIDP heap (images/sprites)
-                try {
-                    long emuUsed = PerformanceManager.getEmulatedUsageBytes();
-                    long emuLimit = PerformanceManager.getEmulatedHeapLimitBytes();
-                    int emuPercent = emuLimit > 0 ? (int)(emuUsed * 100 / emuLimit) : 0;
-                    emuHeapLabel.setText(formatBytes(emuUsed) + " / " + formatBytes(emuLimit) + " (" + emuPercent + "%)");
-                } catch (Throwable t) {
-                    emuHeapLabel.setText("N/A");
-                }
-
                 // JVM Uptime
                 long uptime = ManagementFactory.getRuntimeMXBean().getUptime();
                 uptimeLabel.setText(formatDuration(uptime));

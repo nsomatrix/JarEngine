@@ -33,10 +33,13 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.net.InetAddress;
 
 import javax.microedition.io.HttpConnection;
 
 import org.je.microedition.io.ConnectionImplementation;
+import org.je.util.NetEventBus;
+import org.je.util.net.NetConfig;
 
 public class Connection implements HttpConnection, ConnectionImplementation {
 
@@ -46,23 +49,59 @@ public class Connection implements HttpConnection, ConnectionImplementation {
 
 	protected static boolean allowNetworkConnection = true;
 
+	// Preserve original URL components even if we internally rewrite the target (e.g., DNS override)
+	protected URL originalUrl;
+
 	public javax.microedition.io.Connection openConnection(String name, int mode, boolean timeouts) throws IOException {
-		if (!isAllowNetworkConnection()) {
+		if (!isAllowNetworkConnection() || NetConfig.Policy.offline) {
 			throw new IOException("No network");
 		}
-		URL url;
+	URL url;
 		try {
 			url = new URL(name);
 		} catch (MalformedURLException ex) {
 			throw new IOException(ex.toString());
 		}
-		cn = url.openConnection();
+	this.originalUrl = url;
+		// Captive portal simulation: return a 302 redirect without network
+		if (NetConfig.Policy.captivePortal && ("http".equalsIgnoreCase(url.getProtocol()) || "https".equalsIgnoreCase(url.getProtocol()))) {
+			cn = new CaptiveHttpURLConnection(url);
+			try { NetEventBus.publish("HTTP", "OUT", url.toString(), "captive-302"); } catch (Throwable ignore) {}
+			return this;
+		}
+
+		// HTTP DNS override: for http (not https), resolve host override and connect to IP, setting Host header
+		if ("http".equalsIgnoreCase(url.getProtocol())) {
+			try {
+				String originalHost = url.getHost();
+				InetAddress resolved = NetConfig.Dns.resolveHost(originalHost);
+				String ip = resolved.getHostAddress();
+				int port = url.getPort();
+				if (port == -1) port = 80;
+				URL rewritten = new URL(url.getProtocol(), ip, port, url.getFile());
+				cn = rewritten.openConnection();
+				// Preserve original Host header (with port if non-default)
+				String hostHeader = originalHost + (port != 80 ? (":" + port) : "");
+				cn.setRequestProperty("Host", hostHeader);
+			} catch (Exception e) {
+				// Fallback to default behavior if resolution fails
+				cn = url.openConnection();
+			}
+		} else {
+			cn = url.openConnection();
+		}
 		cn.setDoOutput(true);
+		// Apply TLS trust-all if enabled
+		NetConfig.TLS.applyToHttpsIfNeeded(cn);
 		// J2ME do not follow redirects. Test this url
 		// http://www.je.org/test/r/
 		if (cn instanceof HttpURLConnection) {
 			((HttpURLConnection) cn).setInstanceFollowRedirects(false);
 		}
+		// Publish open event
+		try {
+			NetEventBus.publish("HTTP", "OUT", url.toString(), "open");
+		} catch (Throwable ignore) {}
 		return this;
 	}
 
@@ -79,11 +118,11 @@ public class Connection implements HttpConnection, ConnectionImplementation {
 	}
 
 	public String getURL() {
-		if (cn == null) {
+	if (originalUrl == null) {
 			return null;
 		}
 
-		return cn.getURL().toString();
+	return originalUrl.toString();
 	}
 
 	public String getProtocol() {
@@ -91,27 +130,27 @@ public class Connection implements HttpConnection, ConnectionImplementation {
 	}
 
 	public String getHost() {
-		if (cn == null) {
+	if (originalUrl == null) {
 			return null;
 		}
 
-		return cn.getURL().getHost();
+	return originalUrl.getHost();
 	}
 
 	public String getFile() {
-		if (cn == null) {
+	if (originalUrl == null) {
 			return null;
 		}
 
-		return cn.getURL().getFile();
+	return originalUrl.getFile();
 	}
 
 	public String getRef() {
-		if (cn == null) {
+	if (originalUrl == null) {
 			return null;
 		}
 
-		return cn.getURL().getRef();
+	return originalUrl.getRef();
 	}
 
 	public String getQuery() {
@@ -124,11 +163,11 @@ public class Connection implements HttpConnection, ConnectionImplementation {
 	}
 
 	public int getPort() {
-		if (cn == null) {
+	if (originalUrl == null) {
 			return -1;
 		}
 
-		int port = cn.getURL().getPort();
+	int port = originalUrl.getPort();
 		if (port == -1) {
 			return 80;
 		}
@@ -187,7 +226,9 @@ public class Connection implements HttpConnection, ConnectionImplementation {
 		}
 
 		if (cn instanceof HttpURLConnection) {
-			return ((HttpURLConnection) cn).getResponseCode();
+			int code = ((HttpURLConnection) cn).getResponseCode();
+			try { NetEventBus.publish("HTTP", "IN", getURL(), "code="+code); } catch (Throwable ignore) {}
+			return code;
 		} else {
 			return -1;
 		}
@@ -319,7 +360,10 @@ public class Connection implements HttpConnection, ConnectionImplementation {
 
 		connected = true;
 
-		return cn.getInputStream();
+		InputStream in = cn.getInputStream();
+		// Wrap for traffic shaping
+		in = NetConfig.Traffic.wrapInput(in);
+		return in;
 	}
 
 	public DataInputStream openDataInputStream() throws IOException {
@@ -333,7 +377,10 @@ public class Connection implements HttpConnection, ConnectionImplementation {
 
 		connected = true;
 
-		return cn.getOutputStream();
+		OutputStream out = cn.getOutputStream();
+		// Wrap for traffic shaping
+		out = NetConfig.Traffic.wrapOutput(out);
+		return out;
 	}
 
 	public DataOutputStream openDataOutputStream() throws IOException {
@@ -372,4 +419,38 @@ public class Connection implements HttpConnection, ConnectionImplementation {
 		Connection.allowNetworkConnection = allowNetworkConnection;
 	}
 
+}
+
+// Minimal captive portal 302 response wrapper
+class CaptiveHttpURLConnection extends HttpURLConnection {
+	private boolean prepared = false;
+	private int code = 302;
+	private java.util.Map<String,String> headers = new java.util.LinkedHashMap<>();
+	private java.io.ByteArrayInputStream body;
+
+	protected CaptiveHttpURLConnection(URL u) {
+		super(u);
+	}
+
+	@Override public void disconnect() { /* no-op */ }
+	@Override public boolean usingProxy() { return false; }
+	@Override public void connect() throws IOException { ensurePrepared(); connected = true; }
+
+	private void ensurePrepared() {
+		if (prepared) return;
+		String loc = "http://127.0.0.1:" + NetConfig.Policy.captivePort + "/";
+		headers.put("Location", loc);
+		headers.put("Content-Type", "text/plain; charset=utf-8");
+		byte[] msg = ("Redirecting to captive portal: " + loc + "\n").getBytes(java.nio.charset.StandardCharsets.UTF_8);
+		body = new java.io.ByteArrayInputStream(msg);
+		prepared = true;
+	}
+
+	@Override public int getResponseCode() throws IOException { ensurePrepared(); return code; }
+	@Override public String getResponseMessage() throws IOException { return "Found"; }
+	@Override public String getHeaderField(String name) { ensurePrepared(); return headers.get(name); }
+	@Override public String getHeaderFieldKey(int n) { ensurePrepared(); if (n==0) return "Location"; if (n==1) return "Content-Type"; return null; }
+	@Override public String getHeaderField(int n) { ensurePrepared(); if (n==0) return headers.get("Location"); if (n==1) return headers.get("Content-Type"); return null; }
+	@Override public java.io.InputStream getInputStream() throws IOException { ensurePrepared(); return body; }
+	@Override public java.io.OutputStream getOutputStream() throws IOException { return new java.io.ByteArrayOutputStream(); }
 }

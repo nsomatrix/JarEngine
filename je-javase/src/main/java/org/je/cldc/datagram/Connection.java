@@ -28,12 +28,15 @@ package org.je.cldc.datagram;
 import java.io.IOException;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 
 import javax.microedition.io.Datagram;
 import javax.microedition.io.DatagramConnection;
 import javax.microedition.io.UDPDatagramConnection;
 
 import org.je.microedition.io.ConnectionImplementation;
+import org.je.util.NetEventBus;
+import org.je.util.net.NetConfig;
 
 /**
  * {@link ConnectionImplementation} for the datagram protocol (UDP).
@@ -68,11 +71,23 @@ public class Connection implements DatagramConnection, UDPDatagramConnection, Co
 	}
 
 	public void send(Datagram dgram) throws IOException {
-		socket.send(((DatagramImpl) dgram).getDatagramPacket());
+		if (NetConfig.Policy.offline) throw new IOException("No network");
+		DatagramImpl di = (DatagramImpl) dgram;
+		int len = di.getDatagramPacket().getLength();
+		if (!NetConfig.Traffic.udpPermitAndDelay(len, null)) {
+			try { NetEventBus.publish("UDP", "OUT", address, "drop:"+len); } catch (Throwable ignore) {}
+			return;
+		}
+		socket.send(di.getDatagramPacket());
+		try { NetEventBus.publish("UDP", "OUT", address, "send:"+len); } catch (Throwable ignore) {}
 	}
 
 	public void receive(Datagram dgram) throws IOException {
-		socket.receive(((DatagramImpl) dgram).getDatagramPacket());
+		DatagramImpl di = (DatagramImpl) dgram;
+		socket.receive(di.getDatagramPacket());
+		int len = di.getDatagramPacket().getLength();
+		NetConfig.Traffic.udpPermitAndDelay(len, null);
+		try { NetEventBus.publish("UDP", "IN", address, "recv:"+len); } catch (Throwable ignore) {}
 	}
 
 	public Datagram newDatagram(int size) throws IOException {
@@ -123,7 +138,7 @@ public class Connection implements DatagramConnection, UDPDatagramConnection, Co
 	}
 
 	public javax.microedition.io.Connection openConnection(String name, int mode, boolean timeouts) throws IOException {
-		if (!org.je.cldc.http.Connection.isAllowNetworkConnection()) {
+		if (!org.je.cldc.http.Connection.isAllowNetworkConnection() || NetConfig.Policy.offline) {
 			throw new IOException("No network");
 		}
 		if (!name.startsWith(PROTOCOL)) {
@@ -140,7 +155,7 @@ public class Connection implements DatagramConnection, UDPDatagramConnection, Co
 		if (portToParse.length() > 0) {
 			port = Integer.parseInt(portToParse);
 		}
-		if (index == 0) {
+	if (index == 0) {
 			// server mode
 			if (port == -1) {
 				socket = new DatagramSocket();
@@ -153,9 +168,18 @@ public class Connection implements DatagramConnection, UDPDatagramConnection, Co
 				throw new IllegalArgumentException("Port missing");
 			}
 			String host = address.substring(0, index);
+			InetAddress ia;
+			int targetPort = port;
+			if (NetConfig.Policy.captivePortal) {
+				ia = InetAddress.getByName("127.0.0.1");
+				targetPort = NetConfig.Policy.captivePort;
+			} else {
+				ia = NetConfig.Dns.resolveHost(host);
+			}
 			socket = new DatagramSocket();
-			socket.connect(InetAddress.getByName(host), port);
+			socket.connect(new InetSocketAddress(ia, targetPort));
 		}
+	try { NetEventBus.publish("UDP", "OUT", address, "open"); } catch (Throwable ignore) {}
 		return this;
 	}
 }

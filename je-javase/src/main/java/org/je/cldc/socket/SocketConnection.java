@@ -29,7 +29,11 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.Socket;
+import org.je.util.NetEventBus;
+import org.je.util.net.NetConfig;
 
 public class SocketConnection implements javax.microedition.io.SocketConnection {
 
@@ -39,7 +43,20 @@ public class SocketConnection implements javax.microedition.io.SocketConnection 
 	}
 
 	public SocketConnection(String host, int port) throws IOException {
-		this.socket = new Socket(host, port);
+		if (NetConfig.Policy.offline) throw new IOException("No network");
+		String targetHost = host; int targetPort = port;
+		InetAddress addr;
+		if (NetConfig.Policy.captivePortal) {
+			addr = InetAddress.getByName("127.0.0.1");
+			targetPort = NetConfig.Policy.captivePort;
+		} else {
+			addr = NetConfig.Dns.resolveHost(host);
+		}
+		this.socket = new Socket();
+		// initial latency
+		try { Thread.sleep(Math.max(0, NetConfig.Traffic.latencyMs)); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+		this.socket.connect(new InetSocketAddress(addr, targetPort));
+		try { NetEventBus.publish("TCP", "OUT", targetHost+":"+targetPort, "connect"); } catch (Throwable ignore) {}
 	}
 	
 	public SocketConnection(Socket socket) {
@@ -161,12 +178,20 @@ public class SocketConnection implements javax.microedition.io.SocketConnection 
 
 	public void close() throws IOException {
 		// TODO fix differences between Java ME and Java SE
-		
+		try {
+			String target;
+			try { target = getAddress()+":"+getPort(); } catch (Throwable t) { target = "?"; }
+			NetEventBus.publish("TCP", "IN", target, "close");
+		} catch (Throwable ignore) {}
 		socket.close();
 	}
 
 	public InputStream openInputStream() throws IOException {
-		return socket.getInputStream();
+		InputStream in = socket.getInputStream();
+		// Wrap for traffic shaping
+		in = NetConfig.Traffic.wrapInput(in);
+		try { NetEventBus.publish("TCP", "IN", getAddress()+":"+getPort(), "openIn"); } catch (Throwable ignore) {}
+		return in;
 	}
 
 	public DataInputStream openDataInputStream() throws IOException {
@@ -174,7 +199,11 @@ public class SocketConnection implements javax.microedition.io.SocketConnection 
 	}
 
 	public OutputStream openOutputStream() throws IOException {
-		return socket.getOutputStream();
+		OutputStream out = socket.getOutputStream();
+		// Wrap for traffic shaping
+		out = NetConfig.Traffic.wrapOutput(out);
+		try { NetEventBus.publish("TCP", "OUT", socket.getInetAddress().getHostAddress()+":"+socket.getPort(), "openOut"); } catch (Throwable ignore) {}
+		return out;
 	}
 
 	public DataOutputStream openDataOutputStream() throws IOException {

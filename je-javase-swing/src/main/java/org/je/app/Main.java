@@ -1213,20 +1213,49 @@ JMenu menuNetworking = new JMenu("Networking");
 JMenuItem menuProxy = new JMenuItem("Proxy Settings");
 menuProxy.addActionListener(e -> new org.je.app.tools.ProxyTool(this).setVisible(true));
 menuNetworking.add(menuProxy);
-
 menuNetworking.addSeparator();
 
-JMenuItem menuNetworkMonitor = new JMenuItem("Network Monitor");
-menuNetworkMonitor.addActionListener(e -> JOptionPane.showMessageDialog(this, "Network Monitor functionality will be implemented here.", "Network Monitor", JOptionPane.INFORMATION_MESSAGE));
-menuNetworking.add(menuNetworkMonitor);
+// Individual tools as radio items that open their own small dialogs
+JRadioButtonMenuItem netMonitor = new JRadioButtonMenuItem("Network Monitor");
+netMonitor.addActionListener(e -> org.je.app.tools.NetworkTools.openMonitorDialog(this).setVisible(true));
+menuNetworking.add(netMonitor);
 
-JMenuItem menuConnectionTester = new JMenuItem("Connection Tester");
-menuConnectionTester.addActionListener(e -> JOptionPane.showMessageDialog(this, "Connection Tester functionality will be implemented here.", "Connection Tester", JOptionPane.INFORMATION_MESSAGE));
-menuNetworking.add(menuConnectionTester);
+JRadioButtonMenuItem netTraffic = new JRadioButtonMenuItem("Traffic Shaping");
+netTraffic.addActionListener(e -> org.je.app.tools.NetworkTools.openTrafficDialog(this).setVisible(true));
+menuNetworking.add(netTraffic);
 
-JMenuItem menuPacketCapture = new JMenuItem("Packet Capture");
-menuPacketCapture.addActionListener(e -> JOptionPane.showMessageDialog(this, "Packet Capture functionality will be implemented here.", "Packet Capture", JOptionPane.INFORMATION_MESSAGE));
-menuNetworking.add(menuPacketCapture);
+JRadioButtonMenuItem netTester = new JRadioButtonMenuItem("Connection Tester");
+netTester.addActionListener(e -> org.je.app.tools.NetworkTools.openTesterDialog(this).setVisible(true));
+menuNetworking.add(netTester);
+
+JRadioButtonMenuItem netDns = new JRadioButtonMenuItem("DNS Overrides");
+netDns.addActionListener(e -> org.je.app.tools.NetworkTools.openDnsDialog(this).setVisible(true));
+menuNetworking.add(netDns);
+
+JRadioButtonMenuItem netMock = new JRadioButtonMenuItem("Mock Server");
+netMock.addActionListener(e -> org.je.app.tools.NetworkTools.openMockDialog(this).setVisible(true));
+menuNetworking.add(netMock);
+
+ JRadioButtonMenuItem netTls = new JRadioButtonMenuItem("TLS Settings" + (org.je.util.net.NetConfig.TLS.trustAll ? " (trust-all ON)" : " (trust-all OFF)"));
+netTls.addActionListener(e -> org.je.app.tools.NetworkTools.openTlsDialog(this).setVisible(true));
+menuNetworking.add(netTls);
+
+JRadioButtonMenuItem netCapture = new JRadioButtonMenuItem("Packet Capture");
+netCapture.addActionListener(e -> org.je.app.tools.NetworkTools.openCaptureDialog(this).setVisible(true));
+menuNetworking.add(netCapture);
+
+ JRadioButtonMenuItem netOffline = new JRadioButtonMenuItem("Offline / Captive Portal" + (org.je.util.net.NetConfig.Policy.offline ? " (offline ON)" : (org.je.util.net.NetConfig.Policy.captivePortal ? " (captive ON)" : "")));
+netOffline.addActionListener(e -> org.je.app.tools.NetworkTools.openOfflineDialog(this).setVisible(true));
+menuNetworking.add(netOffline);
+
+JRadioButtonMenuItem netMetrics = new JRadioButtonMenuItem("Network Metrics");
+netMetrics.addActionListener(e -> org.je.app.tools.NetworkTools.openMetricsDialog(this).setVisible(true));
+menuNetworking.add(netMetrics);
+
+JRadioButtonMenuItem netUdp = new JRadioButtonMenuItem("UDP Tester");
+netUdp.addActionListener(e -> org.je.app.tools.NetworkTools.openUdpDialog(this).setVisible(true));
+menuNetworking.add(netUdp);
+
 menuTools.add(menuNetworking);
 
 // Record submenu
