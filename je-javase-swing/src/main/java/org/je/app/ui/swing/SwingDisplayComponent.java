@@ -64,6 +64,7 @@ import org.je.device.impl.ui.CommandManager;
 import org.je.device.j2se.J2SEButton;
 import org.je.device.j2se.J2SEDeviceDisplay;
 import org.je.device.j2se.J2SEGraphicsSurface;
+import org.je.performance.PerformanceManager;
 import org.je.device.j2se.J2SEInputMethod;
 
 import java.awt.Graphics2D;
@@ -201,6 +202,10 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 	private MouseMotionListener mouseMotionListener = new MouseMotionListener() {
 
 		public void mouseDragged(MouseEvent e) {
+			// Input throttling
+			if (PerformanceManager.shouldThrottlePointerDrag()) {
+				return;
+			}
 			if (showMouseCoordinates) {
 				StringBuffer buf = new StringBuffer();
 				int width = e.getX() - pressedPoint.x;
@@ -326,6 +331,13 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
     protected void paintComponent(Graphics g) {
 		// Increment frame counter for FPS calculation
 		org.je.app.tools.FPSTool.incrementFrameCount();
+
+		// Apply double buffering preference dynamically
+		if (!PerformanceManager.isDoubleBuffering() && isDoubleBuffered()) {
+			setDoubleBuffered(false);
+		} else if (PerformanceManager.isDoubleBuffering() && !isDoubleBuffered()) {
+			setDoubleBuffered(true);
+		}
 		
 		if (graphicsSurface != null && graphicsSurface.getImage() != null) {
 			synchronized (graphicsSurface) {
@@ -333,16 +345,15 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 				int compH = getHeight();
 				int imgW = graphicsSurface.getImage().getWidth(null);
 				int imgH = graphicsSurface.getImage().getHeight(null);
-				
-				// Only draw if we have valid dimensions
+
 				if (compW > 0 && compH > 0 && imgW > 0 && imgH > 0) {
-					// Scale the image to fit the current component size
-					g.drawImage(
-						graphicsSurface.getImage(),
-						0, 0, compW, compH, // destination rectangle
-						0, 0, imgW, imgH, // source rectangle
-						null
-					);
+					Graphics2D g2 = (Graphics2D) g;
+					if (PerformanceManager.isAntiAliasing()) {
+						g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+					}
+					Object interp = PerformanceManager.isTextureFiltering() ? RenderingHints.VALUE_INTERPOLATION_BILINEAR : RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR;
+					g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, interp);
+					g2.drawImage(graphicsSurface.getImage(), 0, 0, compW, compH, 0, 0, imgW, imgH, null);
 				}
 			}
 		} else {

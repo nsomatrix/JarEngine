@@ -133,6 +133,7 @@ import org.je.log.Logger;
 import org.je.log.QueueAppender;
 import org.je.util.JadMidletEntry;
 import org.je.app.tools.ReplicateInstancesTool;
+import org.je.performance.PerformanceManager;
 
 
 public class Main extends JFrame {
@@ -1048,19 +1049,132 @@ menuFPS.addActionListener(e -> {
 });
 menuTools.add(menuFPS);
 
-// Performance submenu
+// Performance submenu with functional toggles
 JMenu menuPerformance = new JMenu("Performance");
-JMenuItem menuCpuMonitor = new JMenuItem("CPU Monitor");
-menuCpuMonitor.addActionListener(e -> JOptionPane.showMessageDialog(this, "CPU Monitor functionality will be implemented here.", "CPU Monitor", JOptionPane.INFORMATION_MESSAGE));
-menuPerformance.add(menuCpuMonitor);
 
-JMenuItem menuMemoryProfiler = new JMenuItem("Memory Profiler");
-menuMemoryProfiler.addActionListener(e -> JOptionPane.showMessageDialog(this, "Memory Profiler functionality will be implemented here.", "Memory Profiler", JOptionPane.INFORMATION_MESSAGE));
-menuPerformance.add(menuMemoryProfiler);
+// Heap size dialog with presets up to 4096 MB (no ellipsis per user request)
+JMenuItem menuHeapSize = new JMenuItem("Heap Size");
+menuHeapSize.addActionListener(e -> {
+	long currentMb = PerformanceManager.getEmulatedHeapLimitBytes() / (1024 * 1024);
+	// Preset list (small to large) + Custom
+	final int[] presets = {512, 768, 1024, 1536, 2048, 2560, 3072, 3584, 4096};
+	java.util.List<String> labels = new java.util.ArrayList<>();
+	labels.add("256"); // include some legacy smaller values
+	labels.add("384");
+	labels.add("448");
+	labels.add("512");
+	labels.add("640");
+	labels.add("768");
+	labels.add("896");
+	labels.add("1024");
+	labels.add("1280");
+	labels.add("1536");
+	labels.add("1792");
+	labels.add("2048");
+	labels.add("2304");
+	labels.add("2560");
+	labels.add("2816");
+	labels.add("3072");
+	labels.add("3328");
+	labels.add("3584");
+	labels.add("3840");
+	labels.add("4096");
+	labels.add("Custom");
 
-JMenuItem menuThreadAnalyzer = new JMenuItem("Thread Analyzer");
-menuThreadAnalyzer.addActionListener(e -> JOptionPane.showMessageDialog(this, "Thread Analyzer functionality will be implemented here.", "Thread Analyzer", JOptionPane.INFORMATION_MESSAGE));
-menuPerformance.add(menuThreadAnalyzer);
+	String currentStr = Long.toString(currentMb);
+	Object selection = javax.swing.JOptionPane.showInputDialog(
+			this,
+			"Select emulated heap size (MB):",
+			"Heap Size",
+			javax.swing.JOptionPane.PLAIN_MESSAGE,
+			null,
+			labels.toArray(),
+			labels.contains(currentStr) ? currentStr : "1024");
+	if (selection == null) return; // cancelled
+	String chosen = selection.toString();
+	long chosenMb = currentMb;
+	if ("Custom".equals(chosen)) {
+		String input = javax.swing.JOptionPane.showInputDialog(this, "Enter custom heap size in MB (min 16, max 4096):", currentMb);
+		if (input == null) return; // cancelled
+		try {
+			chosenMb = Long.parseLong(input.trim());
+		} catch (NumberFormatException ex) {
+			javax.swing.JOptionPane.showMessageDialog(this, "Invalid number", "Heap Size", javax.swing.JOptionPane.ERROR_MESSAGE);
+			return;
+		}
+	} else {
+		try { chosenMb = Long.parseLong(chosen); } catch (NumberFormatException ignored) {}
+	}
+	if (chosenMb < 16) {
+		javax.swing.JOptionPane.showMessageDialog(this, "Minimum heap size is 16 MB", "Heap Size", javax.swing.JOptionPane.WARNING_MESSAGE);
+		return;
+	}
+	if (chosenMb > 4096) {
+		javax.swing.JOptionPane.showMessageDialog(this, "Maximum heap size is 4096 MB", "Heap Size", javax.swing.JOptionPane.WARNING_MESSAGE);
+		chosenMb = 4096;
+	}
+	// Warn for very large sizes > 2048
+	if (chosenMb > 2048) {
+		int res = javax.swing.JOptionPane.showConfirmDialog(this,
+				"Huge heap (" + chosenMb + " MB) may hide leaks and impact host memory. Apply anyway?",
+				"Confirm Large Heap",
+				javax.swing.JOptionPane.OK_CANCEL_OPTION,
+				javax.swing.JOptionPane.WARNING_MESSAGE);
+		if (res != javax.swing.JOptionPane.OK_OPTION) return;
+	}
+	PerformanceManager.setEmulatedHeapLimitBytes(chosenMb * 1024L * 1024L);
+	if (statusBar != null) {
+		statusBar.showTemporaryStatus("Heap limit set: " + chosenMb + " MB", 3000);
+	}
+});
+menuPerformance.add(menuHeapSize);
+menuPerformance.addSeparator();
+
+// Generic toggle factory (no 'Enable' prefix; checked state implies enabled)
+java.util.function.Function<String, JCheckBoxMenuItem> addToggle = (label) -> {
+	JCheckBoxMenuItem item = new JCheckBoxMenuItem(label);
+	menuPerformance.add(item);
+	return item;
+};
+
+JCheckBoxMenuItem tHardware = addToggle.apply("Hardware Acceleration");
+JCheckBoxMenuItem tAA = addToggle.apply("Anti Aliasing");
+JCheckBoxMenuItem tDB = addToggle.apply("Double Buffering");
+JCheckBoxMenuItem tPS = addToggle.apply("Power Saving Mode");
+JCheckBoxMenuItem tIdle = addToggle.apply("Idle Skipping");
+JCheckBoxMenuItem tFS = addToggle.apply("Frame Skipping");
+JCheckBoxMenuItem tTPB = addToggle.apply("Thread Priority Boost");
+JCheckBoxMenuItem tInput = addToggle.apply("Input Throttling");
+JCheckBoxMenuItem tSprite = addToggle.apply("Sprite Caching");
+JCheckBoxMenuItem tTex = addToggle.apply("Texture Filtering");
+JCheckBoxMenuItem tVSync = addToggle.apply("VSync");
+
+// Initialize states from PerformanceManager
+tHardware.setSelected(PerformanceManager.isHardwareAcceleration());
+tAA.setSelected(PerformanceManager.isAntiAliasing());
+tDB.setSelected(PerformanceManager.isDoubleBuffering());
+tPS.setSelected(PerformanceManager.isPowerSavingMode());
+tIdle.setSelected(PerformanceManager.isIdleSkipping());
+tFS.setSelected(PerformanceManager.isFrameSkipping());
+tTPB.setSelected(PerformanceManager.isThreadPriorityBoost());
+tInput.setSelected(PerformanceManager.isInputThrottling());
+tSprite.setSelected(PerformanceManager.isSpriteCaching());
+tTex.setSelected(PerformanceManager.isTextureFiltering());
+tVSync.setSelected(PerformanceManager.isVSync());
+
+// Wire listeners
+tHardware.addActionListener(ev -> PerformanceManager.setHardwareAcceleration(tHardware.isSelected()));
+tAA.addActionListener(ev -> PerformanceManager.setAntiAliasingPersist(tAA.isSelected()));
+tDB.addActionListener(ev -> PerformanceManager.setDoubleBufferingPersist(tDB.isSelected()));
+tPS.addActionListener(ev -> PerformanceManager.setPowerSavingMode(tPS.isSelected(), org.je.device.ui.EventDispatcher.maxFps));
+tIdle.addActionListener(ev -> PerformanceManager.setIdleSkippingPersist(tIdle.isSelected()));
+tFS.addActionListener(ev -> PerformanceManager.setFrameSkippingPersist(tFS.isSelected()));
+tTPB.addActionListener(ev -> PerformanceManager.setThreadPriorityBoost(tTPB.isSelected(), findEventThread()));
+tInput.addActionListener(ev -> PerformanceManager.setInputThrottlingPersist(tInput.isSelected()));
+tSprite.addActionListener(ev -> PerformanceManager.setSpriteCachingPersist(tSprite.isSelected()));
+tTex.addActionListener(ev -> PerformanceManager.setTextureFilteringPersist(tTex.isSelected()));
+tVSync.addActionListener(ev -> PerformanceManager.setVSync(tVSync.isSelected(), org.je.device.ui.EventDispatcher.maxFps));
+
 menuTools.add(menuPerformance);
 
 // Networking submenu
@@ -1454,6 +1568,23 @@ menuTools.add(menuLogConsole);
 			updateResizeMenuState();
 		}
 	});
+
+	// Attempts to locate the event dispatcher thread by its constant name.
+	private Thread findEventThread() {
+		ThreadGroup root = Thread.currentThread().getThreadGroup();
+		while (root.getParent() != null) {
+			root = root.getParent();
+		}
+		Thread[] threads = new Thread[Thread.activeCount() * 2];
+		int n = root.enumerate(threads, true);
+		for (int i = 0; i < n; i++) {
+			Thread t = threads[i];
+			if (t != null && org.je.device.ui.EventDispatcher.EVENT_DISPATCHER_NAME.equals(t.getName())) {
+				return t;
+			}
+		}
+		return null;
+	}
 
 	public static void main(String args[]) {
 		List params = new ArrayList();

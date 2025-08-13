@@ -65,6 +65,7 @@ import org.je.device.impl.PositionedImage;
 import org.je.device.impl.Rectangle;
 import org.je.device.impl.Shape;
 import org.je.device.impl.SoftButton;
+import org.je.performance.PerformanceManager;
 
 public class J2SEDeviceDisplay implements DeviceDisplayImpl 
 {
@@ -284,12 +285,24 @@ public class J2SEDeviceDisplay implements DeviceDisplayImpl
 	}
 
 	public Image createImage(String name) throws IOException {
-		return getImage(name);
+		// Sprite cache lookup
+		Image cached = PerformanceManager.getCachedSprite(name);
+		if (cached != null) return cached;
+		Image img = getImage(name);
+		if (img != null) {
+			int w = img.getWidth();
+			int h = img.getHeight();
+			PerformanceManager.registerImage(w, h);
+			PerformanceManager.putCachedSprite(name, img);
+		}
+		return img;
 	}
 
 	public Image createImage(javax.microedition.lcdui.Image source) {
 		if (source.isMutable()) {
-			return new J2SEImmutableImage((J2SEMutableImage) source);
+			J2SEImmutableImage copy = new J2SEImmutableImage((J2SEMutableImage) source);
+			PerformanceManager.registerImage(copy.getWidth(), copy.getHeight());
+			return copy;
 		} else {
 			return source;
 		}
@@ -300,7 +313,9 @@ public class J2SEDeviceDisplay implements DeviceDisplayImpl
 		if (is == null) {
 			throw new IOException();
 		}
-		return getImage(is);
+		Image img = getImage(is);
+		if (img != null) PerformanceManager.registerImage(img.getWidth(), img.getHeight());
+		return img;
 	}
 
 	public Image createRGBImage(int[] rgb, int width, int height, boolean processAlpha) {
@@ -344,7 +359,9 @@ public class J2SEDeviceDisplay implements DeviceDisplayImpl
 			FilteredImageSource imageSource = new FilteredImageSource(img.getSource(), filter);
 			return new J2SEImmutableImage(Toolkit.getDefaultToolkit().createImage(imageSource));
 		} else {
-			return new J2SEImmutableImage(img);
+			J2SEImmutableImage result = new J2SEImmutableImage(img);
+			PerformanceManager.registerImage(result.getWidth(), result.getHeight());
+			return result;
 		}
 	}
 
@@ -604,7 +621,9 @@ public class J2SEDeviceDisplay implements DeviceDisplayImpl
 			throw new IOException();
 		}
 
-		return new J2SEImmutableImage(resultImage);
+		J2SEImmutableImage out = new J2SEImmutableImage(resultImage);
+		PerformanceManager.registerImage(out.getWidth(), out.getHeight());
+		return out;
 	}
 
 	private Image getImage(String str) throws IOException {
@@ -670,7 +689,9 @@ public class J2SEDeviceDisplay implements DeviceDisplayImpl
 			throw new IOException();
 		}
 
-		return new J2SEImmutableImage(resultImage);
+		J2SEImmutableImage out2 = new J2SEImmutableImage(resultImage);
+		PerformanceManager.registerImage(out2.getWidth(), out2.getHeight());
+		return out2;
 	}
 
 	public Button createButton(int skinVersion, String name, org.je.device.impl.Shape shape, int keyCode,

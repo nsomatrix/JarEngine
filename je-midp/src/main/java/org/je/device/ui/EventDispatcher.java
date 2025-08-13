@@ -25,6 +25,7 @@
 package org.je.device.ui;
 
 import org.je.device.DeviceFactory;
+import org.je.performance.PerformanceManager;
 
 public class EventDispatcher implements Runnable {
 	
@@ -87,6 +88,16 @@ public class EventDispatcher implements Runnable {
 
 			if (event != null) {
 				if (event instanceof PaintEvent) {
+					// Frame skipping check
+					if (PerformanceManager.shouldSkipPaintFrame()) {
+						// Skip this frame but release any threads waiting in serviceRepaints()
+						lastPaintEventTime = System.currentTimeMillis();
+						// Clear scheduled paint reference so subsequent paints can enqueue
+						synchronized (this) { scheduledPaintEvent = null; }
+						// Notify potential waiters that the (skipped) repaint cycle ended
+						synchronized (serviceRepaintsLock) { serviceRepaintsLock.notifyAll(); }
+						continue;
+					}
 					synchronized (serviceRepaintsLock) {
 						synchronized (this) {
 							scheduledPaintEvent = null;
@@ -98,6 +109,9 @@ public class EventDispatcher implements Runnable {
 				} else {
 					post(event);
 				}
+			} else {
+				// Idle path
+				PerformanceManager.onIdleWaitHook();
 			}
 		}
 	}
