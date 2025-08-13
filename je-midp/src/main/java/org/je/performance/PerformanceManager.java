@@ -157,14 +157,15 @@ public final class PerformanceManager {
     public static Image getCachedSprite(String key) {
         return spriteCaching ? spriteCache.get(key) : null;
     }
-    public static void putCachedSprite(String key, Image img) {
+    public static synchronized void putCachedSprite(String key, Image img) {
         if (!spriteCaching || img == null) return;
         try {
-            int sz = img.getWidth() * img.getHeight() * 4;
+            long sz = (long) img.getWidth() * (long) img.getHeight() * 4L;
             if (spriteCacheBytes + sz > emulatedHeapLimitBytes) {
-                // Try trimming cache; if still over budget, skip caching to honor cap
                 trimSpriteCacheIfNeeded();
-                if (spriteCacheBytes + sz > emulatedHeapLimitBytes) return;
+                if (spriteCacheBytes + sz > emulatedHeapLimitBytes) {
+                    return;
+                }
             }
             spriteCache.put(key, img);
             spriteCacheBytes += sz;
@@ -173,12 +174,12 @@ public final class PerformanceManager {
 
     public static Map<String, Image> snapshotCache() { return Collections.unmodifiableMap(spriteCache); }
 
-    private static void trimSpriteCacheIfNeeded() {
+    private static synchronized void trimSpriteCacheIfNeeded() {
         if (spriteCacheBytes <= emulatedHeapLimitBytes) return;
         clearSpriteCache();
     }
 
-    private static void clearSpriteCache() {
+    private static synchronized void clearSpriteCache() {
         spriteCache.clear();
         spriteCacheBytes = 0;
     }
@@ -208,7 +209,7 @@ public final class PerformanceManager {
 
     // ======= Image / Heap tracking =======
     public static long getEmulatedUsageBytes() { return baseImageBytes + spriteCacheBytes; }
-    public static boolean registerImage(int width, int height) {
+    public static synchronized boolean registerImage(int width, int height) {
         long sz = (long) width * (long) height * 4L;
         long newUsage = baseImageBytes + spriteCacheBytes + sz;
         if (newUsage > emulatedHeapLimitBytes) {
@@ -218,7 +219,7 @@ public final class PerformanceManager {
         baseImageBytes += sz;
         return true;
     }
-    public static void noteImageFreed(int width, int height) {
+    public static synchronized void noteImageFreed(int width, int height) {
         long sz = (long) width * (long) height * 4L;
         baseImageBytes = Math.max(0, baseImageBytes - sz);
     }
@@ -270,6 +271,10 @@ public final class PerformanceManager {
                 } catch (NumberFormatException ignored) {}
             } catch (IOException ignored) {}
         }
+        // Re-apply any required system properties from loaded state without triggering a save
+        try {
+            System.setProperty("sun.java2d.opengl", hardwareAcceleration ? "true" : "false");
+        } catch (Throwable ignored) {}
         preferencesLoaded = true;
     }
 
@@ -282,14 +287,16 @@ public final class PerformanceManager {
             savePreferences();
         } else {
             // schedule a delayed save via a daemon thread
-            new Thread(() -> {
+            Thread t = new Thread(() -> {
                 try { Thread.sleep(SAVE_DEBOUNCE_MS); } catch (InterruptedException ignored) {}
                 synchronized (PerformanceManager.class) {
                     if (pendingSave && System.currentTimeMillis() - lastSaveTime >= SAVE_DEBOUNCE_MS) {
                         savePreferences();
                     }
                 }
-            }, "PerfPrefsSaver").start();
+            }, "PerfPrefsSaver");
+            t.setDaemon(true);
+            t.start();
         }
     }
 
@@ -313,5 +320,29 @@ public final class PerformanceManager {
         try (FileOutputStream out = new FileOutputStream(f)) {
             p.store(out, "JarEngine Performance Preferences");
         } catch (IOException ignored) {}
+    }
+
+    // ======= Defaults reset =======
+    public static synchronized void resetToDefaults() {
+        // Toggle defaults
+        hardwareAcceleration = false;
+        try { System.setProperty("sun.java2d.opengl", "false"); } catch (Throwable ignored) {}
+        antiAliasing = false;
+        doubleBuffering = true;
+        powerSavingMode = false;
+        idleSkipping = false;
+        frameSkipping = false;
+        threadPriorityBoost = false;
+        inputThrottling = false;
+        spriteCaching = false;
+        textureFiltering = true;
+        vSync = false;
+        // Emulated heap default
+        emulatedHeapLimitBytes = 64L * 1024 * 1024;
+        // Clear runtime counters/caches
+        baseImageBytes = 0L;
+        clearSpriteCache();
+        // Persist
+        savePreferences();
     }
 }

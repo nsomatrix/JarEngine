@@ -38,6 +38,7 @@ import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
 import java.awt.event.KeyEvent;
+import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
@@ -113,7 +114,6 @@ import org.je.app.ui.swing.SwingLogConsoleDialog;
 import org.je.app.util.DeviceEntry;
 import org.je.app.util.IOUtils;
 import org.je.app.util.MidletURLReference;
-import org.je.device.Device;
 import org.je.device.DeviceDisplay;
 import org.je.device.DeviceFactory;
 import org.je.device.Device;
@@ -787,13 +787,19 @@ public class Main extends JFrame {
 		}
 
 		public void windowIconified(WindowEvent ev) {
-			MIDletBridge.getMIDletAccess(MIDletBridge.getCurrentMIDlet()).pauseApp();
+			try {
+				javax.microedition.midlet.MIDlet m = MIDletBridge.getCurrentMIDlet();
+				MIDletAccess access = m != null ? MIDletBridge.getMIDletAccess(m) : null;
+				if (access != null) access.pauseApp();
+			} catch (Throwable ignored) {}
 		}
 
 		public void windowDeiconified(WindowEvent ev) {
 			try {
-				MIDletBridge.getMIDletAccess(MIDletBridge.getCurrentMIDlet()).startApp();
-			} catch (MIDletStateChangeException ex) {
+				javax.microedition.midlet.MIDlet m = MIDletBridge.getCurrentMIDlet();
+				MIDletAccess access = m != null ? MIDletBridge.getMIDletAccess(m) : null;
+				if (access != null) access.startApp();
+			} catch (Throwable ex) {
 				System.err.println(ex);
 			}
 		}
@@ -829,7 +835,7 @@ public class Main extends JFrame {
 		menuFile.add(menuOpenMIDletURL);
 
 		JMenuItem menuItemTmp = new JMenuItem("Terminate");
-		menuItemTmp.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_W, ActionEvent.CTRL_MASK));
+	menuItemTmp.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_W, InputEvent.CTRL_DOWN_MASK));
 		menuItemTmp.addActionListener(menuCloseMidletListener);
 		menuFile.add(menuItemTmp);
 
@@ -851,8 +857,8 @@ public class Main extends JFrame {
 
 		menuFile.addSeparator();
 
-		JMenuItem menuItem = new JMenuItem("Exit");
-		menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Q, ActionEvent.CTRL_MASK));
+	JMenuItem menuItem = new JMenuItem("Exit");
+	menuItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Q, InputEvent.CTRL_DOWN_MASK));
 		menuItem.addActionListener(menuExitListener);
 		menuFile.add(menuItem);
 
@@ -1014,7 +1020,7 @@ public class Main extends JFrame {
 
 // Screenshot menu item
 JMenuItem menuScreenshot = new JMenuItem("Screenshot");
-menuScreenshot.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, ActionEvent.CTRL_MASK));
+menuScreenshot.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, InputEvent.CTRL_DOWN_MASK));
 menuScreenshot.addActionListener(e -> {
     String path = ScreenshotUtil.captureAndSaveScreenshot(devicePanel, "jar_engine_screenshot_");
     if (path != null) {
@@ -1056,8 +1062,8 @@ JMenu menuPerformance = new JMenu("Performance");
 
 // (Removed legacy "Heap Size" emulated cap menu – JVM Heap (Restart) retained)
 
-// JVM Heap (Restart) – relaunch app with selected -Xmx
-JMenuItem menuJvmHeap = new JMenuItem("JVM Heap (Restart)");
+// JVM Heap Size – relaunch app with selected -Xmx
+JMenuItem menuJvmHeap = new JMenuItem("JVM Heap Size");
 menuJvmHeap.addActionListener(e -> {
 	long currentJvmMb;
 	try {
@@ -1074,7 +1080,7 @@ menuJvmHeap.addActionListener(e -> {
 	Object selection = javax.swing.JOptionPane.showInputDialog(
 			this,
 			"Set JVM heap (Xmx) in MB. App will restart:",
-			"JVM Heap (Restart)",
+			"JVM Heap Size",
 			javax.swing.JOptionPane.PLAIN_MESSAGE,
 			null,
 			labels.toArray(),
@@ -1119,7 +1125,7 @@ menuJvmHeap.addActionListener(e -> {
 	restartWithJvmHeap(chosenMb);
 });
 menuPerformance.add(menuJvmHeap);
-menuPerformance.addSeparator();
+// (separator removed; toggles follow immediately)
 
 // Generic toggle factory (no 'Enable' prefix; checked state implies enabled)
 java.util.function.Function<String, JCheckBoxMenuItem> addToggle = (label) -> {
@@ -1165,6 +1171,40 @@ tInput.addActionListener(ev -> PerformanceManager.setInputThrottlingPersist(tInp
 tSprite.addActionListener(ev -> PerformanceManager.setSpriteCachingPersist(tSprite.isSelected()));
 tTex.addActionListener(ev -> PerformanceManager.setTextureFilteringPersist(tTex.isSelected()));
 tVSync.addActionListener(ev -> PerformanceManager.setVSync(tVSync.isSelected(), org.je.device.ui.EventDispatcher.maxFps));
+
+// Add Reset Performance Settings at the bottom so toggle references are in scope
+menuPerformance.addSeparator();
+JMenuItem menuPerfReset = new JMenuItem("Reset Performance Settings");
+menuPerfReset.addActionListener(e -> {
+	int res = JOptionPane.showConfirmDialog(this,
+			"Reset all performance toggles and emulated heap to defaults?",
+			"Reset Performance Settings", JOptionPane.OK_CANCEL_OPTION,
+			JOptionPane.WARNING_MESSAGE);
+	if (res != JOptionPane.OK_OPTION) return;
+	try {
+		PerformanceManager.resetToDefaults();
+		// Reflect in menu checkboxes
+		tHardware.setSelected(PerformanceManager.isHardwareAcceleration());
+		tAA.setSelected(PerformanceManager.isAntiAliasing());
+		tDB.setSelected(PerformanceManager.isDoubleBuffering());
+		tPS.setSelected(PerformanceManager.isPowerSavingMode());
+		tIdle.setSelected(PerformanceManager.isIdleSkipping());
+		tFS.setSelected(PerformanceManager.isFrameSkipping());
+		tTPB.setSelected(PerformanceManager.isThreadPriorityBoost());
+		tInput.setSelected(PerformanceManager.isInputThrottling());
+		tSprite.setSelected(PerformanceManager.isSpriteCaching());
+		tTex.setSelected(PerformanceManager.isTextureFiltering());
+		tVSync.setSelected(PerformanceManager.isVSync());
+		if (statusBar != null) statusBar.showTemporaryStatus("Performance settings reset", 2500);
+		JOptionPane.showMessageDialog(this, "Performance settings were reset.", "Reset",
+				JOptionPane.INFORMATION_MESSAGE);
+	} catch (Throwable ex) {
+		Logger.error("Failed to reset performance settings", ex);
+		JOptionPane.showMessageDialog(this, "Failed to reset settings: " + ex.getMessage(),
+				"Reset Error", JOptionPane.ERROR_MESSAGE);
+	}
+});
+menuPerformance.add(menuPerfReset);
 
 menuTools.add(menuPerformance);
 
@@ -1751,5 +1791,4 @@ menuTools.add(menuLogConsole);
 		}
 
 	}
-
 }
