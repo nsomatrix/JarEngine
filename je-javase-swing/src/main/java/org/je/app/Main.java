@@ -768,9 +768,10 @@ public class Main extends JFrame {
                 devicePanel.revalidate();
                 devicePanel.repaint();
             } else {
-				// User MIDlet is running: only stretch/fill behavior
-				DeviceDisplayImpl deviceDisplay = (DeviceDisplayImpl) DeviceFactory.getDevice().getDeviceDisplay();
-				if (deviceDisplay.isResizable()) {
+                // User MIDlet is running: only stretch/fill behavior
+                Device deviceSafe = DeviceFactory.getDevice();
+                DeviceDisplayImpl deviceDisplay = deviceSafe != null ? (DeviceDisplayImpl) deviceSafe.getDeviceDisplay() : null;
+                if (deviceDisplay != null && deviceDisplay.isResizable()) {
 					devicePanel.revalidate();
 					synchronized (statusBarListener) {
 						if (timer == null) {
@@ -926,8 +927,12 @@ public class Main extends JFrame {
                         setDeviceSize(deviceDisplay, newW, newH);
                         // Explicitly size the frame so content area matches desired device size
                         java.awt.Insets insets = getInsets();
-                        int statusH = statusBar.getHeight() > 0 ? statusBar.getHeight() : statusBar.getPreferredSize().height;
-                        int menuH = (getJMenuBar() != null) ? getJMenuBar().getPreferredSize().height : 0;
+                        int statusH = statusBar.getHeight();
+                        if (statusH <= 0) {
+                            statusH = statusBar.getPreferredSize() != null ? statusBar.getPreferredSize().height : 0;
+                        }
+                        JMenuBar mb = getJMenuBar();
+                        int menuH = (mb != null && mb.getPreferredSize() != null) ? mb.getPreferredSize().height : 0;
                         int frameW = newW + insets.left + insets.right;
                         int frameH = newH + statusH + menuH + insets.top + insets.bottom;
                         setSize(frameW, frameH);

@@ -518,7 +518,8 @@ public class SwingDeviceComponent extends JPanel implements KeyListener, InputMe
 		}
 	}
 
-	public Dimension getPreferredSize() {
+    @Override
+    public Dimension getPreferredSize() {
 		Device device = DeviceFactory.getDevice();
 		if (device == null) {
 			return new Dimension(0, 0);
@@ -537,8 +538,8 @@ public class SwingDeviceComponent extends JPanel implements KeyListener, InputMe
 		}
 	}
 
-	@Override
-	public Dimension getMinimumSize() {
+    @Override
+    public Dimension getMinimumSize() {
 		// Ensure panel never forces status bar off-screen
 		return new Dimension(0, 0);
 	}

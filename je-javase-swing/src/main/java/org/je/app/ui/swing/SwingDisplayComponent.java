@@ -305,7 +305,8 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 		}
 	}
 
-	public Dimension getPreferredSize() {
+    @Override
+    public Dimension getPreferredSize() {
 		Device device = DeviceFactory.getDevice();
 		if (device == null) {
 			return new Dimension(0, 0); // Allow free shrinking when no device
@@ -315,13 +316,14 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
         return new Dimension(device.getDeviceDisplay().getFullWidth(), device.getDeviceDisplay().getFullHeight());
 	}
 
-	@Override
-	public Dimension getMinimumSize() {
+    @Override
+    public Dimension getMinimumSize() {
 		// Never block layout from showing the status bar
 		return new Dimension(0, 0);
 	}
 
-	protected void paintComponent(Graphics g) {
+    @Override
+    protected void paintComponent(Graphics g) {
 		// Increment frame counter for FPS calculation
 		org.je.app.tools.FPSTool.incrementFrameCount();
 		
@@ -349,8 +351,8 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 			g.fillRect(0, 0, getWidth(), getHeight());
 		}
 		
-		// Draw FPS overlay if enabled
-		if (org.je.app.tools.FPSTool.fpsOverlayEnabled) {
+        // Draw FPS overlay if enabled
+        if (org.je.app.tools.FPSTool.fpsOverlayEnabled) {
 			drawFpsOverlay(g);
 		}
 	}
