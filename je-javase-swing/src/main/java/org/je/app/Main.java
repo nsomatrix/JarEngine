@@ -190,9 +190,9 @@ public class Main extends JFrame {
 
 	private DeviceEntry deviceEntry;
 
-	private AnimatedGifEncoder encoder;
+    private AnimatedGifEncoder encoder;
 
-	private JLabel statusBar = new JLabel("Status");
+    private org.je.app.ui.swing.StatusBar statusBar;
 
     private ResizeDeviceDisplayDialog resizeDeviceDisplayDialog = null;
     private SleepManager sleepManager;
@@ -694,22 +694,11 @@ public class Main extends JFrame {
 		}
 	};
 
-	private StatusBarListener statusBarListener = new StatusBarListener() {
-		public void statusBarChanged(String text) {
-			// Add proxy status to status bar
-			String proxyStatus = "";
-			try {
-				org.je.util.ProxyConfig proxyConfig = org.je.util.ProxyConfig.getInstance();
-				if (proxyConfig.isEnabled()) {
-					proxyStatus = " [PROXY: " + proxyConfig.getProxyHost() + ":" + proxyConfig.getProxyPort() + "]";
-				}
-			} catch (Exception e) {
-				// Ignore proxy status errors
-			}
-			String fullText = text + proxyStatus;
-			statusBar.setText(fullText);
-		}
-	};
+    private StatusBarListener statusBarListener = text -> {
+        if (statusBar != null) {
+            statusBar.statusBarChanged(text);
+        }
+    };
 
 	private ResponseInterfaceListener responseInterfaceListener = new ResponseInterfaceListener() {
 		public void stateChanged(boolean state) {
@@ -721,8 +710,6 @@ public class Main extends JFrame {
     private ComponentListener componentListener = new ComponentAdapter() {
         Timer timer;
         final Object resizeTimerLock = new Object();
-		javax.swing.Timer restoreTimer;
-		String resizeRestoreStatus = null;
 
 		int count = 0;
 
@@ -735,26 +722,11 @@ public class Main extends JFrame {
 			javax.microedition.midlet.MIDlet currentMIDlet = MIDletBridge.getCurrentMIDlet();
 			boolean isLauncherMode = (currentMIDlet == null || currentMIDlet instanceof org.je.app.launcher.Launcher);
 			
-			// Show live dimensions in status bar
-			Dimension size = devicePanel.getSize();
-			if (resizeRestoreStatus == null) {
-				resizeRestoreStatus = statusBar.getText();
-			}
-			statusBar.setText(size.width + "x" + size.height);
-			
-			// Restore original status after 2 seconds of no resize
-			if (restoreTimer != null && restoreTimer.isRunning()) {
-				restoreTimer.stop();
-			}
-			restoreTimer = new javax.swing.Timer(2000, evt -> {
-				if (resizeRestoreStatus != null) {
-					statusBar.setText(resizeRestoreStatus);
-					resizeRestoreStatus = null;
-				}
-				restoreTimer.stop();
-			});
-			restoreTimer.setRepeats(false);
-			restoreTimer.start();
+            // Show live dimensions in status bar (temporary for 2 seconds)
+            Dimension size = devicePanel.getSize();
+            if (statusBar != null) {
+                statusBar.showTemporaryStatus(size.width + "x" + size.height, 2000);
+            }
 			
             if (isLauncherMode) {
                 // In launcher mode: resize device to match content area for pre-MIDlet workflows
@@ -1161,21 +1133,8 @@ menuTools.add(menuLogConsole);
 
 
 
-        JPanel statusPanel = new JPanel();
-		statusPanel.setLayout(new BorderLayout());
-		statusPanel.add(statusBar, "West");
-        // Avoid status bar enforcing a minimum width and ensure it's always visible
-        try {
-            int barHeight = Math.max(1, statusBar.getPreferredSize().height);
-            statusBar.setMinimumSize(new Dimension(0, barHeight));
-            statusPanel.setMinimumSize(new Dimension(0, barHeight));
-            statusPanel.setPreferredSize(new Dimension(1, barHeight));
-        } catch (Exception ignore) {
-            // Best-effort; safe to ignore
-        }
-
-        getContentPane().add(statusPanel, "South");
-        statusPanel.setVisible(true);
+        statusBar = new org.je.app.ui.swing.StatusBar();
+        getContentPane().add(statusBar.getComponent(), "South");
         statusBar.setVisible(true);
 
         // Ensure the frame itself doesn't keep an artificial minimum size
