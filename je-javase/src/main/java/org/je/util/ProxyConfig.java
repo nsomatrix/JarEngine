@@ -39,6 +39,23 @@ public class ProxyConfig {
         }
         return instance;
     }
+
+    /**
+     * Reset all proxy-related settings to their defaults and persist them.
+     */
+    public static synchronized void resetToDefaults() {
+        ProxyConfig cfg = getInstance();
+        cfg.enabled = false;
+        cfg.proxyHost = "127.0.0.1";
+        cfg.proxyPort = 8080;
+        cfg.proxyUsername = "";
+        cfg.proxyPassword = "";
+        cfg.useAuthentication = false;
+        cfg.httpEnabled = true;
+        cfg.httpsEnabled = true;
+        cfg.socketEnabled = true;
+        cfg.saveConfig();
+    }
     
     public boolean isEnabled() {
         return enabled;

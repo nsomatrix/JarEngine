@@ -148,6 +148,9 @@ public final class NetConfig {
 
     public static final class TLS {
         public static volatile boolean trustAll = false;
+        // Capture original JVM defaults so we can restore them
+        private static final HostnameVerifier ORIGINAL_HOSTNAME_VERIFIER = HttpsURLConnection.getDefaultHostnameVerifier();
+        private static final SSLSocketFactory ORIGINAL_SSL_SOCKET_FACTORY = (SSLSocketFactory) HttpsURLConnection.getDefaultSSLSocketFactory();
 
         public static void applyDefaultContextIfNeeded() {
             if (!trustAll) return;
@@ -229,6 +232,14 @@ public final class NetConfig {
                     return ssl;
                 }
             };
+        }
+
+        // Restore JVM HTTPS defaults (undo trust-all changes)
+        public static void resetDefaultContext() {
+            try {
+                HttpsURLConnection.setDefaultSSLSocketFactory(ORIGINAL_SSL_SOCKET_FACTORY);
+                HttpsURLConnection.setDefaultHostnameVerifier(ORIGINAL_HOSTNAME_VERIFIER);
+            } catch (Throwable ignored) {}
         }
     }
 
@@ -323,5 +334,25 @@ public final class NetConfig {
         try (java.io.FileOutputStream out = new java.io.FileOutputStream(f)) {
             p.store(out, "JarEngine Network Preferences");
         } catch (java.io.IOException ignored) {}
+    }
+
+    // Reset all network-related preferences and runtime toggles to defaults
+    public static synchronized void resetToDefaults() {
+        // Policy
+        Policy.offline = false;
+        Policy.captivePortal = false;
+        Policy.captivePort = 8081;
+        // TLS
+        TLS.trustAll = false;
+        TLS.resetDefaultContext();
+        // Traffic shaping
+        Traffic.bandwidthKbps = 0;
+        Traffic.latencyMs = 0;
+        Traffic.jitterMs = 0;
+        Traffic.packetLossPct = 0;
+        // DNS overrides
+        Dns.clear();
+        // Persist
+        savePreferencesAsync();
     }
 }

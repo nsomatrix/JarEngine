@@ -1213,7 +1213,6 @@ JMenu menuNetworking = new JMenu("Networking");
 JMenuItem menuProxy = new JMenuItem("Proxy Settings");
 menuProxy.addActionListener(e -> new org.je.app.tools.ProxyTool(this).setVisible(true));
 menuNetworking.add(menuProxy);
-menuNetworking.addSeparator();
 
 // Individual tools as radio items that open their own small dialogs
 JRadioButtonMenuItem netMonitor = new JRadioButtonMenuItem("Network Monitor");
@@ -1255,6 +1254,30 @@ menuNetworking.add(netMetrics);
 JRadioButtonMenuItem netUdp = new JRadioButtonMenuItem("UDP Tester");
 netUdp.addActionListener(e -> org.je.app.tools.NetworkTools.openUdpDialog(this).setVisible(true));
 menuNetworking.add(netUdp);
+
+// Reset Network Settings (mirror of Performance -> Reset Performance Settings)
+menuNetworking.addSeparator();
+JMenuItem menuNetReset = new JMenuItem("Reset Network Settings");
+menuNetReset.addActionListener(e -> {
+	int res = JOptionPane.showConfirmDialog(this,
+			"Reset all network settings to defaults?",
+			"Reset Network Settings", JOptionPane.OK_CANCEL_OPTION,
+			JOptionPane.WARNING_MESSAGE);
+	if (res != JOptionPane.OK_OPTION) return;
+	try {
+		org.je.util.net.NetConfig.resetToDefaults();
+	// Also reset Proxy configuration
+	try { org.je.util.ProxyConfig.resetToDefaults(); } catch (Throwable ignore) {}
+		if (statusBar != null) statusBar.showTemporaryStatus("Network settings reset", 2500);
+		JOptionPane.showMessageDialog(this, "Network settings were reset.", "Reset",
+				JOptionPane.INFORMATION_MESSAGE);
+	} catch (Throwable ex) {
+		Logger.error("Failed to reset network settings", ex);
+		JOptionPane.showMessageDialog(this, "Failed to reset settings: " + ex.getMessage(),
+				"Reset Error", JOptionPane.ERROR_MESSAGE);
+	}
+});
+menuNetworking.add(menuNetReset);
 
 menuTools.add(menuNetworking);
 
