@@ -66,6 +66,7 @@ import org.je.device.j2se.J2SEDeviceDisplay;
 import org.je.device.j2se.J2SEGraphicsSurface;
 import org.je.performance.PerformanceManager;
 import org.je.device.j2se.J2SEInputMethod;
+import org.je.app.tools.FilterManager;
 
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -352,8 +353,17 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 						g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 					}
 					Object interp = PerformanceManager.isTextureFiltering() ? RenderingHints.VALUE_INTERPOLATION_BILINEAR : RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR;
-					g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, interp);
-					g2.drawImage(graphicsSurface.getImage(), 0, 0, compW, compH, 0, 0, imgW, imgH, null);
+
+					// If filters are enabled, render through FilterManager; otherwise draw directly
+					if (FilterManager.hasActiveFilters()) {
+						java.awt.image.BufferedImage filtered = FilterManager.renderFiltered(graphicsSurface.getImage(), compW, compH, interp);
+						if (filtered != null) {
+							g2.drawImage(filtered, 0, 0, null);
+						}
+					} else {
+						g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, interp);
+						g2.drawImage(graphicsSurface.getImage(), 0, 0, compW, compH, 0, 0, imgW, imgH, null);
+					}
 				}
 			}
 		} else {

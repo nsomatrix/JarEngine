@@ -134,6 +134,7 @@ import org.je.log.QueueAppender;
 import org.je.util.JadMidletEntry;
 import org.je.app.tools.ReplicateInstancesTool;
 import org.je.performance.PerformanceManager;
+import org.je.app.tools.FilterTool;
 
 
 public class Main extends JFrame {
@@ -1280,6 +1281,14 @@ menuNetReset.addActionListener(e -> {
 menuNetworking.add(menuNetReset);
 
 menuTools.add(menuNetworking);
+
+// Add Filters menu after Networking
+JMenuItem menuFilters = new JMenuItem("Filters");
+menuFilters.addActionListener(e -> {
+    FilterTool dlg = new FilterTool(this);
+    dlg.setVisible(true);
+});
+menuTools.add(menuFilters);
 
 // Record submenu
 JMenu menuRecord = new JMenu("Record");
