@@ -53,9 +53,7 @@ import javax.swing.JPanel;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.KeyStroke;
 import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
-import com.formdev.flatlaf.themes.FlatMacLightLaf;
-import com.formdev.flatlaf.themes.FlatMacDarkLaf;
+import org.je.app.ui.swing.Themes;
 
 import org.je.DisplayAccess;
 import org.je.DisplayComponent;
@@ -387,104 +385,44 @@ public class Main extends JFrame {
 
 	private ActionListener menuLightThemeListener = new ActionListener() {
 		public void actionPerformed(ActionEvent e) {
+			// Only pass Window instances
+			java.util.List<java.awt.Window> windows = new java.util.ArrayList<>();
+			windows.add(Main.this);
+			if (logConsoleDialog != null) windows.add(logConsoleDialog);
+			if (recordStoreManagerDialog != null) windows.add(recordStoreManagerDialog);
+			if (scaledDisplayFrame != null) windows.add(scaledDisplayFrame);
+			Themes.applyTheme("light", common, windows.toArray(new java.awt.Window[0]));
+			// Update any non-Window panels/dialog panels
+			if (resizeDeviceDisplayDialog != null) SwingUtilities.updateComponentTreeUI(resizeDeviceDisplayDialog);
+			// Restart launcher if we're in launcher mode (to update LauncherCanvas theme)
 			try {
-				// Check if running on Windows
-				String osName = System.getProperty("os.name").toLowerCase();
-				if (osName.contains("windows")) {
-					// On Windows, use FlatLaf with specific settings to avoid menu bar integration
-					UIManager.setLookAndFeel(new FlatMacLightLaf());
-					// Set specific FlatLaf properties to prevent menu bar integration on Windows
-					UIManager.put("TitlePane.useWindowDecorations", false);
-					UIManager.put("TitlePane.menuBarEmbedded", false);
-				} else {
-					// On other platforms, use FlatLaf
-					UIManager.setLookAndFeel(new FlatMacLightLaf());
-				}
-				SwingUtilities.updateComponentTreeUI(Main.this);
-				// Update child windows if they exist
-				if (logConsoleDialog != null) {
-					SwingUtilities.updateComponentTreeUI(logConsoleDialog);
-				}
-				if (recordStoreManagerDialog != null) {
-					SwingUtilities.updateComponentTreeUI(recordStoreManagerDialog);
-				}
-				if (scaledDisplayFrame != null) {
-					SwingUtilities.updateComponentTreeUI(scaledDisplayFrame);
-				}
-				if (resizeDeviceDisplayDialog != null) {
-					SwingUtilities.updateComponentTreeUI(resizeDeviceDisplayDialog);
-				}
-				// Save theme preference
-				Config.setCurrentTheme("light");
-				common.setCurrentTheme("light");
-				// Update device display colors
-				if (DeviceFactory.getDevice() != null && DeviceFactory.getDevice().getDeviceDisplay() instanceof org.je.device.j2se.J2SEDeviceDisplay) {
-					((org.je.device.j2se.J2SEDeviceDisplay) DeviceFactory.getDevice().getDeviceDisplay()).updateThemeColors("light");
-				}
-				// Restart launcher if we're in launcher mode (to update LauncherCanvas theme)
 				if (MIDletBridge.getMIDletContext() != null && MIDletBridge.getMIDletContext().isLauncher()) {
-					// Add small delay to prevent rapid switching
-					try {
-						Thread.sleep(100);
-					} catch (InterruptedException ie) {
-						// Ignore
-					}
+					try { Thread.sleep(100); } catch (InterruptedException ignored) {}
 					common.startLauncher(MIDletBridge.getMIDletContext());
 				}
-			} catch (Exception ex) {
-				Logger.error("Failed to set light theme", ex);
+			} catch (Throwable ex) {
+				Logger.error("Failed to refresh launcher after theme change", ex);
 			}
 		}
 	};
 
 	private ActionListener menuDarkThemeListener = new ActionListener() {
 		public void actionPerformed(ActionEvent e) {
+			// Only pass Window instances
+			java.util.List<java.awt.Window> windows = new java.util.ArrayList<>();
+			windows.add(Main.this);
+			if (logConsoleDialog != null) windows.add(logConsoleDialog);
+			if (recordStoreManagerDialog != null) windows.add(recordStoreManagerDialog);
+			if (scaledDisplayFrame != null) windows.add(scaledDisplayFrame);
+			Themes.applyTheme("dark", common, windows.toArray(new java.awt.Window[0]));
+			if (resizeDeviceDisplayDialog != null) SwingUtilities.updateComponentTreeUI(resizeDeviceDisplayDialog);
 			try {
-				// Check if running on Windows
-				String osName = System.getProperty("os.name").toLowerCase();
-				if (osName.contains("windows")) {
-					// On Windows, use FlatLaf with specific settings to avoid menu bar integration
-					UIManager.setLookAndFeel(new FlatMacDarkLaf());
-					// Set specific FlatLaf properties to prevent menu bar integration on Windows
-					UIManager.put("TitlePane.useWindowDecorations", false);
-					UIManager.put("TitlePane.menuBarEmbedded", false);
-				} else {
-					// On other platforms, use FlatLaf
-					UIManager.setLookAndFeel(new FlatMacDarkLaf());
-				}
-				SwingUtilities.updateComponentTreeUI(Main.this);
-				// Update child windows if they exist
-				if (logConsoleDialog != null) {
-					SwingUtilities.updateComponentTreeUI(logConsoleDialog);
-				}
-				if (recordStoreManagerDialog != null) {
-					SwingUtilities.updateComponentTreeUI(recordStoreManagerDialog);
-				}
-				if (scaledDisplayFrame != null) {
-					SwingUtilities.updateComponentTreeUI(scaledDisplayFrame);
-				}
-				if (resizeDeviceDisplayDialog != null) {
-					SwingUtilities.updateComponentTreeUI(resizeDeviceDisplayDialog);
-				}
-				// Save theme preference
-				Config.setCurrentTheme("dark");
-				common.setCurrentTheme("dark");
-				// Update device display colors
-				if (DeviceFactory.getDevice() != null && DeviceFactory.getDevice().getDeviceDisplay() instanceof org.je.device.j2se.J2SEDeviceDisplay) {
-					((org.je.device.j2se.J2SEDeviceDisplay) DeviceFactory.getDevice().getDeviceDisplay()).updateThemeColors("dark");
-				}
-				// Restart launcher if we're in launcher mode (to update LauncherCanvas theme)
 				if (MIDletBridge.getMIDletContext() != null && MIDletBridge.getMIDletContext().isLauncher()) {
-					// Add small delay to prevent rapid switching
-					try {
-						Thread.sleep(100);
-					} catch (InterruptedException ie) {
-						// Ignore
-					}
+					try { Thread.sleep(100); } catch (InterruptedException ignored) {}
 					common.startLauncher(MIDletBridge.getMIDletContext());
 				}
-			} catch (Exception ex) {
-				Logger.error("Failed to set dark theme", ex);
+			} catch (Throwable ex) {
+				Logger.error("Failed to refresh launcher after theme change", ex);
 			}
 		}
 	};
@@ -1713,38 +1651,7 @@ menuTools.add(menuLogConsole);
 			return;
 		}
 
-		try {
-			// Check if running on Windows
-			String osName = System.getProperty("os.name").toLowerCase();
-			if (osName.contains("windows")) {
-				// On Windows, use FlatLaf but with specific settings to avoid menu bar integration
-				String savedTheme = Config.getCurrentTheme();
-				if ("dark".equals(savedTheme)) {
-					UIManager.setLookAndFeel(new FlatMacDarkLaf());
-				} else {
-					UIManager.setLookAndFeel(new FlatMacLightLaf());
-				}
-				// Set specific FlatLaf properties to prevent menu bar integration on Windows
-				UIManager.put("TitlePane.useWindowDecorations", false);
-				UIManager.put("TitlePane.menuBarEmbedded", false);
-			} else {
-				// On other platforms, use FlatLaf themes normally
-				String savedTheme = Config.getCurrentTheme();
-				if ("dark".equals(savedTheme)) {
-					UIManager.setLookAndFeel(new FlatMacDarkLaf());
-				} else {
-					UIManager.setLookAndFeel(new FlatMacLightLaf());
-				}
-			}
-		} catch (Exception ex) {
-			Logger.error(ex);
-			// Fallback to system look and feel if FlatLaf fails
-			try {
-				UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-			} catch (Exception ex2) {
-				Logger.error(ex2);
-			}
-		}
+	Themes.initializeLookAndFeelFromConfig();
 
 		final Main app = new Main();
 		if (args.length > 0) {
