@@ -109,6 +109,7 @@ import org.je.app.ui.swing.SwingDialogWindow;
 import org.je.app.ui.swing.SwingDisplayComponent;
 import org.je.app.ui.swing.SwingErrorMessageDialogPanel;
 import org.je.app.ui.swing.SwingLogConsoleDialog;
+import org.je.app.ui.swing.ConfigManagerDialog;
 
 
 import org.je.app.util.DeviceEntry;
@@ -1319,7 +1320,15 @@ menuTools.add(menuLogConsole);
 		} catch (Exception e) {
 			System.err.println("Warning: Could not load Settings menu icon: " + e.getMessage());
 		}
-		
+        
+		// Config Manager entry above Status
+		JMenuItem menuConfigManager = new JMenuItem("Config Manager");
+		menuConfigManager.addActionListener(e -> {
+			ConfigManagerDialog cfg = new ConfigManagerDialog();
+			SwingDialogWindow.show(Main.this, "Config Manager", cfg, false);
+		});
+		menuHelp.add(menuConfigManager);
+
 		JMenuItem menuSysInfo = new JMenuItem("Status");
 		menuSysInfo.addActionListener(menuStatusListener);
 		menuHelp.add(menuSysInfo);

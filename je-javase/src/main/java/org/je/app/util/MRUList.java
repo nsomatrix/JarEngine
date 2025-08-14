@@ -30,6 +30,8 @@ import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.ListIterator;
 import java.util.Stack;
+import java.util.ArrayList;
+import java.util.List;
 
 import nanoxml.XMLElement;
 
@@ -141,6 +143,14 @@ public class MRUList implements XMLItem {
 				fireListener(element);
 			}
 		}
+	}
+
+	/**
+	 * Returns a snapshot copy of current items for read-only iteration.
+	 * Order is most-recent first (index 0 is most recent).
+	 */
+	public synchronized List getItemsSnapshot() {
+		return new ArrayList(items);
 	}
 
 }
