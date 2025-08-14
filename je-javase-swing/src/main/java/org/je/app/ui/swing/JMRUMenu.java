@@ -32,8 +32,10 @@ import java.awt.event.ActionListener;
 import javax.swing.AbstractAction;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
+import javax.swing.ImageIcon;
 
 import org.je.app.util.MRUListListener;
+import org.je.app.util.MidletURLReference;
 
 /**
  * @author vlads
@@ -65,13 +67,19 @@ public class JMRUMenu extends JMenu implements MRUListListener {
 	}
 
 	public void listItemChanged(final Object item) {
-		String label = item.toString();
+		// Convert to MidletURLReference if possible, so we can show name and icon
+		final MidletURLReference ref = (item instanceof MidletURLReference) ? (MidletURLReference) item : null;
+		final String label = (ref != null && ref.getName() != null && !ref.getName().isEmpty())
+				? ref.getName() : item.toString();
+
+		// De-duplicate by label (suite name) or fallback to string
 		for (int i = 0; i < getItemCount(); i++) {
 			if (getItem(i).getText().equals(label)) {
 				remove(i);
 				break;
 			}
 		}
+
 		AbstractAction a = new AbstractAction(label) {
 
 			private static final long serialVersionUID = 1L;
@@ -84,6 +92,13 @@ public class JMRUMenu extends JMenu implements MRUListListener {
 		};
 
 		JMenuItem menu = new JMenuItem(a);
+		// Attach icon when we know the MIDlet reference
+		try {
+			if (ref != null) {
+				ImageIcon ic = MidletIconLoader.resolveIcon(ref);
+				if (ic != null) menu.setIcon(ic);
+			}
+		} catch (Throwable ignore) {}
 		this.insert(menu, 0);
 	}
 
