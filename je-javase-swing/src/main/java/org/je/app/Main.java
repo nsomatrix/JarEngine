@@ -253,7 +253,7 @@ public class Main extends JFrame {
 				fileFilter.addExtension("jar");
 				fileChooser = new JFileChooser();
 				fileChooser.setFileFilter(fileFilter);
-				fileChooser.setDialogTitle("Open MIDlet File...");
+				fileChooser.setDialogTitle("Load JAR");
 				fileChooser.setCurrentDirectory(new File(Config.getRecentDirectory("recentJadDirectory")));
 			}
 
@@ -274,7 +274,7 @@ public class Main extends JFrame {
 			if (midletUrlPanel == null) {
 				midletUrlPanel = new MIDletUrlPanel();
 			}
-			if (SwingDialogWindow.show(Main.this, "Enter MIDlet URL:", midletUrlPanel, true)) {
+			if (SwingDialogWindow.show(Main.this, "Fetch via URL", midletUrlPanel, true)) {
 				Common.openMIDletUrlSafe(midletUrlPanel.getText());
 				if (recordStoreManagerDialog != null) {
 					recordStoreManagerDialog.refresh();
