@@ -512,7 +512,7 @@ public class Main extends JFrame {
 						zoomLevels[i].setSelected(false);
 					}
 				}
-				final int scale = Integer.parseInt(e.getActionCommand());
+				final float scale = Float.parseFloat(e.getActionCommand());
 				if (adaptiveResolutionFrame != null) {
 					((SwingDisplayComponent) emulatorContext.getDisplayComponent())
 							.removeDisplayRepaintListener(updateScaledImageListener);
@@ -599,25 +599,25 @@ public class Main extends JFrame {
 			}
 		}
 
-		private MouseEvent createAdaptedMouseEvent(MouseEvent e, int scale) {
-			return new MouseEvent(e.getComponent(), e.getID(), e.getWhen(), e.getModifiers(), e.getX() / scale, e
+		private MouseEvent createAdaptedMouseEvent(MouseEvent e, float scale) {
+			return new MouseEvent(e.getComponent(), e.getID(), e.getWhen(), e.getModifiers(), (int)(e.getX() / scale), (int)(e
 					.getY()
-					/ scale, e.getClickCount(), e.isPopupTrigger(), e.getButton());
+					/ scale), e.getClickCount(), e.isPopupTrigger(), e.getButton());
 		}
 
-		private MouseWheelEvent createAdaptedMouseWheelEvent(MouseWheelEvent e, int scale) {
-			return new MouseWheelEvent(e.getComponent(), e.getID(), e.getWhen(), e.getModifiers(), e.getX() / scale, e
+		private MouseWheelEvent createAdaptedMouseWheelEvent(MouseWheelEvent e, float scale) {
+			return new MouseWheelEvent(e.getComponent(), e.getID(), e.getWhen(), e.getModifiers(), (int)(e.getX() / scale), (int)(e
 					.getY()
-					/ scale, e.getClickCount(), e.isPopupTrigger(), e.getScrollType(), e.getScrollAmount(), e
+					/ scale), e.getClickCount(), e.isPopupTrigger(), e.getScrollType(), e.getScrollAmount(), e
 					.getWheelRotation());
 		}
 
-		private void updateScaledImage(int scale, JFrame adaptiveResolutionFrame) {
+		private void updateScaledImage(float scale, JFrame adaptiveResolutionFrame) {
 			J2SEGraphicsSurface graphicsSurface = 
 					((SwingDisplayComponent) emulatorContext.getDisplayComponent()).getGraphicsSurface();
 			
 			BufferedImage img = graphicsSurface.getImage();
-			BufferedImage scaledImg = new BufferedImage(img.getWidth() * scale, img.getHeight() * scale, img.getType());
+			BufferedImage scaledImg = new BufferedImage((int)(img.getWidth() * scale), (int)(img.getHeight() * scale), img.getType());
 			Graphics2D imgGraphics = scaledImg.createGraphics();
 			imgGraphics.scale(scale, scale);
 			imgGraphics.drawImage(img, 0, 0, null);
@@ -840,10 +840,12 @@ public class Main extends JFrame {
 
 		JMenu menuAdaptiveResolution = new JMenu("Adaptive Resolution");
 		menuOptions.add(menuAdaptiveResolution);
-		zoomLevels = new JCheckBoxMenuItem[3];
+		zoomLevels = new JCheckBoxMenuItem[5];
+		String[] zoomLabels = {"1x", "1.25x", "1.5x", "1.75x", "2x"};
+		float[] zoomFactors = {1.0f, 1.25f, 1.5f, 1.75f, 2.0f};
 		for (int i = 0; i < zoomLevels.length; ++i) {
-			zoomLevels[i] = new JCheckBoxMenuItem("x " + (i + 2));
-			zoomLevels[i].setActionCommand("" + (i + 2));
+			zoomLevels[i] = new JCheckBoxMenuItem(zoomLabels[i]);
+			zoomLevels[i].setActionCommand("" + zoomFactors[i]);
 			zoomLevels[i].addActionListener(menuAdaptiveResolutionListener);
 			menuAdaptiveResolution.add(zoomLevels[i]);
 		}
