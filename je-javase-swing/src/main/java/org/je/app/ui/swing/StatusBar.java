@@ -127,6 +127,87 @@ public class StatusBar extends JPanel {
         setPersistentStatus(text);
     }
 
+    // ========== Menu Action Status Messages ==========
+    
+    /** Show status message for file loading */
+    public void showFileLoaded(String filename) {
+        showTemporaryStatus("Loading JAR: " + filename, 3000);
+    }
+    
+    /** Show status message for URL loading */
+    public void showUrlLoaded(String url) {
+        showTemporaryStatus("Loading from URL: " + url, 3000);
+    }
+    
+    /** Show status message for MIDlet closing */
+    public void showMidletClosed() {
+        showTemporaryStatus("MIDlet closed - returned to launcher", 2500);
+    }
+    
+    /** Show status message for recording start */
+    public void showRecordingStarted(String filename) {
+        showTemporaryStatus("Recording started: " + filename, 3000);
+    }
+    
+    /** Show status message for recording stop */
+    public void showRecordingStopped() {
+        showTemporaryStatus("Recording stopped and saved", 3000);
+    }
+    
+    /** Show status message for log console toggle */
+    public void showLogConsoleToggled(boolean isVisible) {
+        String action = isVisible ? "opened" : "closed";
+        showTemporaryStatus("Log console " + action, 2000);
+    }
+    
+    /** Show status message for record store manager toggle */
+    public void showRecordStoreManagerToggled(boolean isVisible) {
+        String action = isVisible ? "opened" : "closed";
+        showTemporaryStatus("Record Store Manager " + action, 2500);
+    }
+    
+    /** Show status message for about dialog */
+    public void showAboutDialogOpened() {
+        showTemporaryStatus("About dialog opened", 2000);
+    }
+    
+    /** Show status message for theme change */
+    public void showThemeApplied(String themeKey) {
+        String themeName = themeKey.replace("-", " ");
+        if (!themeName.isEmpty()) {
+            themeName = themeName.substring(0, 1).toUpperCase() + themeName.substring(1);
+        }
+        showTemporaryStatus(themeName + " theme applied", 2500);
+    }
+    
+    /** Show status message for network connection toggle */
+    public void showNetworkToggled(boolean enabled) {
+        String status = enabled ? "enabled" : "disabled";
+        showTemporaryStatus("Network connection " + status, 2500);
+    }
+    
+    /** Show status message for device resize */
+    public void showDeviceResized(int width, int height) {
+        showTemporaryStatus("Device resized to " + width + "x" + height, 2500);
+    }
+    
+    /** Show status message for sleep mode toggle */
+    public void showSleepModeToggled(boolean enabled) {
+        String status = enabled ? "enabled" : "disabled";
+        showTemporaryStatus("Sleep mode " + status, 2000);
+    }
+    
+    /** Show status message for general dialog toggle */
+    public void showDialogToggled(String dialogName, boolean isVisible) {
+        String action = isVisible ? "opened" : "closed";
+        showTemporaryStatus(dialogName + " " + action, 2000);
+    }
+    
+    /** Show status message for menu item selection */
+    public void showMenuItemSelected(String itemName) {
+        showTemporaryStatus(itemName + " selected", 1500);
+    }
+
     /** Start the configuration saving spinner */
     public void startConfigSpinner() {
         if (!spinnerActive) {

@@ -245,6 +245,7 @@ public class Main extends JFrame {
 				if (recordStoreManagerDialog != null) {
 					recordStoreManagerDialog.refresh();
 				}
+				if (statusBar != null) statusBar.showFileLoaded(fileChooser.getSelectedFile().getName());
 			}
 		}
 	};
@@ -259,6 +260,7 @@ public class Main extends JFrame {
 				if (recordStoreManagerDialog != null) {
 					recordStoreManagerDialog.refresh();
 				}
+				if (statusBar != null) statusBar.showUrlLoaded(midletUrlPanel.getText());
 			}
 		}
 	};
@@ -268,6 +270,7 @@ public class Main extends JFrame {
 			common.startLauncher(MIDletBridge.getMIDletContext());
 			// Update resize menu state after closing MIDlet
 			updateResizeMenuState();
+			if (statusBar != null) statusBar.showMidletClosed();
 		}
 	};
 
@@ -298,6 +301,7 @@ public class Main extends JFrame {
 			encoder.start(captureFile.getAbsolutePath());
 
 			menuStartRecord.setSelected(true);
+			if (statusBar != null) statusBar.showRecordingStarted(filename);
 			menuStopRecord.setSelected(false);
 
 			((SwingDisplayComponent) emulatorContext.getDisplayComponent())
@@ -332,6 +336,7 @@ public class Main extends JFrame {
 					encoder.finish();
 					encoder = null;
 					Message.info("Recording stopped and saved");
+					if (statusBar != null) statusBar.showRecordingStopped();
 				}
 			}
 
@@ -343,6 +348,7 @@ public class Main extends JFrame {
 	private ActionListener menuMIDletNetworkConnectionListener = new ActionListener() {
 		public void actionPerformed(ActionEvent e) {
 			org.je.cldc.http.Connection.setAllowNetworkConnection(menuMIDletNetworkConnection.getState());
+			if (statusBar != null) statusBar.showNetworkToggled(menuMIDletNetworkConnection.getState());
 		}
 
 	};
@@ -361,6 +367,7 @@ public class Main extends JFrame {
 				recordStoreManagerDialog.setBounds(window.x, window.y, window.width, window.height);
 			}
 			recordStoreManagerDialog.setVisible(!recordStoreManagerDialog.isVisible());
+			if (statusBar != null) statusBar.showRecordStoreManagerToggled(recordStoreManagerDialog.isVisible());
 		}
 	};
 
@@ -380,12 +387,14 @@ public class Main extends JFrame {
 				logConsoleDialog.setBounds(window.x, window.y, window.width, window.height);
 			}
 			logConsoleDialog.setVisible(!logConsoleDialog.isVisible());
+			if (statusBar != null) statusBar.showLogConsoleToggled(logConsoleDialog.isVisible());
 		}
 	};
 
 	private ActionListener menuAboutListener = new ActionListener() {
 		public void actionPerformed(ActionEvent e) {
 			SwingDialogWindow.show(Main.this, "About", new SwingAboutDialog(), false);
+			if (statusBar != null) statusBar.showAboutDialogOpened();
 		}
 	};
 
@@ -409,6 +418,7 @@ public class Main extends JFrame {
 			} catch (Throwable ex) {
 				Logger.error("Failed to refresh launcher after theme change", ex);
 			}
+			if (statusBar != null) statusBar.showThemeApplied("maclight");
 		}
 	};
 
@@ -430,6 +440,7 @@ public class Main extends JFrame {
 			} catch (Throwable ex) {
 				Logger.error("Failed to refresh launcher after theme change", ex);
 			}
+			if (statusBar != null) statusBar.showThemeApplied("macdark");
 		}
 	};
 
@@ -451,6 +462,7 @@ public class Main extends JFrame {
 				} catch (Throwable ex) {
 					Logger.error("Failed to refresh launcher after theme change", ex);
 				}
+				if (statusBar != null) statusBar.showThemeApplied(themeKey);
 			}
 		};
 	}
