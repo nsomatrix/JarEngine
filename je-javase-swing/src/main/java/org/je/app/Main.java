@@ -152,7 +152,7 @@ public class Main extends JFrame {
 
 	private JMenuItem menuResize;
 
-	private JFrame scaledDisplayFrame;
+	private JFrame adaptiveResolutionFrame;
 	
 	// Theme-related fields
 	private JRadioButtonMenuItem menuLightTheme;
@@ -395,7 +395,7 @@ public class Main extends JFrame {
 			windows.add(Main.this);
 			if (logConsoleDialog != null) windows.add(logConsoleDialog);
 			if (recordStoreManagerDialog != null) windows.add(recordStoreManagerDialog);
-			if (scaledDisplayFrame != null) windows.add(scaledDisplayFrame);
+			if (adaptiveResolutionFrame != null) windows.add(adaptiveResolutionFrame);
 			Themes.applyTheme("maclight", common, windows.toArray(new java.awt.Window[0]));
 			// Update any non-Window panels/dialog panels
 			if (resizeDeviceDisplayDialog != null) SwingUtilities.updateComponentTreeUI(resizeDeviceDisplayDialog);
@@ -418,7 +418,7 @@ public class Main extends JFrame {
 			windows.add(Main.this);
 			if (logConsoleDialog != null) windows.add(logConsoleDialog);
 			if (recordStoreManagerDialog != null) windows.add(recordStoreManagerDialog);
-			if (scaledDisplayFrame != null) windows.add(scaledDisplayFrame);
+			if (adaptiveResolutionFrame != null) windows.add(adaptiveResolutionFrame);
 			Themes.applyTheme("macdark", common, windows.toArray(new java.awt.Window[0]));
 			if (resizeDeviceDisplayDialog != null) SwingUtilities.updateComponentTreeUI(resizeDeviceDisplayDialog);
 			try {
@@ -439,7 +439,7 @@ public class Main extends JFrame {
 				windows.add(Main.this);
 				if (logConsoleDialog != null) windows.add(logConsoleDialog);
 				if (recordStoreManagerDialog != null) windows.add(recordStoreManagerDialog);
-				if (scaledDisplayFrame != null) windows.add(scaledDisplayFrame);
+				if (adaptiveResolutionFrame != null) windows.add(adaptiveResolutionFrame);
 				Themes.applyTheme(themeKey, common, windows.toArray(new java.awt.Window[0]));
 				if (resizeDeviceDisplayDialog != null) SwingUtilities.updateComponentTreeUI(resizeDeviceDisplayDialog);
 				try {
@@ -480,8 +480,8 @@ public class Main extends JFrame {
 						recordStoreManagerDialog.getY(), recordStoreManagerDialog.getWidth(), recordStoreManagerDialog
 								.getHeight()), recordStoreManagerDialog.isVisible());
 			}
-			if (scaledDisplayFrame != null) {
-				Config.setWindow("scaledDisplay", new Rectangle(scaledDisplayFrame.getX(), scaledDisplayFrame.getY(),
+			if (adaptiveResolutionFrame != null) {
+				Config.setWindow("adaptiveResolution", new Rectangle(adaptiveResolutionFrame.getX(), adaptiveResolutionFrame.getY(),
 						0, 0), false);
 			}
 			Config.setWindow("main", new Rectangle(Main.this.getX(), Main.this.getY(), Main.this.getWidth(), Main.this
@@ -501,7 +501,7 @@ public class Main extends JFrame {
 
 
 
-	private ActionListener menuScaledDisplayListener = new ActionListener() {
+	private ActionListener menuAdaptiveResolutionListener = new ActionListener() {
 		private DisplayRepaintListener updateScaledImageListener;
 
 		public void actionPerformed(ActionEvent e) {
@@ -513,25 +513,25 @@ public class Main extends JFrame {
 					}
 				}
 				final int scale = Integer.parseInt(e.getActionCommand());
-				if (scaledDisplayFrame != null) {
+				if (adaptiveResolutionFrame != null) {
 					((SwingDisplayComponent) emulatorContext.getDisplayComponent())
 							.removeDisplayRepaintListener(updateScaledImageListener);
-					scaledDisplayFrame.dispose();
+					adaptiveResolutionFrame.dispose();
 				}
-				scaledDisplayFrame = new JFrame(getTitle());
-				scaledDisplayFrame.setContentPane(new JLabel(new ImageIcon()));
+				adaptiveResolutionFrame = new JFrame(getTitle());
+				adaptiveResolutionFrame.setContentPane(new JLabel(new ImageIcon()));
 				updateScaledImageListener = new DisplayRepaintListener() {
 					public void repaintInvoked(Object repaintObject) {
-						updateScaledImage(scale, scaledDisplayFrame);
-						scaledDisplayFrame.validate();
+						updateScaledImage(scale, adaptiveResolutionFrame);
+						adaptiveResolutionFrame.validate();
 					}
 				};
-				scaledDisplayFrame.addWindowListener(new WindowAdapter() {
+				adaptiveResolutionFrame.addWindowListener(new WindowAdapter() {
 					public void windowClosing(WindowEvent event) {
 						selectedZoomLevelMenuItem.setSelected(false);
 					}
 				});
-				scaledDisplayFrame.getContentPane().addMouseListener(new MouseListener() {
+				adaptiveResolutionFrame.getContentPane().addMouseListener(new MouseListener() {
 					private MouseListener receiver = ((SwingDisplayComponent) emulatorContext.getDisplayComponent())
 							.getMouseListener();
 
@@ -555,7 +555,7 @@ public class Main extends JFrame {
 						receiver.mouseExited(createAdaptedMouseEvent(e, scale));
 					}
 				});
-				scaledDisplayFrame.getContentPane().addMouseMotionListener(new MouseMotionListener() {
+				adaptiveResolutionFrame.getContentPane().addMouseMotionListener(new MouseMotionListener() {
 					private MouseMotionListener receiver = ((SwingDisplayComponent) emulatorContext
 							.getDisplayComponent()).getMouseMotionListener();
 
@@ -567,7 +567,7 @@ public class Main extends JFrame {
 						receiver.mouseMoved(createAdaptedMouseEvent(e, scale));
 					}
 				});
-				scaledDisplayFrame.getContentPane().addMouseWheelListener(new MouseWheelListener() {
+				adaptiveResolutionFrame.getContentPane().addMouseWheelListener(new MouseWheelListener() {
 					private MouseWheelListener receiver = ((SwingDisplayComponent) emulatorContext
 							.getDisplayComponent()).getMouseWheelListener();
 
@@ -576,26 +576,26 @@ public class Main extends JFrame {
 						receiver.mouseWheelMoved(adaptedEvent);
 					}
 				});
-				scaledDisplayFrame.addKeyListener(devicePanel);
+				adaptiveResolutionFrame.addKeyListener(devicePanel);
 
-				updateScaledImage(scale, scaledDisplayFrame);
+				updateScaledImage(scale, adaptiveResolutionFrame);
 				((SwingDisplayComponent) emulatorContext.getDisplayComponent())
 						.addDisplayRepaintListener(updateScaledImageListener);
-				scaledDisplayFrame.setIconImage(getIconImage());
-				scaledDisplayFrame.setResizable(false);
+				adaptiveResolutionFrame.setIconImage(getIconImage());
+				adaptiveResolutionFrame.setResizable(false);
 				Point location = getLocation();
 				Dimension size = getSize();
-				Rectangle window = Config.getWindow("scaledDisplay", new Rectangle(location.x + size.width, location.y,
+				Rectangle window = Config.getWindow("adaptiveResolution", new Rectangle(location.x + size.width, location.y,
 						0, 0));
-				scaledDisplayFrame.setLocation(window.x, window.y);
-				Config.setWindow("scaledDisplay", new Rectangle(scaledDisplayFrame.getX(), scaledDisplayFrame.getY(),
+				adaptiveResolutionFrame.setLocation(window.x, window.y);
+				Config.setWindow("adaptiveResolution", new Rectangle(adaptiveResolutionFrame.getX(), adaptiveResolutionFrame.getY(),
 						0, 0), false);
-				scaledDisplayFrame.pack();
-				scaledDisplayFrame.setVisible(true);
+				adaptiveResolutionFrame.pack();
+				adaptiveResolutionFrame.setVisible(true);
 			} else {
 				((SwingDisplayComponent) emulatorContext.getDisplayComponent())
 						.removeDisplayRepaintListener(updateScaledImageListener);
-				scaledDisplayFrame.dispose();
+				adaptiveResolutionFrame.dispose();
 			}
 		}
 
@@ -612,7 +612,7 @@ public class Main extends JFrame {
 					.getWheelRotation());
 		}
 
-		private void updateScaledImage(int scale, JFrame scaledLCDFrame) {
+		private void updateScaledImage(int scale, JFrame adaptiveResolutionFrame) {
 			J2SEGraphicsSurface graphicsSurface = 
 					((SwingDisplayComponent) emulatorContext.getDisplayComponent()).getGraphicsSurface();
 			
@@ -622,8 +622,8 @@ public class Main extends JFrame {
 			imgGraphics.scale(scale, scale);
 			imgGraphics.drawImage(img, 0, 0, null);
 			
-			((ImageIcon) (((JLabel) scaledLCDFrame.getContentPane()).getIcon())).setImage(scaledImg);
-			((JLabel) scaledLCDFrame.getContentPane()).repaint();
+			((ImageIcon) (((JLabel) adaptiveResolutionFrame.getContentPane()).getIcon())).setImage(scaledImg);
+			((JLabel) adaptiveResolutionFrame.getContentPane()).repaint();
 		}
 	};
 
@@ -838,14 +838,14 @@ public class Main extends JFrame {
 
 
 
-		JMenu menuScaleLCD = new JMenu("Scaled display");
-		menuOptions.add(menuScaleLCD);
+		JMenu menuAdaptiveResolution = new JMenu("Adaptive Resolution");
+		menuOptions.add(menuAdaptiveResolution);
 		zoomLevels = new JCheckBoxMenuItem[3];
 		for (int i = 0; i < zoomLevels.length; ++i) {
 			zoomLevels[i] = new JCheckBoxMenuItem("x " + (i + 2));
 			zoomLevels[i].setActionCommand("" + (i + 2));
-			zoomLevels[i].addActionListener(menuScaledDisplayListener);
-			menuScaleLCD.add(zoomLevels[i]);
+			zoomLevels[i].addActionListener(menuAdaptiveResolutionListener);
+			menuAdaptiveResolution.add(zoomLevels[i]);
 		}
 
 
