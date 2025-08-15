@@ -132,6 +132,8 @@ public class Config {
 	}
 
 	public static void saveConfig() {
+		// Start configuration save spinner
+		org.je.app.Common.startConfigSpinner();
 
 		urlsMRU.save(configXml.getChildOrNew("files").getChildOrNew("recent"));
 
@@ -148,6 +150,9 @@ public class Config {
 		} finally {
 			IOUtils.closeQuietly(fw);
 		}
+		
+		// Auto-stop spinner after a brief delay to show save completion
+		org.je.app.Common.showConfigSpinner(1200);
 	}
 
 	static Map getExtensions() {

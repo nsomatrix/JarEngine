@@ -20,6 +20,18 @@ public final class PerformanceManager {
 
     private PerformanceManager() {}
 
+    // ========= Configuration Save Callback Interface =========
+    public interface ConfigSaveCallback {
+        void onConfigSave(String configType, int spinnerDurationMs);
+    }
+    
+    private static volatile ConfigSaveCallback configSaveCallback;
+    
+    /** Set the callback to trigger when configuration is saved */
+    public static void setConfigSaveCallback(ConfigSaveCallback callback) {
+        configSaveCallback = callback;
+    }
+
     // ========= Toggles =========
     private static volatile boolean hardwareAcceleration; // advisory only
     private static volatile boolean antiAliasing;
@@ -301,6 +313,13 @@ public final class PerformanceManager {
     }
 
     private static synchronized void savePreferences() {
+        // Trigger config save callback if available
+        if (configSaveCallback != null) {
+            try {
+                configSaveCallback.onConfigSave("performance", 700);
+            } catch (Exception ignored) {} // Don't fail if callback fails
+        }
+        
         pendingSave = false;
         lastSaveTime = System.currentTimeMillis();
         Properties p = new Properties();

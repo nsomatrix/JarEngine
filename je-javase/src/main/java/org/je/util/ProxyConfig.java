@@ -240,6 +240,9 @@ public class ProxyConfig {
             java.io.File configFile = new java.io.File(configDir, "proxy.properties");
             props.store(new java.io.FileOutputStream(configFile), "JarEngine Proxy Configuration");
             
+            // Show spinner after successful save
+            org.je.app.Common.showConfigSpinner(600);
+            
         } catch (Exception e) {
             logger.warning("Could not save proxy configuration: " + e.getMessage());
         }

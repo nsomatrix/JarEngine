@@ -686,6 +686,42 @@ public class Common implements MicroEmulator, CommonInterface {
         }
     }
 
+    /** Start configuration saving spinner in status bar */
+    public static void startConfigSpinner() {
+        if (statusBar != null) {
+            try {
+                // Use reflection to call startConfigSpinner method
+                statusBar.getClass().getMethod("startConfigSpinner").invoke(statusBar);
+            } catch (Exception e) {
+                // Ignore errors - status bar updates are not critical
+            }
+        }
+    }
+
+    /** Stop configuration saving spinner in status bar */
+    public static void stopConfigSpinner() {
+        if (statusBar != null) {
+            try {
+                // Use reflection to call stopConfigSpinner method
+                statusBar.getClass().getMethod("stopConfigSpinner").invoke(statusBar);
+            } catch (Exception e) {
+                // Ignore errors - status bar updates are not critical
+            }
+        }
+    }
+
+    /** Show configuration saving spinner for specified duration */
+    public static void showConfigSpinner(int durationMs) {
+        if (statusBar != null) {
+            try {
+                // Use reflection to call showConfigSpinner method
+                statusBar.getClass().getMethod("showConfigSpinner", int.class).invoke(statusBar, durationMs);
+            } catch (Exception e) {
+                // Ignore errors - status bar updates are not critical
+            }
+        }
+    }
+
     private void setResponseInterface(boolean state) {
         if (responseInterfaceListener != null) {
             responseInterfaceListener.stateChanged(state);

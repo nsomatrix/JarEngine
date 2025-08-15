@@ -1424,6 +1424,11 @@ menuTools.add(menuLogConsole);
         
         // Connect the status bar directly to Common
         this.common.setStatusBar(statusBar);
+        
+        // Set up config save callback for performance settings to trigger spinner
+        PerformanceManager.setConfigSaveCallback((configType, durationMs) -> {
+            Common.showConfigSpinner(durationMs);
+        });
 
         // Ensure the frame itself doesn't keep an artificial minimum size
         setMinimumSize(new Dimension(0, 0));

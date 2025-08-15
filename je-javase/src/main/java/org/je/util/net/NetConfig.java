@@ -9,6 +9,10 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.URLConnection;
 import java.net.Socket;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+import org.je.app.Common;
 import java.net.UnknownHostException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
@@ -334,6 +338,9 @@ public final class NetConfig {
         try (java.io.FileOutputStream out = new java.io.FileOutputStream(f)) {
             p.store(out, "JarEngine Network Preferences");
         } catch (java.io.IOException ignored) {}
+        
+        // Show spinner after save completion
+        Common.showConfigSpinner(800);
     }
 
     // Reset all network-related preferences and runtime toggles to defaults
