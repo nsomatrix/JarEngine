@@ -765,7 +765,22 @@ public class Main extends JFrame {
 		this.logQueueAppender = new QueueAppender(1024);
 		Logger.addAppender(logQueueAppender);
 
-        JMenuBar menuBar = new JMenuBar();
+        JMenuBar menuBar = new JMenuBar() {
+            @Override
+            public Dimension getMinimumSize() {
+                return new Dimension(0, super.getMinimumSize().height);
+            }
+            
+            @Override
+            public Dimension getPreferredSize() {
+                Dimension pref = super.getPreferredSize();
+                // If window is too narrow, allow menu to be compressed
+                if (getParent() != null && getParent().getWidth() < pref.width) {
+                    return new Dimension(getParent().getWidth(), pref.height);
+                }
+                return pref;
+            }
+        };
         // Allow shrinking the window freely; do not let the menu bar enforce a minimum width
         menuBar.setMinimumSize(new Dimension(0, 0));
 
@@ -1367,7 +1382,7 @@ menuTools.add(menuLogConsole);
 		menuAbout.addActionListener(menuAboutListener);
 		menuHelp.add(menuAbout);
 
-		// Center the menu items on the menu bar
+		// Create centered menu bar that adapts to narrow windows
 		menuBar.add(Box.createHorizontalGlue()); // Left glue
 		menuBar.add(menuFile);
         menuBar.add(menuOptions);
@@ -1396,6 +1411,10 @@ menuTools.add(menuLogConsole);
 
 		Rectangle window = Config.getWindow("main", new Rectangle(0, 0, 160, 120));
 		this.setLocation(window.x, window.y);
+		// Also restore the saved window size
+		if (window.width > 0 && window.height > 0) {
+			this.setSize(window.width, window.height);
+		}
 
 		getContentPane().add(createContents(getContentPane()), "Center");
 
