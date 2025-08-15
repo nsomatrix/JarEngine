@@ -20,6 +20,7 @@ public class StatusBar extends JPanel {
 
     private final JLabel spinnerLabel;
     private final JLabel label;
+    private final NetworkMeter networkMeter;
     private javax.swing.Timer restoreTimer;
     private javax.swing.Timer spinnerTimer;
     private String persistentText = "Status";
@@ -42,18 +43,22 @@ public class StatusBar extends JPanel {
         
         // Create main status label
         this.label = new JLabel(persistentText);
+        
+        // Create network meter for right side
+        this.networkMeter = new NetworkMeter();
 
         // Prevent minimum-width issues and ensure consistent height
         try {
             int barHeight = Math.max(1, label.getPreferredSize().height);
             label.setMinimumSize(new Dimension(0, barHeight));
             spinnerLabel.setMinimumSize(new Dimension(20, barHeight));
+            networkMeter.setMinimumSize(new Dimension(0, barHeight));
             this.setMinimumSize(new Dimension(0, barHeight));
             this.setPreferredSize(new Dimension(1, barHeight));
         } catch (Exception ignore) {
         }
 
-        // Layout: spinner on far left, status text in center-left
+        // Layout: spinner on far left, status text in center-left, network meter on right
         setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 6));
         
         JPanel leftPanel = new JPanel(new BorderLayout());
@@ -61,6 +66,7 @@ public class StatusBar extends JPanel {
         leftPanel.add(label, BorderLayout.CENTER);
         
         add(leftPanel, BorderLayout.WEST);
+        add(networkMeter, BorderLayout.EAST);
         
         // Initialize spinner timer (not started yet)
         spinnerTimer = new javax.swing.Timer(80, e -> updateSpinner());
@@ -69,6 +75,13 @@ public class StatusBar extends JPanel {
 
     public JComponent getComponent() {
         return this;
+    }
+    
+    /**
+     * Get the network meter component for direct access if needed
+     */
+    public NetworkMeter getNetworkMeter() {
+        return networkMeter;
     }
 
     /** Toggle whether proxy info is appended to messages. */
@@ -184,5 +197,17 @@ public class StatusBar extends JPanel {
         } catch (Exception ignored) {
         }
         return base;
+    }
+    
+    @Override
+    public void removeNotify() {
+        // Ensure proper cleanup of timers and resources
+        if (restoreTimer != null && restoreTimer.isRunning()) {
+            restoreTimer.stop();
+        }
+        if (spinnerTimer != null && spinnerTimer.isRunning()) {
+            spinnerTimer.stop();
+        }
+        super.removeNotify();
     }
 }

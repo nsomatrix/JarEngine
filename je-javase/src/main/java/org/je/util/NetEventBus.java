@@ -17,10 +17,19 @@ public final class NetEventBus {
         public final String direction; // OUT/IN
         public final String target;    // host:port or URL
         public final String info;      // short description
+        public final long bytes;       // bytes transferred (optional, 0 if unknown)
 
         public NetEvent(String type, String direction, String target, String info) {
+            this(type, direction, target, info, 0);
+        }
+        
+        public NetEvent(String type, String direction, String target, String info, long bytes) {
             this.ts = System.currentTimeMillis();
-            this.type = type; this.direction = direction; this.target = target; this.info = info;
+            this.type = type; 
+            this.direction = direction; 
+            this.target = target; 
+            this.info = info;
+            this.bytes = bytes;
         }
     }
 
@@ -28,6 +37,10 @@ public final class NetEventBus {
 
     public static void publish(String type, String direction, String target, String info) {
         events.add(new NetEvent(type, direction, target, info));
+    }
+    
+    public static void publish(String type, String direction, String target, String info, long bytes) {
+        events.add(new NetEvent(type, direction, target, info, bytes));
     }
 
     public static List<NetEvent> snapshot() {
