@@ -1,13 +1,16 @@
 package org.je.app.ui.swing;
 
 import java.awt.Window;
+import java.awt.Dimension;
 
 import javax.swing.UIManager;
+import javax.swing.SwingUtilities;
 
 import com.formdev.flatlaf.FlatDarkLaf;
 import com.formdev.flatlaf.FlatDarculaLaf;
 import com.formdev.flatlaf.FlatIntelliJLaf;
 import com.formdev.flatlaf.FlatLightLaf;
+import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.themes.FlatMacDarkLaf;
 import com.formdev.flatlaf.themes.FlatMacLightLaf;
 
@@ -53,15 +56,41 @@ public final class Themes {
      */
     public static void applyTheme(String theme, Common common, Window... windows) {
         try {
-        setLookAndFeelForTheme(theme);
-            // Update any provided windows/components
-            if (windows != null) {
-                for (Window w : windows) {
-                    if (w != null) {
-            javax.swing.SwingUtilities.updateComponentTreeUI(w);
+            setLookAndFeelForTheme(theme);
+
+            // Normalize slider sizes across different FlatLaf/IntelliJ themes
+            try {
+                // Track width applies to horizontal track height and vertical track width
+                if (UIManager.get("Slider.trackWidth") == null || (UIManager.getInt("Slider.trackWidth") < 6))
+                    UIManager.put("Slider.trackWidth", 8);
+                // Thumb size controls knob dimension; ensure it is not too small
+                Object ts = UIManager.get("Slider.thumbSize");
+                if (!(ts instanceof Dimension) || ((Dimension) ts).width < 12 || ((Dimension) ts).height < 12)
+                    UIManager.put("Slider.thumbSize", new Dimension(14, 14));
+            } catch (Throwable ignored) {}
+
+            // Ensure updates run on EDT and refresh ALL open windows/dialogs.
+            Runnable doUpdateUI = () -> {
+                try {
+                    // FlatLaf-provided, updates all windows and components globally
+                    FlatLaf.updateUI();
+                } catch (Throwable ignored) {
+                    // Fallback: best-effort manual update
+                    for (Window w : Window.getWindows()) {
+                        try { javax.swing.SwingUtilities.updateComponentTreeUI(w); } catch (Throwable __) {}
                     }
                 }
-            }
+                // Also update any explicitly provided windows (no-op if already handled)
+                if (windows != null) {
+                    for (Window w : windows) {
+                        if (w != null) {
+                            try { javax.swing.SwingUtilities.updateComponentTreeUI(w); } catch (Throwable __) {}
+                        }
+                    }
+                }
+            };
+            if (SwingUtilities.isEventDispatchThread()) doUpdateUI.run();
+            else SwingUtilities.invokeAndWait(doUpdateUI);
             // Persist and publish to Common
             Config.setCurrentTheme(theme);
             if (common != null) {
