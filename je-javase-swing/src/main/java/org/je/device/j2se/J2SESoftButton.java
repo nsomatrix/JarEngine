@@ -15,6 +15,7 @@ import org.je.device.DeviceFactory;
 import org.je.device.impl.Rectangle;
 import org.je.device.impl.Shape;
 import org.je.device.impl.SoftButton;
+import javax.swing.UIManager;
 
 public class J2SESoftButton extends J2SEButton implements SoftButton {
 
@@ -153,30 +154,30 @@ public class J2SESoftButton extends J2SEButton implements SoftButton {
 			Device device = DeviceFactory.getDevice();
 			J2SEDeviceDisplay deviceDisplay = (J2SEDeviceDisplay) device.getDeviceDisplay();
 			
-			// Get themed colors for soft buttons
-			java.awt.Color buttonBgColor;
-			java.awt.Color buttonFgColor;
+			// Get themed colors for soft buttons from Swing palette (match device chrome)
+			java.awt.Color buttonBgColor = null;
+			java.awt.Color buttonFgColor = null;
 			try {
-				// Use proper FlatLaf theme colors for consistency
-				if ("dark".equals(deviceDisplay.getCurrentTheme())) {
-					buttonBgColor = new java.awt.Color(0x222222); // Same as LauncherCanvas dark theme
-					buttonFgColor = new java.awt.Color(0xFFFFFF); // White text
-				} else {
-					// Use proper FlatLaf light theme colors
-					buttonBgColor = new java.awt.Color(0xFFFFFF); // Pure white for light theme
-					buttonFgColor = new java.awt.Color(0x000000); // Black text for light theme
-				}
-			} catch (Exception e) {
-				buttonBgColor = deviceDisplay.backgroundColor;
-				buttonFgColor = deviceDisplay.foregroundColor;
-			}
-			
-			if (pressed) {
-				g.setColor(buttonFgColor);
-			} else {
-				g.setColor(buttonBgColor);
-			}
+				// Use Panel/Label to match outer device area and avoid visible boxes
+				buttonBgColor = UIManager.getColor("Panel.background");
+				if (buttonBgColor == null) buttonBgColor = UIManager.getColor("control");
+				buttonFgColor = UIManager.getColor("Label.foreground");
+				if (buttonFgColor == null) buttonFgColor = UIManager.getColor("textText");
+			} catch (Throwable ignore) {}
+			if (buttonBgColor == null) buttonBgColor = deviceDisplay.backgroundColor != null ? deviceDisplay.backgroundColor : new java.awt.Color(0xFFFFFF);
+			if (buttonFgColor == null) buttonFgColor = deviceDisplay.foregroundColor != null ? deviceDisplay.foregroundColor : new java.awt.Color(0x000000);
+
+			// Always paint background to clear previous content, using device-matching bg
+			g.setColor(buttonBgColor);
 			g.fillRect(paintable.x, paintable.y, paintable.width, paintable.height);
+
+			// If pressed, draw a subtle translucent overlay for feedback (no harsh boxes)
+			if (pressed) {
+				boolean dark = "dark".equals(deviceDisplay.getCurrentTheme());
+				java.awt.Color overlay = dark ? new java.awt.Color(255, 255, 255, 30) : new java.awt.Color(0, 0, 0, 25);
+				g.setColor(overlay);
+				g.fillRect(paintable.x, paintable.y, paintable.width, paintable.height);
+			}
 			synchronized (this) {
 				if (command != null) {
 					if (font != null) {
@@ -188,11 +189,7 @@ public class J2SESoftButton extends J2SEButton implements SoftButton {
 					if (alignment == RIGHT) {
 						xoffset = paintable.width - metrics.stringWidth(command.getLabel()) - 1;
 					}
-					if (pressed) {
-						g.setColor(buttonBgColor);
-					} else {
-						g.setColor(buttonFgColor);
-					}
+					g.setColor(buttonFgColor);
 					g.drawString(command.getLabel(), paintable.x + xoffset, paintable.y + paintable.height
 							- metrics.getDescent());
 				}

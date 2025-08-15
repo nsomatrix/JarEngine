@@ -8,5 +8,6 @@ dependencies {
     implementation project(':je-midp')
     implementation project(':je-cldc')
     implementation 'com.formdev:flatlaf:3.4'
+    implementation 'com.formdev:flatlaf-intellij-themes:3.4'
     testImplementation 'junit:junit:4.13.2'
 }

@@ -105,6 +105,11 @@ public class Common implements MicroEmulator, CommonInterface {
     
     private String currentTheme = "light"; // Default theme
 
+    // UI palette published by Swing side (0xRRGGBB, no alpha); -1 means unset
+    private volatile int themeBgColor = -1;
+    private volatile int themeFgColor = -1;
+    private volatile int themeSecondaryColor = -1;
+
     private Object destroyNotify = new Object();
 
     private boolean exitOnMIDletDestroy = false;
@@ -644,6 +649,17 @@ public class Common implements MicroEmulator, CommonInterface {
     
     public void setCurrentTheme(String theme) {
         this.currentTheme = theme;
+    }
+
+    // Theme color getters for MIDP launcher and setter used by Swing to publish UIManager-derived colors
+    public int getThemeBgColor() { return themeBgColor; }
+    public int getThemeFgColor() { return themeFgColor; }
+    public int getThemeSecondaryColor() { return themeSecondaryColor; }
+    public void setThemeColors(int bg, int fg, int secondary) {
+        // Ensure 24-bit RGB range; accept 0x000000 as valid black
+        this.themeBgColor = bg & 0xFFFFFF;
+        this.themeFgColor = fg & 0xFFFFFF;
+        this.themeSecondaryColor = secondary & 0xFFFFFF;
     }
 
     public Device getDevice() {

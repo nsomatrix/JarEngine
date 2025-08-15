@@ -156,6 +156,10 @@ public class Main extends JFrame {
 	// Theme-related fields
 	private JRadioButtonMenuItem menuLightTheme;
 	private JRadioButtonMenuItem menuDarkTheme;
+	private JRadioButtonMenuItem menuFlatLightTheme;
+	private JRadioButtonMenuItem menuFlatDarkTheme;
+	private JRadioButtonMenuItem menuIntelliJTheme;
+	private JRadioButtonMenuItem menuDarculaTheme;
 	private ButtonGroup themeButtonGroup;
 
 	private JCheckBoxMenuItem[] zoomLevels;
@@ -391,7 +395,7 @@ public class Main extends JFrame {
 			if (logConsoleDialog != null) windows.add(logConsoleDialog);
 			if (recordStoreManagerDialog != null) windows.add(recordStoreManagerDialog);
 			if (scaledDisplayFrame != null) windows.add(scaledDisplayFrame);
-			Themes.applyTheme("light", common, windows.toArray(new java.awt.Window[0]));
+			Themes.applyTheme("maclight", common, windows.toArray(new java.awt.Window[0]));
 			// Update any non-Window panels/dialog panels
 			if (resizeDeviceDisplayDialog != null) SwingUtilities.updateComponentTreeUI(resizeDeviceDisplayDialog);
 			// Restart launcher if we're in launcher mode (to update LauncherCanvas theme)
@@ -414,7 +418,7 @@ public class Main extends JFrame {
 			if (logConsoleDialog != null) windows.add(logConsoleDialog);
 			if (recordStoreManagerDialog != null) windows.add(recordStoreManagerDialog);
 			if (scaledDisplayFrame != null) windows.add(scaledDisplayFrame);
-			Themes.applyTheme("dark", common, windows.toArray(new java.awt.Window[0]));
+			Themes.applyTheme("macdark", common, windows.toArray(new java.awt.Window[0]));
 			if (resizeDeviceDisplayDialog != null) SwingUtilities.updateComponentTreeUI(resizeDeviceDisplayDialog);
 			try {
 				if (MIDletBridge.getMIDletContext() != null && MIDletBridge.getMIDletContext().isLauncher()) {
@@ -426,6 +430,28 @@ public class Main extends JFrame {
 			}
 		}
 	};
+
+	private ActionListener themeListener(String themeKey) {
+		return new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				java.util.List<java.awt.Window> windows = new java.util.ArrayList<>();
+				windows.add(Main.this);
+				if (logConsoleDialog != null) windows.add(logConsoleDialog);
+				if (recordStoreManagerDialog != null) windows.add(recordStoreManagerDialog);
+				if (scaledDisplayFrame != null) windows.add(scaledDisplayFrame);
+				Themes.applyTheme(themeKey, common, windows.toArray(new java.awt.Window[0]));
+				if (resizeDeviceDisplayDialog != null) SwingUtilities.updateComponentTreeUI(resizeDeviceDisplayDialog);
+				try {
+					if (MIDletBridge.getMIDletContext() != null && MIDletBridge.getMIDletContext().isLauncher()) {
+						try { Thread.sleep(100); } catch (InterruptedException ignored) {}
+						common.startLauncher(MIDletBridge.getMIDletContext());
+					}
+				} catch (Throwable ex) {
+					Logger.error("Failed to refresh launcher after theme change", ex);
+				}
+			}
+		};
+	}
 
 	private ActionListener menuExitListener = new ActionListener() {
 		public void actionPerformed(ActionEvent e) {
@@ -868,25 +894,100 @@ public class Main extends JFrame {
 		// Theme selection menu
 		JMenu menuTheme = new JMenu("Theme");
 		themeButtonGroup = new ButtonGroup();
-		
-		menuLightTheme = new JRadioButtonMenuItem("Light");
+		// Mac Light/Dark (existing defaults)
+		menuLightTheme = new JRadioButtonMenuItem("Mac Light");
 		menuLightTheme.addActionListener(menuLightThemeListener);
 		themeButtonGroup.add(menuLightTheme);
 		menuTheme.add(menuLightTheme);
-		
-		menuDarkTheme = new JRadioButtonMenuItem("Dark");
+
+		menuDarkTheme = new JRadioButtonMenuItem("Mac Dark");
 		menuDarkTheme.addActionListener(menuDarkThemeListener);
 		themeButtonGroup.add(menuDarkTheme);
 		menuTheme.add(menuDarkTheme);
-		
-		// Set the current theme selection based on saved preference
+
+	// Additional FlatLaf themes
+		menuFlatLightTheme = new JRadioButtonMenuItem("Flat Light");
+		menuFlatLightTheme.addActionListener(themeListener("flatlight"));
+		themeButtonGroup.add(menuFlatLightTheme);
+		menuTheme.add(menuFlatLightTheme);
+
+		menuFlatDarkTheme = new JRadioButtonMenuItem("Flat Dark");
+		menuFlatDarkTheme.addActionListener(themeListener("flatdark"));
+		themeButtonGroup.add(menuFlatDarkTheme);
+		menuTheme.add(menuFlatDarkTheme);
+
+		menuIntelliJTheme = new JRadioButtonMenuItem("IntelliJ");
+		menuIntelliJTheme.addActionListener(themeListener("intellij"));
+		themeButtonGroup.add(menuIntelliJTheme);
+		menuTheme.add(menuIntelliJTheme);
+
+		menuDarculaTheme = new JRadioButtonMenuItem("Darcula");
+		menuDarculaTheme.addActionListener(themeListener("darcula"));
+		themeButtonGroup.add(menuDarculaTheme);
+		menuTheme.add(menuDarculaTheme);
+
+	// More Themes submenu (from flatlaf-intellij-themes)
+	JMenu menuMoreThemes = new JMenu("More Themes");
+	String[][] more = new String[][]{
+		{"One Dark", "onedark"},
+		{"GitHub Light", "github-light"},
+		{"GitHub Dark", "github-dark"},
+		{"GitHub Dark Contrast", "github-dark-contrast"},
+		{"Dracula", "dracula"},
+		{"Nord", "nord"},
+		{"Nord Dark", "nord-dark"},
+		{"Monokai Pro", "monokai-pro"},
+		{"Solarized Light", "solarized-light"},
+		{"Solarized Dark", "solarized-dark"},
+		{"Arc", "arc"},
+		{"Arc Dark", "arc-dark"},
+		{"Arc Orange", "arc-orange"},
+		{"Arc Dark Orange", "arc-dark-orange"},
+		{"Material Light", "material-light"},
+		{"Material Dark", "material-dark"},
+		{"Material Lighter", "material-lighter"},
+		{"Material Darker", "material-darker"},
+		{"Material Palenight", "material-palenight"},
+		{"Cobalt2", "cobalt2"},
+		{"Carbon", "carbon"},
+		{"Gray", "gray"},
+		{"Hiberbee Dark", "hiberbee-dark"},
+		{"High Contrast", "high-contrast"}
+	};
+	for (String[] pair : more) {
+	    JRadioButtonMenuItem item = new JRadioButtonMenuItem(pair[0]);
+	    item.addActionListener(themeListener(pair[1]));
+	    themeButtonGroup.add(item);
+	    menuMoreThemes.add(item);
+	}
+	menuTheme.add(menuMoreThemes);
+
+		// Select saved or default theme
 		String currentTheme = Config.getCurrentTheme();
-		if ("dark".equals(currentTheme)) {
-			menuDarkTheme.setSelected(true);
-		} else {
-			menuLightTheme.setSelected(true);
+		String t = currentTheme != null ? currentTheme.trim().toLowerCase() : "maclight";
+		switch (t) {
+			case "macdark": case "dark":
+				menuDarkTheme.setSelected(true); break;
+			case "flatlight":
+				menuFlatLightTheme.setSelected(true); break;
+			case "flatdark":
+				menuFlatDarkTheme.setSelected(true); break;
+			case "intellij":
+				menuIntelliJTheme.setSelected(true); break;
+			case "darcula":
+				menuDarculaTheme.setSelected(true); break;
+			case "onedark": case "github-light": case "github-dark": case "github-dark-contrast":
+			case "nord": case "nord-dark": case "monokai-pro": case "solarized-light": case "solarized-dark":
+			case "arc": case "arc-dark": case "arc-orange": case "arc-dark-orange": case "material-light":
+			case "material-dark": case "material-lighter": case "material-darker": case "material-palenight":
+			case "cobalt2": case "carbon": case "gray": case "hiberbee-dark": case "high-contrast":
+				// Selection will be reflected on first open; default to keep Mac Light checked if unknown here
+				break;
+			case "maclight": case "light":
+			default:
+				menuLightTheme.setSelected(true); break;
 		}
-		
+
 		menuOptions.add(menuTheme);
 
 		menuOptions.addSeparator();
@@ -1296,6 +1397,12 @@ menuTools.add(menuLogConsole);
 		this.common.setResponseInterfaceListener(responseInterfaceListener);
 		this.common.loadImplementationsFromConfig();
 
+		// Ensure Common's theme matches saved (map many themes to light/dark) so LauncherCanvas is correct
+		try {
+			String savedTheme = Config.getCurrentTheme();
+			this.common.setCurrentTheme(org.je.app.ui.swing.Themes.isDarkTheme(savedTheme) ? "dark" : "light");
+		} catch (Throwable ignored) {}
+
 
 
         statusBar = new org.je.app.ui.swing.StatusBar();
@@ -1646,7 +1753,7 @@ menuTools.add(menuLogConsole);
 			}
 			debugArgs.append("[").append(args[i]).append("]");
 		}
-		if (params.contains("--headless")) {
+	if (params.contains("--headless")) {
 			Headless.main(args);
 			return;
 		}
@@ -1660,6 +1767,13 @@ menuTools.add(menuLogConsole);
 		
 		// Remove shutdown hook as it's causing issues with repeated notifyDestroyed calls
 		
+		// Ensure Common has the correct currentTheme and bridged palette before any launcher is created
+		try {
+			java.util.List<java.awt.Window> windows = new java.util.ArrayList<>();
+			windows.add(app);
+			org.je.app.ui.swing.Themes.applyTheme(org.je.app.Config.getCurrentTheme(), app.common, windows.toArray(new java.awt.Window[0]));
+		} catch (Throwable ignored) {}
+
 		app.common.initParams(params, null, J2SEDevice.class);
 		app.updateDevice();
 

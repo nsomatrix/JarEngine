@@ -10,4 +10,9 @@ public interface CommonInterface {
 	
 	String getCurrentTheme();
 
+	// Themed colors published by Swing side (UIManager-derived), 0xRRGGBB
+	int getThemeBgColor();
+	int getThemeFgColor();
+	int getThemeSecondaryColor();
+
 }

@@ -21,6 +21,7 @@ import javax.microedition.lcdui.Displayable;
 import javax.microedition.lcdui.Image;
 import javax.microedition.lcdui.game.GameCanvas;
 import javax.microedition.lcdui.game.Sprite;
+import javax.swing.UIManager;
 
 import org.je.DisplayAccess;
 import org.je.MIDletAccess;
@@ -124,23 +125,17 @@ public class J2SEDeviceDisplay implements DeviceDisplayImpl
 	public void paintControls(Graphics g) {
 		Device device = DeviceFactory.getDevice();
 
-		// Get theme colors for UI elements only
-		java.awt.Color uiBackgroundColor;
-		java.awt.Color uiForegroundColor;
+		// Get theme colors for UI elements from Swing palette for better consistency
+		java.awt.Color uiBackgroundColor = null;
+		java.awt.Color uiForegroundColor = null;
 		try {
-			// Use proper FlatLaf theme colors for consistency
-			if ("dark".equals(currentTheme)) {
-				uiBackgroundColor = new java.awt.Color(0x222222); // Same as LauncherCanvas dark theme
-				uiForegroundColor = new java.awt.Color(0xFFFFFF); // White text
-			} else {
-				// Use proper FlatLaf light theme colors
-				uiBackgroundColor = new java.awt.Color(0xFFFFFF); // Pure white for light theme
-				uiForegroundColor = new java.awt.Color(0x000000); // Black text for light theme
-			}
-		} catch (Exception e) {
-			uiBackgroundColor = backgroundColor; // fallback to original
-			uiForegroundColor = foregroundColor; // fallback to original
-		}
+			uiBackgroundColor = UIManager.getColor("Panel.background");
+			if (uiBackgroundColor == null) uiBackgroundColor = UIManager.getColor("control");
+			uiForegroundColor = UIManager.getColor("Label.foreground");
+			if (uiForegroundColor == null) uiForegroundColor = UIManager.getColor("textText");
+		} catch (Throwable ignore) {}
+		if (uiBackgroundColor == null) uiBackgroundColor = backgroundColor != null ? backgroundColor : new java.awt.Color(0xFFFFFF);
+		if (uiForegroundColor == null) uiForegroundColor = foregroundColor != null ? foregroundColor : new java.awt.Color(0x000000);
 
 		// Use theme colors for UI areas only
 		g.setColor(uiBackgroundColor);
