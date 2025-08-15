@@ -66,7 +66,6 @@ import org.je.app.classloader.MIDletClassLoader;
 import org.je.app.ui.DisplayRepaintListener;
 import org.je.app.ui.Message;
 import org.je.app.ui.ResponseInterfaceListener;
-import org.je.app.ui.StatusBarListener;
 import org.je.app.ui.swing.DropTransferHandler;
 import org.je.app.ui.swing.ExtensionFileFilter;
 
@@ -651,12 +650,6 @@ public class Main extends JFrame {
 			replicateTool.setVisible(true);
 		}
 	};
-
-    private StatusBarListener statusBarListener = text -> {
-        if (statusBar != null) {
-            statusBar.statusBarChanged(text);
-        }
-    };
 
 	private ResponseInterfaceListener responseInterfaceListener = new ResponseInterfaceListener() {
 		public void stateChanged(boolean state) {
@@ -1414,7 +1407,6 @@ menuTools.add(menuLogConsole);
 
 
 		this.common = new Common(emulatorContext);
-		this.common.setStatusBarListener(statusBarListener);
 		this.common.setResponseInterfaceListener(responseInterfaceListener);
 		this.common.loadImplementationsFromConfig();
 
@@ -1429,6 +1421,9 @@ menuTools.add(menuLogConsole);
         statusBar = new org.je.app.ui.swing.StatusBar();
         getContentPane().add(statusBar.getComponent(), "South");
         statusBar.setVisible(true);
+        
+        // Connect the status bar directly to Common
+        this.common.setStatusBar(statusBar);
 
         // Ensure the frame itself doesn't keep an artificial minimum size
         setMinimumSize(new Dimension(0, 0));

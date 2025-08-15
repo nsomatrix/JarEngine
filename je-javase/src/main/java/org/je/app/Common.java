@@ -41,7 +41,7 @@ import org.je.app.classloader.MIDletClassLoaderConfig;
 import org.je.app.launcher.Launcher;
 import org.je.app.ui.Message;
 import org.je.app.ui.ResponseInterfaceListener;
-import org.je.app.ui.StatusBarListener;
+
 import org.je.app.util.DeviceEntry;
 import org.je.app.util.FileRecordStoreManager;
 import org.je.app.util.IOUtils;
@@ -77,7 +77,7 @@ public class Common implements MicroEmulator, CommonInterface {
 
     private static Launcher launcher;
 
-    private static StatusBarListener statusBarListener = null;
+    private static Object statusBar = null;
 
     private JadProperties manifest = new JadProperties();
 
@@ -460,8 +460,8 @@ public class Common implements MicroEmulator, CommonInterface {
         }
     }
 
-    public void setStatusBarListener(StatusBarListener listener) {
-        statusBarListener = listener;
+    public void setStatusBar(Object statusBar) {
+        Common.statusBar = statusBar;
     }
 
     public int checkPermission(String permission) {
@@ -676,8 +676,13 @@ public class Common implements MicroEmulator, CommonInterface {
     }
 
     public static void setStatusBar(String text) {
-        if (statusBarListener != null) {
-            statusBarListener.statusBarChanged(text);
+        if (statusBar != null) {
+            try {
+                // Use reflection to call statusBarChanged method
+                statusBar.getClass().getMethod("statusBarChanged", String.class).invoke(statusBar, text);
+            } catch (Exception e) {
+                // Ignore errors - status bar updates are not critical
+            }
         }
     }
 

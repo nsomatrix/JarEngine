@@ -8,15 +8,13 @@ import javax.swing.SwingUtilities;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 
-import org.je.app.ui.StatusBarListener;
-
 /**
  * Swing status bar component with centralized behavior.
- * - Implements StatusBarListener to receive app status updates
+ * - Receives direct app status updates
  * - Appends proxy status when enabled
  * - Supports temporary messages (auto-restore after delay)
  */
-public class StatusBar extends JPanel implements StatusBarListener {
+public class StatusBar extends JPanel {
 
     private final JLabel label;
     private javax.swing.Timer restoreTimer;
@@ -81,7 +79,7 @@ public class StatusBar extends JPanel implements StatusBarListener {
         restoreTimer.start();
     }
 
-    @Override
+    /** Update status text - main entry point for app-wide status updates */
     public void statusBarChanged(String text) {
         // Central entry point for app-wide status updates
         setPersistentStatus(text);
