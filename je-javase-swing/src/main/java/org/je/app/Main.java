@@ -162,6 +162,8 @@ public class Main extends JFrame {
 	private JRadioButtonMenuItem menuIntelliJTheme;
 	private JRadioButtonMenuItem menuDarculaTheme;
 	private ButtonGroup themeButtonGroup;
+	// Map theme keys (e.g., "solarized-dark") to their radio items for restoring selection
+	private final java.util.Map<String, JRadioButtonMenuItem> themeItems = new java.util.HashMap<>();
 
 	private JCheckBoxMenuItem[] zoomLevels;
 
@@ -925,32 +927,41 @@ public class Main extends JFrame {
 		menuLightTheme.addActionListener(menuLightThemeListener);
 		themeButtonGroup.add(menuLightTheme);
 		menuTheme.add(menuLightTheme);
+		// map canonical key
+		themeItems.put("maclight", menuLightTheme);
+		themeItems.put("light", menuLightTheme);
 
 		menuDarkTheme = new JRadioButtonMenuItem("Mac Dark");
 		menuDarkTheme.addActionListener(menuDarkThemeListener);
 		themeButtonGroup.add(menuDarkTheme);
 		menuTheme.add(menuDarkTheme);
+		themeItems.put("macdark", menuDarkTheme);
+		themeItems.put("dark", menuDarkTheme);
 
 	// Additional FlatLaf themes
 		menuFlatLightTheme = new JRadioButtonMenuItem("Flat Light");
 		menuFlatLightTheme.addActionListener(themeListener("flatlight"));
 		themeButtonGroup.add(menuFlatLightTheme);
 		menuTheme.add(menuFlatLightTheme);
+		themeItems.put("flatlight", menuFlatLightTheme);
 
 		menuFlatDarkTheme = new JRadioButtonMenuItem("Flat Dark");
 		menuFlatDarkTheme.addActionListener(themeListener("flatdark"));
 		themeButtonGroup.add(menuFlatDarkTheme);
 		menuTheme.add(menuFlatDarkTheme);
+		themeItems.put("flatdark", menuFlatDarkTheme);
 
 		menuIntelliJTheme = new JRadioButtonMenuItem("IntelliJ");
 		menuIntelliJTheme.addActionListener(themeListener("intellij"));
 		themeButtonGroup.add(menuIntelliJTheme);
 		menuTheme.add(menuIntelliJTheme);
+		themeItems.put("intellij", menuIntelliJTheme);
 
 		menuDarculaTheme = new JRadioButtonMenuItem("Darcula");
 		menuDarculaTheme.addActionListener(themeListener("darcula"));
 		themeButtonGroup.add(menuDarculaTheme);
 		menuTheme.add(menuDarculaTheme);
+		themeItems.put("darcula", menuDarculaTheme);
 
 	// More Themes submenu (from flatlaf-intellij-themes)
 	JMenu menuMoreThemes = new JMenu("More Themes");
@@ -985,34 +996,12 @@ public class Main extends JFrame {
 	    item.addActionListener(themeListener(pair[1]));
 	    themeButtonGroup.add(item);
 	    menuMoreThemes.add(item);
+	    themeItems.put(pair[1], item);
 	}
 	menuTheme.add(menuMoreThemes);
 
-		// Select saved or default theme
-		String currentTheme = Config.getCurrentTheme();
-		String t = currentTheme != null ? currentTheme.trim().toLowerCase() : "maclight";
-		switch (t) {
-			case "macdark": case "dark":
-				menuDarkTheme.setSelected(true); break;
-			case "flatlight":
-				menuFlatLightTheme.setSelected(true); break;
-			case "flatdark":
-				menuFlatDarkTheme.setSelected(true); break;
-			case "intellij":
-				menuIntelliJTheme.setSelected(true); break;
-			case "darcula":
-				menuDarculaTheme.setSelected(true); break;
-			case "onedark": case "github-light": case "github-dark": case "github-dark-contrast":
-			case "nord": case "nord-dark": case "monokai-pro": case "solarized-light": case "solarized-dark":
-			case "arc": case "arc-dark": case "arc-orange": case "arc-dark-orange": case "material-light":
-			case "material-dark": case "material-lighter": case "material-darker": case "material-palenight":
-			case "cobalt2": case "carbon": case "gray": case "hiberbee-dark": case "high-contrast":
-				// Selection will be reflected on first open; default to keep Mac Light checked if unknown here
-				break;
-			case "maclight": case "light":
-			default:
-				menuLightTheme.setSelected(true); break;
-		}
+		// Initial selection; will be corrected after config is loaded as well
+		selectSavedThemeInMenu();
 
 		menuOptions.add(menuTheme);
 
@@ -1409,6 +1398,8 @@ menuTools.add(menuLogConsole);
 		addWindowListener(windowListener);
 
 		Config.loadConfig(null, emulatorContext);
+		// Now that config is loaded from disk, ensure the menu radio selection matches saved theme
+		selectSavedThemeInMenu();
 		Logger.setLocationEnabled(Config.isLogConsoleLocationEnabled());
 
 		Rectangle window = Config.getWindow("main", new Rectangle(0, 0, 160, 120));
@@ -1900,5 +1891,20 @@ menuTools.add(menuLogConsole);
 			this.counter = counter;
 		}
 
+	}
+
+	// Ensure the Theme menu shows the saved selection on startup and after config load
+	private void selectSavedThemeInMenu() {
+		try {
+			String currentTheme = Config.getCurrentTheme();
+			String t = currentTheme != null ? currentTheme.trim().toLowerCase() : "maclight";
+			JRadioButtonMenuItem item = themeItems.get(t);
+			if (item == null) {
+				// Accept generic mappings too
+				item = "dark".equals(t) ? themeItems.get("macdark") : themeItems.get("maclight");
+			}
+			if (item == null) item = menuLightTheme;
+			if (item != null) item.setSelected(true);
+		} catch (Throwable ignored) {}
 	}
 }
