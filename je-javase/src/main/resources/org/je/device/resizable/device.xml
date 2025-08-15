@@ -14,18 +14,18 @@
         <rectangle>
             <x>0</x>
             <y>0</y>
-            <width>300</width>
+            <width>330</width>
             <height>300</height>
         </rectangle>
         <paintable>
             <x>0</x>
             <y>22</y>
-            <width>300</width>
+            <width>330</width>
             <height>278</height>
         </paintable>
         <icon name="up">
             <paintable>
-                <x>78</x>
+                <x>93</x>
                 <y>206</y>
                 <width>12</width>
                 <height>12</height>
@@ -35,7 +35,7 @@
         </icon>
         <icon name="down">
             <paintable>
-                <x>88</x>
+                <x>103</x>
                 <y>206</y>
                 <width>12</width>
                 <height>12</height>
@@ -173,7 +173,7 @@
             <paintable>
                 <x>1</x>
                 <y>203</y>
-                <width>69</width>
+                <width>84</width>
                 <height>16</height>
             </paintable>
             <font face="system" style="plain" size="medium"/>
@@ -184,9 +184,9 @@
         </softbutton>
         <softbutton name="SOFT2" alignment="RIGHT">
             <paintable>
-                <x>106</x>
+                <x>121</x>
                 <y>203</y>
-                <width>69</width>
+                <width>84</width>
                 <height>16</height>
             </paintable>
             <font face="system" style="plain" size="medium"/>
