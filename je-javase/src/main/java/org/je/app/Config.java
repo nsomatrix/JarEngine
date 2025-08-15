@@ -235,10 +235,9 @@ public class Config {
 	public static Vector getDeviceEntries() {
 		Vector result = new Vector();
 
-		if (resizableDevice == null) {
-			resizableDevice = new DeviceEntry("Resizable device", null, DeviceImpl.RESIZABLE_LOCATION, true, false);
-			addDeviceEntry(resizableDevice);
-		}
+		// Ensure resizable device exists in config
+		ensureResizableDeviceExists();
+		
 		resizableDevice.setDefaultDevice(true);
 		result.add(resizableDevice);
 
@@ -270,6 +269,39 @@ public class Config {
 		}
 
 		return result;
+	}
+	
+	private static void ensureResizableDeviceExists() {
+		if (resizableDevice == null) {
+			resizableDevice = new DeviceEntry("Resizable device", null, DeviceImpl.RESIZABLE_LOCATION, true, false);
+		}
+		
+		// Check if resizable device exists in config, if not add it
+		XMLElement devicesXml = configXml.getChild("devices");
+		boolean deviceExists = false;
+		if (devicesXml != null) {
+			for (Enumeration e_device = devicesXml.enumerateChildren(); e_device.hasMoreElements();) {
+				XMLElement tmp_device = (XMLElement) e_device.nextElement();
+				if (tmp_device.getName().equals("device")) {
+					String testDescriptor = tmp_device.getChildString("descriptor", null);
+					if (DeviceImpl.RESIZABLE_LOCATION.equals(testDescriptor)) {
+						deviceExists = true;
+						break;
+					}
+				}
+			}
+		}
+		
+		if (!deviceExists) {
+			// Add the resizable device to config without circular dependency
+			XMLElement devicesXml2 = configXml.getChildOrNew("devices");
+			XMLElement deviceXml = devicesXml2.addChild("device");
+			deviceXml.setAttribute("default", "true");
+			deviceXml.addChild("name", resizableDevice.getName());
+			deviceXml.addChild("filename", resizableDevice.getFileName() != null ? resizableDevice.getFileName() : "");
+			deviceXml.addChild("descriptor", resizableDevice.getDescriptorLocation());
+			saveConfig();
+		}
 	}
 
 	public static void addDeviceEntry(DeviceEntry entry) {

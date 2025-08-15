@@ -34,7 +34,8 @@ import java.util.Iterator;
 import java.util.List;                                                                
 import java.util.NoSuchElementException;                                              
 import java.util.Timer;                                                               
-import java.util.TimerTask; 
+import java.util.TimerTask;
+import java.util.Vector; 
 
 import javax.microedition.midlet.MIDletStateChangeException;
 import javax.swing.ImageIcon;
@@ -485,6 +486,14 @@ public class Main extends JFrame {
 			}
 			Config.setWindow("main", new Rectangle(Main.this.getX(), Main.this.getY(), Main.this.getWidth(), Main.this
 					.getHeight()), true);
+
+			// Save current device size before exiting
+			if (deviceEntry != null && devicePanel != null) {
+				Config.setDeviceEntryDisplaySize(deviceEntry, new Rectangle(0, 0, devicePanel.getWidth(), devicePanel.getHeight()));
+			}
+			
+			// Save the configuration to disk
+			Config.saveConfig();
 
 			System.exit(0);
 		}
@@ -1775,6 +1784,19 @@ menuTools.add(menuLogConsole);
 		} catch (Throwable ignored) {}
 
 		app.common.initParams(params, null, J2SEDevice.class);
+		
+		// Set deviceEntry for the default resizable device so resize saving works
+		if (app.deviceEntry == null) {
+			Vector deviceEntries = Config.getDeviceEntries();
+			for (Enumeration e = deviceEntries.elements(); e.hasMoreElements();) {
+				DeviceEntry entry = (DeviceEntry) e.nextElement();
+				if (entry.getDescriptorLocation().equals(DeviceImpl.RESIZABLE_LOCATION) && entry.isDefaultDevice()) {
+					app.deviceEntry = entry;
+					break;
+				}
+			}
+		}
+		
 		app.updateDevice();
 
 		// Ensure device is properly initialized before showing the window

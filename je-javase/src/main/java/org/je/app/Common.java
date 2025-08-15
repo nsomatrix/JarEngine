@@ -895,6 +895,23 @@ public class Common implements MicroEmulator, CommonInterface {
                     // Always use resizable device as default
                     setDevice(DeviceImpl.create(emulatorContext, classLoader, DeviceImpl.RESIZABLE_LOCATION, defaultDeviceClass));
                     defaultDeviceSelected = true;
+                    
+                    // Apply saved device size if available
+                    DeviceDisplayImpl deviceDisplay = (DeviceDisplayImpl) DeviceFactory.getDevice().getDeviceDisplay();
+                    if (deviceDisplay.isResizable()) {
+                        Vector deviceEntries = Config.getDeviceEntries();
+                        for (Enumeration e = deviceEntries.elements(); e.hasMoreElements();) {
+                            DeviceEntry entry = (DeviceEntry) e.nextElement();
+                            if (entry.getDescriptorLocation().equals(DeviceImpl.RESIZABLE_LOCATION)) {
+                                Rectangle savedSize = Config.getDeviceEntryDisplaySize(entry);
+                                if (savedSize != null && savedSize.width > 0 && savedSize.height > 0) {
+                                    deviceDisplay.setDisplayRectangle(new Rectangle(savedSize.x, savedSize.y, savedSize.width, savedSize.height));
+                                    deviceDisplay.setDisplayPaintable(new Rectangle(0, 0, savedSize.width, savedSize.height));
+                                }
+                                break;
+                            }
+                        }
+                    }
                 } else {
                     DeviceImpl device = (DeviceImpl) deviceClass.newInstance();
                     device.init(emulatorContext);
