@@ -21,10 +21,14 @@ public class StatusBar extends JPanel {
     private final JLabel spinnerLabel;
     private final JLabel label;
     private final NetworkMeter networkMeter;
+    private final JLabel runtimeLabel;
     private javax.swing.Timer restoreTimer;
     private javax.swing.Timer spinnerTimer;
+    private javax.swing.Timer runtimeTimer;
     private String persistentText = "Status";
     private boolean includeProxySuffix = true;
+    private long midletStartTime = 0;
+    private boolean midletRunning = false;
     
     // Braille spinner animation frames
     private static final String[] BRAILLE_FRAMES = {
@@ -44,6 +48,11 @@ public class StatusBar extends JPanel {
         // Create main status label
         this.label = new JLabel(persistentText);
         
+        // Create runtime timer label for far right
+        this.runtimeLabel = new JLabel("");
+        this.runtimeLabel.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        this.runtimeLabel.setVisible(false);
+        
         // Create network meter for right side
         this.networkMeter = new NetworkMeter();
 
@@ -52,18 +61,20 @@ public class StatusBar extends JPanel {
             int barHeight = Math.max(1, label.getPreferredSize().height);
             label.setMinimumSize(new Dimension(0, barHeight));
             spinnerLabel.setMinimumSize(new Dimension(20, barHeight));
+            runtimeLabel.setMinimumSize(new Dimension(0, barHeight));
             networkMeter.setMinimumSize(new Dimension(0, barHeight));
             this.setMinimumSize(new Dimension(0, barHeight));
             this.setPreferredSize(new Dimension(1, barHeight));
         } catch (Exception ignore) {
         }
 
-        // Layout: spinner on far left, status text in center-left, network meter on right
+        // Layout: runtime timer on far left, spinner next to it, status text in center, network meter on very right
         setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 6));
         
         JPanel leftPanel = new JPanel(new BorderLayout());
-        leftPanel.add(spinnerLabel, BorderLayout.WEST);
-        leftPanel.add(label, BorderLayout.CENTER);
+        leftPanel.add(runtimeLabel, BorderLayout.WEST);
+        leftPanel.add(spinnerLabel, BorderLayout.CENTER);
+        leftPanel.add(label, BorderLayout.EAST);
         
         add(leftPanel, BorderLayout.WEST);
         add(networkMeter, BorderLayout.EAST);
@@ -71,6 +82,10 @@ public class StatusBar extends JPanel {
         // Initialize spinner timer (not started yet)
         spinnerTimer = new javax.swing.Timer(80, e -> updateSpinner());
         spinnerTimer.setRepeats(true);
+        
+        // Initialize runtime timer (updates every second)
+        runtimeTimer = new javax.swing.Timer(1000, e -> updateRuntimeDisplay());
+        runtimeTimer.setRepeats(true);
     }
 
     public JComponent getComponent() {
@@ -129,19 +144,16 @@ public class StatusBar extends JPanel {
 
     // ========== Menu Action Status Messages ==========
     
-    /** Show status message for file loading */
+    /** Show status message for file loading and start MIDlet timer */
     public void showFileLoaded(String filename) {
+        startMidletTimer();
         showTemporaryStatus("Loading JAR: " + filename, 3000);
     }
     
-    /** Show status message for URL loading */
+    /** Show status message for URL loading and start MIDlet timer */
     public void showUrlLoaded(String url) {
+        startMidletTimer();
         showTemporaryStatus("Loading from URL: " + url, 3000);
-    }
-    
-    /** Show status message for MIDlet closing */
-    public void showMidletClosed() {
-        showTemporaryStatus("MIDlet closed - returned to launcher", 2500);
     }
     
     /** Show status message for recording start */
@@ -208,6 +220,65 @@ public class StatusBar extends JPanel {
         showTemporaryStatus(itemName + " selected", 1500);
     }
 
+    // ========== MIDlet Runtime Timer ==========
+    
+    /** Start the MIDlet runtime timer */
+    public void startMidletTimer() {
+        if (!midletRunning) {
+            midletRunning = true;
+            midletStartTime = System.currentTimeMillis();
+            setRuntimeLabelVisibleOnEdt(true);
+            if (!runtimeTimer.isRunning()) {
+                runtimeTimer.start();
+            }
+        }
+    }
+    
+    /** Stop the MIDlet runtime timer and hide the display */
+    public void stopMidletTimer() {
+        if (midletRunning) {
+            midletRunning = false;
+            if (runtimeTimer.isRunning()) {
+                runtimeTimer.stop();
+            }
+            setRuntimeLabelVisibleOnEdt(false);
+            midletStartTime = 0;
+        }
+    }
+    
+    /** Update the runtime display with formatted elapsed time */
+    private void updateRuntimeDisplay() {
+        if (midletRunning && midletStartTime > 0) {
+            long elapsedMs = System.currentTimeMillis() - midletStartTime;
+            String formattedTime = formatElapsedTime(elapsedMs);
+            setRuntimeTextOnEdt(formattedTime);
+        }
+    }
+    
+    /** Format elapsed time as 1s, 24min23s, 1h23min23s */
+    private String formatElapsedTime(long elapsedMs) {
+        long seconds = elapsedMs / 1000;
+        long minutes = seconds / 60;
+        long hours = minutes / 60;
+        
+        seconds = seconds % 60;
+        minutes = minutes % 60;
+        
+        if (hours > 0) {
+            return String.format("%dh%02dmin%02ds", hours, minutes, seconds);
+        } else if (minutes > 0) {
+            return String.format("%dmin%02ds", minutes, seconds);
+        } else {
+            return String.format("%ds", seconds);
+        }
+    }
+    
+    /** Show status message for MIDlet closing and stop the timer */
+    public void showMidletClosed() {
+        stopMidletTimer();
+        showTemporaryStatus("MIDlet closed - returned to launcher", 2500);
+    }
+
     /** Start the configuration saving spinner */
     public void startConfigSpinner() {
         if (!spinnerActive) {
@@ -265,6 +336,22 @@ public class StatusBar extends JPanel {
             SwingUtilities.invokeLater(() -> spinnerLabel.setText(text));
         }
     }
+    
+    private void setRuntimeTextOnEdt(String text) {
+        if (SwingUtilities.isEventDispatchThread()) {
+            runtimeLabel.setText(text);
+        } else {
+            SwingUtilities.invokeLater(() -> runtimeLabel.setText(text));
+        }
+    }
+    
+    private void setRuntimeLabelVisibleOnEdt(boolean visible) {
+        if (SwingUtilities.isEventDispatchThread()) {
+            runtimeLabel.setVisible(visible);
+        } else {
+            SwingUtilities.invokeLater(() -> runtimeLabel.setVisible(visible));
+        }
+    }
 
     private String buildWithProxySuffix(String base) {
         if (!includeProxySuffix) {
@@ -288,6 +375,9 @@ public class StatusBar extends JPanel {
         }
         if (spinnerTimer != null && spinnerTimer.isRunning()) {
             spinnerTimer.stop();
+        }
+        if (runtimeTimer != null && runtimeTimer.isRunning()) {
+            runtimeTimer.stop();
         }
         super.removeNotify();
     }
