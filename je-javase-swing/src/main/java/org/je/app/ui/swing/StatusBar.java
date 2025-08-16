@@ -12,6 +12,7 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.FontMetrics;
+import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -78,10 +79,41 @@ public class StatusBar extends JPanel {
     public StatusBar() {
         super(new BorderLayout());
         
-        // Create spinner label with professional styling
-        this.spinnerLabel = new JLabel(" ");
+        // Ensure proper background matching
+        setOpaque(true);
+        
+        // Create spinner label with gradient styling (purple to blue)
+        this.spinnerLabel = new JLabel(" ") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                // Create gradient from purple to blue (your logo colors)
+                Color purple = new Color(155, 89, 182); // Purple
+                Color blue = new Color(52, 152, 219);   // Blue
+                
+                GradientPaint gradient = new GradientPaint(
+                    0, 0, purple,
+                    getWidth(), getHeight(), blue
+                );
+                
+                g2d.setPaint(gradient);
+                g2d.setFont(getFont());
+                
+                // Draw the text with gradient
+                String text = getText();
+                if (text != null && !text.trim().isEmpty()) {
+                    FontMetrics fm = g2d.getFontMetrics();
+                    int x = (getWidth() - fm.stringWidth(text)) / 2;
+                    int y = (getHeight() - fm.getHeight()) / 2 + fm.getAscent();
+                    g2d.drawString(text, x, y);
+                }
+                
+                g2d.dispose();
+            }
+        };
         this.spinnerLabel.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 14));
-        this.spinnerLabel.setForeground(new Color(155, 89, 182)); // Professional purple
         this.spinnerLabel.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 4));
         this.spinnerLabel.setVisible(false);
         this.spinnerLabel.setToolTipText("Processing Activity");
@@ -135,11 +167,8 @@ public class StatusBar extends JPanel {
         } catch (Exception ignore) {
         }
 
-        // Professional layout with proper spacing and visual separation
-        setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createMatteBorder(1, 0, 0, 0, Color.LIGHT_GRAY),
-            BorderFactory.createEmptyBorder(4, 8, 4, 8)
-        ));
+        // Clean professional layout without visual artifacts
+        setBorder(BorderFactory.createEmptyBorder(3, 8, 3, 8));
         
         // Initialize status indicator (circle)
         statusIndicator = new JLabel() {
@@ -369,6 +398,18 @@ public class StatusBar extends JPanel {
         showTemporaryStatus(themeName + " theme applied", 2500);
     }
     
+    /** Show status message for screenshot success */
+    public void showScreenshotSaved(String path) {
+        // Extract just the filename from the full path for a cleaner display
+        String filename = path.substring(path.lastIndexOf(System.getProperty("file.separator")) + 1);
+        showTemporaryStatus("Screenshot saved: " + filename, 4000);
+    }
+    
+    /** Show status message for screenshot error */
+    public void showScreenshotError() {
+        showTemporaryStatus("Failed to save screenshot", 3000);
+    }
+    
     /** Show status message for network connection toggle */
     public void showNetworkToggled(boolean enabled) {
         String status = enabled ? "enabled" : "disabled";
@@ -405,6 +446,12 @@ public class StatusBar extends JPanel {
             // Always reset and restart the timer for fresh starts
             midletStartTime = System.currentTimeMillis();
             midletRunning = true; // Set the running flag
+            
+            // Clear initial placeholder text when MIDlet starts
+            if ("Status".equals(persistentText)) {
+                persistentText = "";
+                setLabelTextOnEdt("");
+            }
             
             // Reset and start professional fade animation
             alpha = 1.0f;

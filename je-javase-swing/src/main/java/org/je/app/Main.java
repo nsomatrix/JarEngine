@@ -919,7 +919,9 @@ public class Main extends JFrame {
 				if (sleepManager == null) {
 					sleepManager = new SleepManager(Main.this);
 				}
-				sleepManager.setSleepEnabled(menuSleep.isSelected());
+				boolean enabled = menuSleep.isSelected();
+				sleepManager.setSleepEnabled(enabled);
+				statusBar.showSleepModeToggled(enabled);
 			}
 		});
 		menuOptions.add(menuSleep);
@@ -1105,9 +1107,9 @@ menuScreenshot.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_S, InputEvent.C
 menuScreenshot.addActionListener(e -> {
     String path = ScreenshotUtil.captureAndSaveScreenshot(devicePanel, "jar_engine_screenshot_");
     if (path != null) {
-        JOptionPane.showMessageDialog(this, "Screenshot saved to: " + path, "Screenshot", JOptionPane.INFORMATION_MESSAGE);
+        statusBar.showScreenshotSaved(path);
     } else {
-        JOptionPane.showMessageDialog(this, "Failed to save screenshot", "Screenshot Error", JOptionPane.ERROR_MESSAGE);
+        statusBar.showScreenshotError();
     }
 });
 menuTools.add(menuScreenshot);
