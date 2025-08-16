@@ -461,7 +461,7 @@ public class ConfigManagerDialog extends SwingDialogPanel {
         Map<String,String> niceNames = new HashMap<>();
         niceNames.put("performance.properties", "Performance");
         niceNames.put("network.properties", "Network");
-        niceNames.put("filters.properties", "Filters");
+        niceNames.put("filters.properties", "X-Render");
         niceNames.put("config2.xml", "Main Configuration");
 
         // Known singleton files
@@ -648,7 +648,7 @@ public class ConfigManagerDialog extends SwingDialogPanel {
         String base = n.contains("/") ? n.substring(0, n.indexOf('/')) : n;
         if (base.equals("performance.properties")) return "Performance";
         if (base.equals("network.properties")) return "Network";
-        if (base.equals("filters.properties")) return "Filters";
+        if (base.equals("filters.properties")) return "X-Render";
         if (base.equals("config2.xml")) return "Main Configuration";
         if (base.startsWith("suite-")) return "Installed Apps";
         if (base.toLowerCase(Locale.ENGLISH).endsWith(".jar")) return "Extensions / Device JARs";

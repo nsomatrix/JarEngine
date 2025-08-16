@@ -88,45 +88,55 @@ public final class Themes {
                         }
                     }
                 }
-            };
-            if (SwingUtilities.isEventDispatchThread()) doUpdateUI.run();
-            else SwingUtilities.invokeAndWait(doUpdateUI);
-            // Persist and publish to Common
-            Config.setCurrentTheme(theme);
-            if (common != null) {
-                // For MIDP/launcher and device UI, only light/dark matters
-                common.setCurrentTheme(isDarkTheme(theme) ? "dark" : "light");
-                // Publish UI-derived palette for launcher (no hardcoded color fallbacks)
-                try {
-                    java.awt.Color bg = UIManager.getColor("Panel.background");
-                    if (bg == null) bg = UIManager.getColor("control");
-                    java.awt.Color fg = UIManager.getColor("Label.foreground");
-                    if (fg == null) fg = UIManager.getColor("textText");
-                    java.awt.Color sec = UIManager.getColor("Label.disabledForeground");
-                    if (sec == null) sec = UIManager.getColor("Component.infoForeground");
-                    // If secondary still null, derive it by blending fg toward bg (less prominent)
-                    if (sec == null && bg != null && fg != null) sec = blend(fg, bg, 0.5f);
-                    if (bg != null && fg != null) {
-                        int bgRGB = (bg.getRed() << 16) | (bg.getGreen() << 8) | bg.getBlue();
-                        int fgRGB = (fg.getRed() << 16) | (fg.getGreen() << 8) | fg.getBlue();
-                        int secRGB = (sec != null ? ((sec.getRed() << 16) | (sec.getGreen() << 8) | sec.getBlue()) : fgRGB);
-                        common.setThemeColors(bgRGB, fgRGB, secRGB);
-                    } else {
-                        // Explicitly clear palette so Launcher uses safe fallbacks
-                        common.setThemeColors(-1, -1, -1);
-                    }
-                } catch (Throwable ignore) {}
-            }
-            // Update emulator device display theme colors if present
-            try {
-                if (DeviceFactory.getDevice() != null &&
-                        DeviceFactory.getDevice().getDeviceDisplay() instanceof org.je.device.j2se.J2SEDeviceDisplay) {
-                    ((org.je.device.j2se.J2SEDeviceDisplay) DeviceFactory.getDevice().getDeviceDisplay())
-                .updateThemeColors(isDarkTheme(theme) ? "dark" : "light");
+                
+                // Post-UI-update tasks (persistence and theme propagation)
+                // Persist and publish to Common
+                Config.setCurrentTheme(theme);
+                if (common != null) {
+                    // For MIDP/launcher and device UI, only light/dark matters
+                    common.setCurrentTheme(isDarkTheme(theme) ? "dark" : "light");
+                    // Publish UI-derived palette for launcher (no hardcoded color fallbacks)
+                    try {
+                        java.awt.Color bg = UIManager.getColor("Panel.background");
+                        if (bg == null) bg = UIManager.getColor("control");
+                        java.awt.Color fg = UIManager.getColor("Label.foreground");
+                        if (fg == null) fg = UIManager.getColor("textText");
+                        java.awt.Color sec = UIManager.getColor("Label.disabledForeground");
+                        if (sec == null) sec = UIManager.getColor("Component.infoForeground");
+                        // If secondary still null, derive it by blending fg toward bg (less prominent)
+                        if (sec == null && bg != null && fg != null) sec = blend(fg, bg, 0.5f);
+                        if (bg != null && fg != null) {
+                            int bgRGB = (bg.getRed() << 16) | (bg.getGreen() << 8) | bg.getBlue();
+                            int fgRGB = (fg.getRed() << 16) | (fg.getGreen() << 8) | fg.getBlue();
+                            int secRGB = (sec != null ? ((sec.getRed() << 16) | (sec.getGreen() << 8) | sec.getBlue()) : fgRGB);
+                            common.setThemeColors(bgRGB, fgRGB, secRGB);
+                        } else {
+                            // Explicitly clear palette so Launcher uses safe fallbacks
+                            common.setThemeColors(-1, -1, -1);
+                        }
+                    } catch (Throwable ignore) {}
                 }
-            } catch (Throwable t) {
-                Logger.error("Failed to update device display theme colors", t);
-            }
+                // Update emulator device display theme colors if present
+                try {
+                    if (DeviceFactory.getDevice() != null &&
+                            DeviceFactory.getDevice().getDeviceDisplay() instanceof org.je.device.j2se.J2SEDeviceDisplay) {
+                        ((org.je.device.j2se.J2SEDeviceDisplay) DeviceFactory.getDevice().getDeviceDisplay())
+                    .updateThemeColors(isDarkTheme(theme) ? "dark" : "light");
+                    }
+                } catch (Throwable t) {
+                    Logger.error("Failed to update device display theme colors", t);
+                }
+            };
+            
+            // Always use invokeLater to avoid EDT deadlocks/freezing
+            // Add a small delay to allow any pending menu actions to complete
+            SwingUtilities.invokeLater(() -> {
+                try {
+                    // Small delay to ensure menu is fully closed before theme switch
+                    Thread.sleep(50);
+                } catch (InterruptedException ignored) {}
+                doUpdateUI.run();
+            });
             // Launcher refresh is intentionally not handled here to avoid protected access to Common.
         } catch (Exception ex) {
             Logger.error("Failed to apply theme", ex);

@@ -1320,8 +1320,8 @@ menuNetworking.add(menuNetReset);
 
 menuTools.add(menuNetworking);
 
-// Add Filters menu after Networking
-JMenuItem menuFilters = new JMenuItem("Filters");
+// Add X-Render menu after Networking
+JMenuItem menuFilters = new JMenuItem("X-Render");
 menuFilters.addActionListener(e -> {
     FilterTool dlg = new FilterTool(this);
     dlg.setVisible(true);

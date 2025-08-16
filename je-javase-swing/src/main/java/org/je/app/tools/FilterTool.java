@@ -4,13 +4,13 @@ import javax.swing.*;
 import java.awt.*;
 
 /**
- * Small dialog to toggle a few common filters quickly.
+ * Small dialog to toggle a few common X-Render filters quickly.
  * Can be expanded later with more controls.
  */
 public class FilterTool extends JDialog {
 
     public FilterTool(Frame owner) {
-        super(owner, "Filters", false);
+        super(owner, "X-Render", false);
         setLayout(new BorderLayout());
 
         JPanel panel = new JPanel(new GridBagLayout());
