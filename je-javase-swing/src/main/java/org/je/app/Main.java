@@ -1048,50 +1048,6 @@ public class Main extends JFrame {
 
 		menuOptions.add(menuSelfDestructSubmenu);
 
-		// UI Manager submenu with status bar components
-		JMenu menuUIManager = new JMenu("UI Manager");
-		
-		JCheckBoxMenuItem menuUIUpdates = new JCheckBoxMenuItem("Updates");
-		menuUIUpdates.setSelected(true); // Updates enabled by default
-		menuUIUpdates.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				boolean enabled = menuUIUpdates.isSelected();
-				if (statusBar != null) {
-					statusBar.setUpdatesEnabled(enabled);
-					statusBar.showTemporaryStatus("Status updates " + (enabled ? "enabled" : "disabled"), 2000);
-				}
-			}
-		});
-		menuUIManager.add(menuUIUpdates);
-		
-		JCheckBoxMenuItem menuUITimer = new JCheckBoxMenuItem("Timer");
-		menuUITimer.setSelected(true); // Timer enabled by default
-		menuUITimer.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				boolean enabled = menuUITimer.isSelected();
-				if (statusBar != null) {
-					statusBar.setTimerEnabled(enabled);
-					statusBar.showTemporaryStatus("Runtime timer " + (enabled ? "enabled" : "disabled"), 2000);
-				}
-			}
-		});
-		menuUIManager.add(menuUITimer);
-		
-		JCheckBoxMenuItem menuUINetworkMeter = new JCheckBoxMenuItem("Network Meter");
-		menuUINetworkMeter.setSelected(true); // Network meter enabled by default
-		menuUINetworkMeter.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent e) {
-				boolean enabled = menuUINetworkMeter.isSelected();
-				if (statusBar != null) {
-					statusBar.setNetworkMeterEnabled(enabled);
-					statusBar.showTemporaryStatus("Network meter " + (enabled ? "enabled" : "disabled"), 2000);
-				}
-			}
-		});
-		menuUIManager.add(menuUINetworkMeter);
-		
-		menuOptions.add(menuUIManager);
-
 		JMenu menuTools = new JMenu("Tools");
 		try {
 			ImageIcon toolsIcon = new ImageIcon(Main.class.getResource("/org/je/tools.png"));
@@ -1410,6 +1366,90 @@ menuTools.add(menuLogConsole);
 		});
 		menuHelp.add(menuConfigManager);
 
+		// UI Manager submenu with status bar components
+		JMenu menuUIManager = new JMenu("UI Manager");
+		
+		JCheckBoxMenuItem menuUIUpdates = new JCheckBoxMenuItem("Updates");
+		menuUIUpdates.setSelected(org.je.app.ui.UIManagerConfig.isUpdatesEnabled()); // Load from config
+		menuUIUpdates.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				boolean enabled = menuUIUpdates.isSelected();
+				org.je.app.ui.UIManagerConfig.setUpdatesEnabled(enabled); // Persist setting
+				if (statusBar != null) {
+					statusBar.setUpdatesEnabled(enabled);
+					statusBar.showTemporaryStatus("Status updates " + (enabled ? "enabled" : "disabled"), 2000);
+				}
+			}
+		});
+		menuUIManager.add(menuUIUpdates);
+		
+		JCheckBoxMenuItem menuUITimer = new JCheckBoxMenuItem("Timer");
+		menuUITimer.setSelected(org.je.app.ui.UIManagerConfig.isTimerEnabled()); // Load from config
+		menuUITimer.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				boolean enabled = menuUITimer.isSelected();
+				org.je.app.ui.UIManagerConfig.setTimerEnabled(enabled); // Persist setting
+				if (statusBar != null) {
+					statusBar.setTimerEnabled(enabled);
+					statusBar.showTemporaryStatus("Runtime timer " + (enabled ? "enabled" : "disabled"), 2000);
+				}
+			}
+		});
+		menuUIManager.add(menuUITimer);
+		
+		JCheckBoxMenuItem menuUINetworkMeter = new JCheckBoxMenuItem("Network Meter");
+		menuUINetworkMeter.setSelected(org.je.app.ui.UIManagerConfig.isNetworkMeterEnabled()); // Load from config
+		menuUINetworkMeter.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				boolean enabled = menuUINetworkMeter.isSelected();
+				org.je.app.ui.UIManagerConfig.setNetworkMeterEnabled(enabled); // Persist setting
+				if (statusBar != null) {
+					statusBar.setNetworkMeterEnabled(enabled);
+					statusBar.showTemporaryStatus("Network meter " + (enabled ? "enabled" : "disabled"), 2000);
+				}
+			}
+		});
+		menuUIManager.add(menuUINetworkMeter);
+		
+		// Add separator and reset option
+		menuUIManager.addSeparator();
+		
+		JMenuItem menuUIReset = new JMenuItem("Reset UI Manager Settings");
+		menuUIReset.addActionListener(e -> {
+			int res = JOptionPane.showConfirmDialog(this,
+					"Reset all UI Manager settings to defaults?",
+					"Reset UI Manager Settings", JOptionPane.OK_CANCEL_OPTION,
+					JOptionPane.WARNING_MESSAGE);
+			if (res != JOptionPane.OK_OPTION) return;
+			
+			try {
+				org.je.app.ui.UIManagerConfig.resetToDefaults();
+				
+				// Update the menu items to reflect the reset state
+				menuUIUpdates.setSelected(org.je.app.ui.UIManagerConfig.isUpdatesEnabled());
+				menuUITimer.setSelected(org.je.app.ui.UIManagerConfig.isTimerEnabled());
+				menuUINetworkMeter.setSelected(org.je.app.ui.UIManagerConfig.isNetworkMeterEnabled());
+				
+				// Update the status bar components
+				if (statusBar != null) {
+					statusBar.setUpdatesEnabled(org.je.app.ui.UIManagerConfig.isUpdatesEnabled());
+					statusBar.setTimerEnabled(org.je.app.ui.UIManagerConfig.isTimerEnabled());
+					statusBar.setNetworkMeterEnabled(org.je.app.ui.UIManagerConfig.isNetworkMeterEnabled());
+					statusBar.showTemporaryStatus("UI Manager settings reset", 2500);
+				}
+				
+				JOptionPane.showMessageDialog(this, "UI Manager settings were reset.", "Reset",
+						JOptionPane.INFORMATION_MESSAGE);
+			} catch (Throwable ex) {
+				Logger.error("Failed to reset UI Manager settings", ex);
+				JOptionPane.showMessageDialog(this, "Failed to reset settings: " + ex.getMessage(),
+						"Reset Error", JOptionPane.ERROR_MESSAGE);
+			}
+		});
+		menuUIManager.add(menuUIReset);
+		
+		menuHelp.add(menuUIManager);
+
 		JMenuItem menuSysInfo = new JMenuItem("Status");
 		menuSysInfo.addActionListener(menuStatusListener);
 		menuHelp.add(menuSysInfo);
@@ -1479,6 +1519,11 @@ menuTools.add(menuLogConsole);
         statusBar = new org.je.app.ui.swing.StatusBar();
         getContentPane().add(statusBar.getComponent(), "South");
         statusBar.setVisible(true);
+        
+        // Initialize StatusBar components based on saved UI Manager preferences
+        statusBar.setUpdatesEnabled(org.je.app.ui.UIManagerConfig.isUpdatesEnabled());
+        statusBar.setTimerEnabled(org.je.app.ui.UIManagerConfig.isTimerEnabled());
+        statusBar.setNetworkMeterEnabled(org.je.app.ui.UIManagerConfig.isNetworkMeterEnabled());
         
         // Connect the status bar directly to Common
         this.common.setStatusBar(statusBar);
