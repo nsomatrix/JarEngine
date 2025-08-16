@@ -103,7 +103,7 @@ public class Common implements MicroEmulator, CommonInterface {
     
     private String midletSuiteName = null;
     
-    private String currentTheme = "light"; // Default theme
+    private String currentTheme = "macdark"; // Default theme
 
     // UI palette published by Swing side (0xRRGGBB, no alpha); -1 means unset
     private volatile int themeBgColor = -1;

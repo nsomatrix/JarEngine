@@ -556,9 +556,9 @@ public class Config {
 	public static String getCurrentTheme() {
 		XMLElement themeXml = configXml.getChild("theme");
 		if (themeXml == null) {
-			return "light"; // Default theme
+			return "macdark"; // Default theme
 		}
-		return themeXml.getStringAttribute("current", "light");
+		return themeXml.getStringAttribute("current", "macdark");
 	}
 
 	public static void setCurrentTheme(String theme) {

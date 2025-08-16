@@ -417,9 +417,9 @@ public final class Themes {
     private static String safeCurrentTheme() {
         try {
             String t = Config.getCurrentTheme();
-            return (t == null || t.trim().isEmpty()) ? "light" : t;
+            return (t == null || t.trim().isEmpty()) ? "macdark" : t;
         } catch (Throwable ignored) {
-            return "light";
+            return "macdark";
         }
     }
 }
