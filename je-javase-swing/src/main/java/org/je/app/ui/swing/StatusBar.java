@@ -41,7 +41,7 @@ public class StatusBar extends JPanel {
     private javax.swing.Timer runtimeTimer;
     private javax.swing.Timer networkUpdateTimer;
     private javax.swing.Timer networkHideTimer;
-    private String persistentText = "Status";
+    private String persistentText = "";
     private boolean includeProxySuffix = true;
     private long midletStartTime = 0;
     private boolean midletRunning = false;
