@@ -35,14 +35,14 @@ public final class PerformanceManager {
     // ========= Toggles =========
     private static volatile boolean hardwareAcceleration; // advisory only
     private static volatile boolean antiAliasing;
-    private static volatile boolean doubleBuffering = true; // default Swing
+    private static volatile boolean doubleBuffering; // user can enable for smoother rendering
     private static volatile boolean powerSavingMode;
     private static volatile boolean idleSkipping;
     private static volatile boolean frameSkipping;
     private static volatile boolean threadPriorityBoost;
     private static volatile boolean inputThrottling;
     private static volatile boolean spriteCaching;
-    private static volatile boolean textureFiltering = true; // bilinear by default looks better when scaling
+    private static volatile boolean textureFiltering; // user can enable for better scaling quality
     private static volatile boolean vSync;
 
     // ========= Heap emulation =========
@@ -347,14 +347,14 @@ public final class PerformanceManager {
         hardwareAcceleration = false;
         try { System.setProperty("sun.java2d.opengl", "false"); } catch (Throwable ignored) {}
         antiAliasing = false;
-        doubleBuffering = true;
+        doubleBuffering = false;
         powerSavingMode = false;
         idleSkipping = false;
         frameSkipping = false;
         threadPriorityBoost = false;
         inputThrottling = false;
         spriteCaching = false;
-        textureFiltering = true;
+        textureFiltering = false;
         vSync = false;
         // Emulated heap default
         emulatedHeapLimitBytes = 64L * 1024 * 1024;
