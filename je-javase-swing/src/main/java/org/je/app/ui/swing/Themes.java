@@ -48,63 +48,88 @@ public final class Themes {
     }
 
     /**
-     * Apply the given theme, update provided windows, persist setting,
-     * update device display theme colors, and refresh launcher if active.
-     * @param theme "light" or "dark"
-     * @param common instance used to update current theme and (optionally) restart launcher
-     * @param windows top-level windows to re-style via updateComponentTreeUI
+     * Apply the given theme using industry-standard EDT-only approach.
+     * Fast, reliable, and performance-optimized.
      */
     public static void applyTheme(String theme, Common common, Window... windows) {
-        try {
-            // Step 1: Set the Look & Feel first
-            setLookAndFeelForTheme(theme);
+        // Industry standard: All UI operations must happen on EDT
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater(() -> applyTheme(theme, common, windows));
+            return;
+        }
 
-            // Step 2: Extract theme colors immediately after L&F is set
-            ThemeColors themeColors = extractThemeColors();
+        try {
+            // Step 1: Pre-capture slider states before ANY changes
+            java.util.Map<javax.swing.JSlider, SliderState> sliderStates = captureSliderStates();
             
-            // Step 3: Update Common with new theme info before UI updates
+            // Step 2: Set Look & Feel (fast, synchronous)
+            setLookAndFeelForTheme(theme);
+            
+            // Step 3: Configure slider properties immediately after L&F
+            normalizeSliderSizes();
+            
+            // Step 4: Extract colors and update Common immediately
+            ThemeColors colors = extractThemeColors();
             Config.setCurrentTheme(theme);
             if (common != null) {
                 String themeMode = isDarkTheme(theme) ? "dark" : "light";
                 common.setCurrentTheme(themeMode);
-                common.setThemeColors(themeColors.backgroundRGB, themeColors.foregroundRGB, themeColors.secondaryRGB);
+                common.setThemeColors(colors.backgroundRGB, colors.foregroundRGB, colors.secondaryRGB);
             }
-
-            // Step 4: Schedule UI updates with enhanced slider handling
+            
+            // Step 5: Single, fast UI update
+            try {
+                FlatLaf.updateUI();
+            } catch (Throwable t) {
+                // Minimal fallback - only update main windows
+                for (Window w : Window.getWindows()) {
+                    if (w != null && w.isVisible()) {
+                        SwingUtilities.updateComponentTreeUI(w);
+                    }
+                }
+            }
+            
+            // Step 6: Restore slider states immediately
+            restoreAndFixSliderStates(sliderStates);
+            
+            // Step 7: Update device display and trigger repaint (minimal delay)
             SwingUtilities.invokeLater(() -> {
-                try {
-                    // Capture slider states before UI update to prevent shrinking
-                    java.util.Map<javax.swing.JSlider, SliderState> sliderStates = captureSliderStates();
-                    
-                    // Apply slider normalization BEFORE updating UI components
-                    normalizeSliderSizes();
-                    
-                    // Update all UI components
-                    updateAllUIComponents(windows);
-                    
-                    // Restore slider states and ensure proper sizing
-                    SwingUtilities.invokeLater(() -> {
-                        restoreAndFixSliderStates(sliderStates);
-                        
-                        // Step 5: Update device display theme after UI is refreshed
-                        SwingUtilities.invokeLater(() -> {
-                            updateDeviceDisplayTheme(isDarkTheme(theme) ? "dark" : "light");
-                            
-                            // Step 6: Final launcher canvas refresh with minimal delay
-                            SwingUtilities.invokeLater(() -> {
-                                forceLauncherCanvasRefresh(common);
-                            });
-                        });
-                    });
-                    
-                } catch (Throwable t) {
-                    Logger.error("Error during theme UI update", t);
+                updateDeviceDisplayTheme(isDarkTheme(theme) ? "dark" : "light");
+                
+                // Force immediate launcher refresh without delays
+                if (common != null) {
+                    common.setThemeColors(colors.backgroundRGB, colors.foregroundRGB, colors.secondaryRGB);
+                }
+                
+                // Single repaint pass for visible windows only
+                for (Window w : Window.getWindows()) {
+                    if (w != null && w.isVisible() && w.isDisplayable()) {
+                        w.repaint();
+                    }
                 }
             });
             
         } catch (Exception ex) {
-            Logger.error("Failed to apply theme", ex);
+            Logger.error("Theme switching failed: " + theme, ex);
+            // Simple fallback - don't overcomplicate
+            try {
+                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+                FlatLaf.updateUI();
+            } catch (Throwable ignored) {}
         }
+    }
+
+    private static void normalizeSliderSizes() {
+        try {
+            // Industry-standard slider sizing
+            UIManager.put("Slider.trackWidth", 8);
+            UIManager.put("Slider.thumbSize", new Dimension(14, 14));
+            
+            // Ensure minimum sizes to prevent shrinking
+            UIManager.put("Slider.minimumHorizontalSize", new Dimension(100, 21));
+            UIManager.put("Slider.minimumVerticalSize", new Dimension(21, 100));
+            
+        } catch (Throwable ignored) {}
     }
 
     private static class SliderState {
@@ -113,7 +138,6 @@ public final class Themes {
         final int max;
         final boolean enabled;
         final java.awt.Dimension preferredSize;
-        final java.awt.Dimension minimumSize;
         
         SliderState(javax.swing.JSlider slider) {
             this.value = slider.getValue();
@@ -121,7 +145,6 @@ public final class Themes {
             this.max = slider.getMaximum();
             this.enabled = slider.isEnabled();
             this.preferredSize = slider.getPreferredSize();
-            this.minimumSize = slider.getMinimumSize();
         }
     }
 
@@ -129,7 +152,9 @@ public final class Themes {
         java.util.Map<javax.swing.JSlider, SliderState> states = new java.util.HashMap<>();
         try {
             for (Window window : Window.getWindows()) {
-                captureSliderStatesRecursive(window, states);
+                if (window.isVisible()) {
+                    captureSliderStatesRecursive(window, states);
+                }
             }
         } catch (Throwable ignored) {}
         return states;
@@ -148,25 +173,6 @@ public final class Themes {
         } catch (Throwable ignored) {}
     }
 
-    private static void normalizeSliderSizes() {
-        try {
-            // Enhanced slider size normalization with more robust sizing
-            if (UIManager.get("Slider.trackWidth") == null || (UIManager.getInt("Slider.trackWidth") < 6))
-                UIManager.put("Slider.trackWidth", 10); // Slightly larger for better visibility
-            
-            Object ts = UIManager.get("Slider.thumbSize");
-            if (!(ts instanceof Dimension) || ((Dimension) ts).width < 14 || ((Dimension) ts).height < 14)
-                UIManager.put("Slider.thumbSize", new Dimension(16, 16)); // Slightly larger
-            
-            // Additional slider properties to prevent shrinking
-            UIManager.put("Slider.minimumHorizontalSize", new Dimension(36, 21));
-            UIManager.put("Slider.minimumVerticalSize", new Dimension(21, 36));
-            UIManager.put("Slider.preferredHorizontalSize", new Dimension(200, 21));
-            UIManager.put("Slider.preferredVerticalSize", new Dimension(21, 200));
-            
-        } catch (Throwable ignored) {}
-    }
-
     private static void restoreAndFixSliderStates(java.util.Map<javax.swing.JSlider, SliderState> states) {
         try {
             for (java.util.Map.Entry<javax.swing.JSlider, SliderState> entry : states.entrySet()) {
@@ -179,33 +185,15 @@ public final class Themes {
                 slider.setValue(state.value);
                 slider.setEnabled(state.enabled);
                 
-                // Fix sizing issues by ensuring minimum sizes
-                java.awt.Dimension prefSize = state.preferredSize;
-                java.awt.Dimension minSize = state.minimumSize;
-                
-                if (prefSize != null) {
-                    // Ensure minimum acceptable slider size
-                    int width = Math.max(prefSize.width, 100);
-                    int height = Math.max(prefSize.height, 21);
+                // Ensure minimum size to prevent shrinking
+                if (state.preferredSize != null) {
+                    int width = Math.max(state.preferredSize.width, 100);
+                    int height = Math.max(state.preferredSize.height, 21);
                     slider.setPreferredSize(new java.awt.Dimension(width, height));
                 }
                 
-                if (minSize != null) {
-                    int width = Math.max(minSize.width, 50);
-                    int height = Math.max(minSize.height, 21);
-                    slider.setMinimumSize(new java.awt.Dimension(width, height));
-                }
-                
-                // Force revalidation
+                // Quick revalidation
                 slider.revalidate();
-                slider.repaint();
-                
-                // Revalidate parent containers
-                java.awt.Container parent = slider.getParent();
-                while (parent != null) {
-                    parent.revalidate();
-                    parent = parent.getParent();
-                }
             }
         } catch (Throwable ignored) {}
     }
@@ -246,33 +234,6 @@ public final class Themes {
         return new ThemeColors(-1, -1, -1);
     }
 
-    private static void updateAllUIComponents(Window... windows) {
-        try {
-            // FlatLaf global update
-            FlatLaf.updateUI();
-        } catch (Throwable ignored) {
-            // Fallback: manual update
-            for (Window w : Window.getWindows()) {
-                try { 
-                    javax.swing.SwingUtilities.updateComponentTreeUI(w); 
-                    w.repaint();
-                } catch (Throwable __) {}
-            }
-        }
-        
-        // Update explicitly provided windows
-        if (windows != null) {
-            for (Window w : windows) {
-                if (w != null) {
-                    try { 
-                        javax.swing.SwingUtilities.updateComponentTreeUI(w);
-                        w.repaint();
-                    } catch (Throwable __) {}
-                }
-            }
-        }
-    }
-
     private static void updateDeviceDisplayTheme(String themeMode) {
         try {
             if (DeviceFactory.getDevice() != null &&
@@ -284,40 +245,6 @@ public final class Themes {
             Logger.error("Failed to update device display theme colors", t);
         }
     }
-
-    private static void forceLauncherCanvasRefresh(Common common) {
-        try {
-            if (common != null) {
-                // Approach 1: Re-set theme colors to force refresh (most reliable)
-                ThemeColors colors = extractThemeColors();
-                common.setThemeColors(colors.backgroundRGB, colors.foregroundRGB, colors.secondaryRGB);
-                
-                // Approach 2: Trigger a launcher refresh if method exists (safe reflection)
-                try {
-                    java.lang.reflect.Method refreshMethod = common.getClass().getMethod("refreshLauncher");
-                    refreshMethod.invoke(common);
-                } catch (Throwable ignored) {
-                    // Method might not exist, that's OK
-                }
-                
-                // Approach 3: Gentle repaint - only repaint visible windows to prevent freezing
-                SwingUtilities.invokeLater(() -> {
-                    try {
-                        for (Window window : Window.getWindows()) {
-                            if (window.isVisible() && window.isDisplayable()) {
-                                window.repaint();
-                                // Don't do deep traversal to prevent excessive repainting
-                            }
-                        }
-                    } catch (Throwable ignored) {}
-                });
-            }
-        } catch (Throwable ignored) {
-            // Best effort - don't fail theme switching if launcher refresh fails
-        }
-    }
-
-    // Removed aggressive repaintComponentTree method to prevent freezing
 
     private static java.awt.Color blend(java.awt.Color c1, java.awt.Color c2, float ratio) {
         float r = Math.max(0f, Math.min(1f, ratio));
