@@ -1046,6 +1046,50 @@ public class Main extends JFrame {
 
 		menuOptions.add(menuSelfDestructSubmenu);
 
+		// UI Manager submenu with status bar components
+		JMenu menuUIManager = new JMenu("UI Manager");
+		
+		JCheckBoxMenuItem menuUIUpdates = new JCheckBoxMenuItem("Updates");
+		menuUIUpdates.setSelected(true); // Updates enabled by default
+		menuUIUpdates.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				boolean enabled = menuUIUpdates.isSelected();
+				if (statusBar != null) {
+					statusBar.setUpdatesEnabled(enabled);
+					statusBar.showTemporaryStatus("Status updates " + (enabled ? "enabled" : "disabled"), 2000);
+				}
+			}
+		});
+		menuUIManager.add(menuUIUpdates);
+		
+		JCheckBoxMenuItem menuUITimer = new JCheckBoxMenuItem("Timer");
+		menuUITimer.setSelected(true); // Timer enabled by default
+		menuUITimer.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				boolean enabled = menuUITimer.isSelected();
+				if (statusBar != null) {
+					statusBar.setTimerEnabled(enabled);
+					statusBar.showTemporaryStatus("Runtime timer " + (enabled ? "enabled" : "disabled"), 2000);
+				}
+			}
+		});
+		menuUIManager.add(menuUITimer);
+		
+		JCheckBoxMenuItem menuUINetworkMeter = new JCheckBoxMenuItem("Network Meter");
+		menuUINetworkMeter.setSelected(true); // Network meter enabled by default
+		menuUINetworkMeter.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				boolean enabled = menuUINetworkMeter.isSelected();
+				if (statusBar != null) {
+					statusBar.setNetworkMeterEnabled(enabled);
+					statusBar.showTemporaryStatus("Network meter " + (enabled ? "enabled" : "disabled"), 2000);
+				}
+			}
+		});
+		menuUIManager.add(menuUINetworkMeter);
+		
+		menuOptions.add(menuUIManager);
+
 		JMenu menuTools = new JMenu("Tools");
 		try {
 			ImageIcon toolsIcon = new ImageIcon(Main.class.getResource("/org/je/tools.png"));

@@ -166,6 +166,17 @@ public class Common implements MicroEmulator, CommonInterface {
     public void notifyDestroyed(MIDletContext midletContext) {
         Logger.debug("notifyDestroyed");
         notifyImplementationMIDletDestroyed();
+        
+        // Stop MIDlet timer when MIDlet is destroyed
+        if (statusBar != null) {
+            try {
+                // Use reflection to call stopMidletTimer method
+                statusBar.getClass().getMethod("stopMidletTimer").invoke(statusBar);
+            } catch (Exception e) {
+                // Ignore errors - status bar updates are not critical
+            }
+        }
+        
         startLauncher(midletContext);
     }
 
@@ -417,6 +428,17 @@ public class Common implements MicroEmulator, CommonInterface {
                 }
 
                 notifyImplementationMIDletStart();
+                
+                // Start MIDlet timer when MIDlet is started
+                if (statusBar != null) {
+                    try {
+                        // Use reflection to call startMidletTimer method
+                        statusBar.getClass().getMethod("startMidletTimer").invoke(statusBar);
+                    } catch (Exception e) {
+                        // Ignore errors - status bar updates are not critical
+                    }
+                }
+                
                 return m;
             } catch (Throwable e) {
                 Message.error(errorTitle, "Unable to start MIDlet, " + Message.getCauseMessage(e), e);

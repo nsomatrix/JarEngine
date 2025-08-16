@@ -5,9 +5,20 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
+import java.awt.BasicStroke;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.List;
+import org.je.util.NetEventBus;
 
 /**
  * Swing status bar component with centralized behavior.
@@ -15,20 +26,47 @@ import java.awt.Font;
  * - Appends proxy status when enabled
  * - Supports temporary messages (auto-restore after delay)
  * - Features animated braille spinner for configuration operations
+ * - Includes integrated network activity meter with auto-show/hide
+ * - Displays MIDlet runtime timer
  */
 public class StatusBar extends JPanel {
 
     private final JLabel spinnerLabel;
     private final JLabel label;
-    private final NetworkMeter networkMeter;
+    private final JLabel networkMeterLabel;
     private final JLabel runtimeLabel;
     private javax.swing.Timer restoreTimer;
     private javax.swing.Timer spinnerTimer;
     private javax.swing.Timer runtimeTimer;
+    private javax.swing.Timer networkUpdateTimer;
+    private javax.swing.Timer networkHideTimer;
     private String persistentText = "Status";
     private boolean includeProxySuffix = true;
     private long midletStartTime = 0;
     private boolean midletRunning = false;
+    
+    // Status indicator fields
+    private JLabel statusIndicator;
+    private Timer blinkTimer;
+    private boolean blinkState = false;
+    private float alpha = 1.0f; // For fade effect
+    private boolean fadeDirection = false; // true = fade out, false = fade in
+    private static final Color GREEN_COLOR = new Color(0, 200, 0);
+    private static final Color RED_COLOR = new Color(200, 0, 0);
+    
+    // Network meter fields
+    private static final int NETWORK_UPDATE_INTERVAL_MS = 1000; // Update every second
+    private static final int NETWORK_HIDE_DELAY_MS = 3000; // Hide after 3 seconds of inactivity
+    private static final int NETWORK_ACTIVITY_WINDOW_MS = 2000; // Consider events from last 2 seconds
+    private final AtomicLong lastEventCount = new AtomicLong(0);
+    private final AtomicLong lastNetworkUpdateTime = new AtomicLong(System.currentTimeMillis());
+    private final AtomicReference<String> currentSpeedText = new AtomicReference<>("");
+    private volatile boolean networkMeterVisible = false;
+    
+    // UI control flags
+    private volatile boolean updatesEnabled = true; // Controls status message updates
+    private volatile boolean timerEnabled = true;   // Controls runtime timer display
+    private volatile boolean networkMeterEnabled = true; // Controls network meter display
     
     // Braille spinner animation frames
     private static final String[] BRAILLE_FRAMES = {
@@ -40,44 +78,169 @@ public class StatusBar extends JPanel {
     public StatusBar() {
         super(new BorderLayout());
         
-        // Create spinner label for left side
+        // Create spinner label with professional styling
         this.spinnerLabel = new JLabel(" ");
         this.spinnerLabel.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 14));
+        this.spinnerLabel.setForeground(new Color(155, 89, 182)); // Professional purple
+        this.spinnerLabel.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 4));
         this.spinnerLabel.setVisible(false);
+        this.spinnerLabel.setToolTipText("Processing Activity");
         
-        // Create main status label
+        // Create main status label with professional styling
         this.label = new JLabel(persistentText);
+        this.label.setBorder(BorderFactory.createEmptyBorder(2, 8, 2, 8));
         
-        // Create runtime timer label for far right
+        // Create runtime timer label with professional styling
         this.runtimeLabel = new JLabel("");
-        this.runtimeLabel.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        this.runtimeLabel.setFont(new Font(Font.MONOSPACED, Font.BOLD, 11));
+        this.runtimeLabel.setForeground(new Color(41, 128, 185)); // Professional blue
+        this.runtimeLabel.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 4));
         this.runtimeLabel.setVisible(false);
+        this.runtimeLabel.setToolTipText("MIDlet Runtime");
         
-        // Create network meter for right side
-        this.networkMeter = new NetworkMeter();
+        // Create integrated network meter label with professional styling
+        this.networkMeterLabel = new JLabel("");
+        this.networkMeterLabel.setFont(new Font(Font.MONOSPACED, Font.BOLD, 11));
+        this.networkMeterLabel.setForeground(new Color(39, 174, 96)); // Professional green
+        this.networkMeterLabel.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 4));
+        this.networkMeterLabel.setVisible(false);
+        this.networkMeterLabel.setToolTipText("Network Activity");
 
-        // Prevent minimum-width issues and ensure consistent height
+        // Set professional minimum sizes and prevent overlap
         try {
-            int barHeight = Math.max(1, label.getPreferredSize().height);
-            label.setMinimumSize(new Dimension(0, barHeight));
+            int barHeight = Math.max(20, label.getPreferredSize().height + 4);
+            
+            // Status indicator section (fixed width)
+            statusIndicator.setPreferredSize(new Dimension(20, barHeight));
+            statusIndicator.setMinimumSize(new Dimension(20, barHeight));
+            
+            // Runtime timer (dynamic width with minimum)
+            runtimeLabel.setMinimumSize(new Dimension(60, barHeight));
+            runtimeLabel.setPreferredSize(new Dimension(80, barHeight));
+            
+            // Spinner (fixed small width)
             spinnerLabel.setMinimumSize(new Dimension(20, barHeight));
-            runtimeLabel.setMinimumSize(new Dimension(0, barHeight));
-            networkMeter.setMinimumSize(new Dimension(0, barHeight));
-            this.setMinimumSize(new Dimension(0, barHeight));
-            this.setPreferredSize(new Dimension(1, barHeight));
+            spinnerLabel.setPreferredSize(new Dimension(25, barHeight));
+            
+            // Main status label (flexible)
+            label.setMinimumSize(new Dimension(100, barHeight));
+            
+            // Network meter (dynamic width with minimum)
+            networkMeterLabel.setMinimumSize(new Dimension(60, barHeight));
+            networkMeterLabel.setPreferredSize(new Dimension(80, barHeight));
+            
+            // Overall status bar
+            this.setMinimumSize(new Dimension(300, barHeight));
+            this.setPreferredSize(new Dimension(500, barHeight));
         } catch (Exception ignore) {
         }
 
-        // Layout: runtime timer on far left, spinner next to it, status text in center, network meter on very right
-        setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 6));
+        // Professional layout with proper spacing and visual separation
+        setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(1, 0, 0, 0, Color.LIGHT_GRAY),
+            BorderFactory.createEmptyBorder(4, 8, 4, 8)
+        ));
         
-        JPanel leftPanel = new JPanel(new BorderLayout());
-        leftPanel.add(runtimeLabel, BorderLayout.WEST);
-        leftPanel.add(spinnerLabel, BorderLayout.CENTER);
-        leftPanel.add(label, BorderLayout.EAST);
+        // Initialize status indicator (circle)
+        statusIndicator = new JLabel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2d = (Graphics2D) g.create();
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                
+                int size = Math.min(getWidth(), getHeight()) - 4;
+                int x = (getWidth() - size) / 2;
+                int y = (getHeight() - size) / 2;
+                
+                if (midletRunning) {
+                    // Professional green with smooth fade effect
+                    Color baseGreen = new Color(46, 204, 113); // Professional green
+                    Color fadeGreen = new Color(baseGreen.getRed(), baseGreen.getGreen(), baseGreen.getBlue(), 
+                                               Math.round(255 * alpha));
+                    g2d.setColor(fadeGreen);
+                    g2d.fillOval(x, y, size, size);
+                    
+                    // Add subtle inner highlight for depth
+                    Color glowColor = new Color(255, 255, 255, Math.round(80 * alpha));
+                    g2d.setColor(glowColor);
+                    g2d.fillOval(x + size/3, y + size/3, size/3, size/3);
+                    
+                    // Professional border
+                    g2d.setColor(new Color(39, 174, 96, Math.round(255 * alpha)));
+                    g2d.setStroke(new BasicStroke(1.0f));
+                    g2d.drawOval(x, y, size, size);
+                } else {
+                    // Professional muted red for inactive state
+                    g2d.setColor(new Color(231, 76, 60, 180)); // Semi-transparent professional red
+                    g2d.fillOval(x, y, size, size);
+                    
+                    // Subtle border for inactive state
+                    g2d.setColor(new Color(192, 57, 43, 120));
+                    g2d.setStroke(new BasicStroke(1.0f));
+                    g2d.drawOval(x, y, size, size);
+                }
+                
+                g2d.dispose();
+            }
+            
+            @Override
+            public Dimension getPreferredSize() {
+                return new Dimension(16, 16);
+            }
+        };
+        statusIndicator.setToolTipText("MIDlet Status");
         
-        add(leftPanel, BorderLayout.WEST);
-        add(networkMeter, BorderLayout.EAST);
+        // Initialize smooth fade blink timer for green indicator
+        blinkTimer = new Timer(50, e -> {
+            if (midletRunning) {
+                // Smooth fade animation
+                if (fadeDirection) {
+                    // Fading out
+                    alpha -= 0.08f;
+                    if (alpha <= 0.3f) {
+                        alpha = 0.3f;
+                        fadeDirection = false; // Start fading in
+                    }
+                } else {
+                    // Fading in
+                    alpha += 0.08f;
+                    if (alpha >= 1.0f) {
+                        alpha = 1.0f;
+                        fadeDirection = true; // Start fading out
+                    }
+                }
+                statusIndicator.repaint();
+            }
+        });
+        
+        // Create a professional multi-section layout
+        JPanel leftSection = new JPanel(new BorderLayout(4, 0));
+        leftSection.add(statusIndicator, BorderLayout.WEST);
+        leftSection.add(runtimeLabel, BorderLayout.CENTER);
+        
+        JPanel centerSection = new JPanel(new BorderLayout(4, 0));
+        centerSection.add(spinnerLabel, BorderLayout.WEST);
+        centerSection.add(label, BorderLayout.CENTER);
+        
+        JPanel rightSection = new JPanel(new BorderLayout());
+        rightSection.add(networkMeterLabel, BorderLayout.CENTER);
+        
+        // Add subtle separators between sections
+        JPanel separatorLeft = new JPanel();
+        separatorLeft.setPreferredSize(new Dimension(1, 16));
+        separatorLeft.setBackground(Color.LIGHT_GRAY);
+        separatorLeft.setOpaque(false);
+        
+        JPanel separatorRight = new JPanel();
+        separatorRight.setPreferredSize(new Dimension(1, 16));
+        separatorRight.setBackground(Color.LIGHT_GRAY);
+        separatorRight.setOpaque(false);
+        
+        // Assemble the professional layout
+        add(leftSection, BorderLayout.WEST);
+        add(centerSection, BorderLayout.CENTER);
+        add(rightSection, BorderLayout.EAST);
         
         // Initialize spinner timer (not started yet)
         spinnerTimer = new javax.swing.Timer(80, e -> updateSpinner());
@@ -86,19 +249,29 @@ public class StatusBar extends JPanel {
         // Initialize runtime timer (updates every second)
         runtimeTimer = new javax.swing.Timer(1000, e -> updateRuntimeDisplay());
         runtimeTimer.setRepeats(true);
+        
+        // Initialize network meter timers
+        networkUpdateTimer = new javax.swing.Timer(NETWORK_UPDATE_INTERVAL_MS, e -> updateNetworkStats());
+        networkUpdateTimer.setRepeats(true);
+        networkUpdateTimer.start();
+        
+        networkHideTimer = new javax.swing.Timer(NETWORK_HIDE_DELAY_MS, e -> hideNetworkMeter());
+        networkHideTimer.setRepeats(false);
     }
 
     public JComponent getComponent() {
         return this;
     }
     
-    /**
-     * Get the network meter component for direct access if needed
+        /**
+     * Get the network meter label (deprecated - network meter is now integrated)
+     * @deprecated Network meter is now integrated into StatusBar
      */
-    public NetworkMeter getNetworkMeter() {
-        return networkMeter;
+    @Deprecated
+    public JLabel getNetworkMeter() {
+        return networkMeterLabel;
     }
-
+    
     /** Toggle whether proxy info is appended to messages. */
     public void setIncludeProxySuffix(boolean enabled) {
         this.includeProxySuffix = enabled;
@@ -106,6 +279,8 @@ public class StatusBar extends JPanel {
 
     /** Set the persistent status text (will be shown unless a temporary message is active). */
     public void setPersistentStatus(String text) {
+        if (!updatesEnabled) return; // Respect updates enabled flag
+        
         if (text == null) {
             text = "";
         }
@@ -119,6 +294,8 @@ public class StatusBar extends JPanel {
 
     /** Show a temporary message for durationMs, then restore persistent text. */
     public void showTemporaryStatus(String text, int durationMs) {
+        if (!updatesEnabled) return; // Respect updates enabled flag
+        
         if (text == null) {
             text = "";
         }
@@ -222,31 +399,56 @@ public class StatusBar extends JPanel {
 
     // ========== MIDlet Runtime Timer ==========
     
-    /** Start the MIDlet runtime timer */
+    /** Start the MIDlet runtime timer and show it */
     public void startMidletTimer() {
-        if (!midletRunning) {
-            midletRunning = true;
+        synchronized (this) {
+            // Always reset and restart the timer for fresh starts
             midletStartTime = System.currentTimeMillis();
-            setRuntimeLabelVisibleOnEdt(true);
-            if (!runtimeTimer.isRunning()) {
+            midletRunning = true; // Set the running flag
+            
+            // Reset and start professional fade animation
+            alpha = 1.0f;
+            fadeDirection = true; // Start by fading out
+            if (!blinkTimer.isRunning()) {
+                blinkTimer.start();
+            }
+            statusIndicator.repaint();
+            
+            // Only show the timer if it's enabled
+            if (timerEnabled) {
+                setRuntimeLabelVisibleOnEdt(true);
+            }
+            
+            // Always restart the timer to ensure it's running
+            if (runtimeTimer.isRunning()) {
+                runtimeTimer.restart();
+            } else {
                 runtimeTimer.start();
             }
         }
     }
-    
-    /** Stop the MIDlet runtime timer and hide the display */
+
+    /** Stop the MIDlet runtime timer and hide it */
     public void stopMidletTimer() {
-        if (midletRunning) {
-            midletRunning = false;
+        synchronized (this) {
+            midletRunning = false; // Clear the running flag
+            midletStartTime = 0;   // Reset start time
+            
+            // Stop fade animation and reset to solid red
+            if (blinkTimer.isRunning()) {
+                blinkTimer.stop();
+            }
+            alpha = 1.0f; // Reset to full opacity for red state
+            statusIndicator.repaint();
+            
             if (runtimeTimer.isRunning()) {
                 runtimeTimer.stop();
             }
+            
+            // Always hide the timer when stopping
             setRuntimeLabelVisibleOnEdt(false);
-            midletStartTime = 0;
         }
-    }
-    
-    /** Update the runtime display with formatted elapsed time */
+    }    /** Update the runtime display with formatted elapsed time */
     private void updateRuntimeDisplay() {
         if (midletRunning && midletStartTime > 0) {
             long elapsedMs = System.currentTimeMillis() - midletStartTime;
@@ -277,6 +479,238 @@ public class StatusBar extends JPanel {
     public void showMidletClosed() {
         stopMidletTimer();
         showTemporaryStatus("MIDlet closed - returned to launcher", 2500);
+    }
+
+    // ========== Integrated Network Meter ==========
+    
+    /**
+     * Update network statistics by analyzing recent network events
+     */
+    private void updateNetworkStats() {
+        if (!networkMeterEnabled) return; // Respect network meter enabled flag
+        
+        try {
+            List<NetEventBus.NetEvent> events = NetEventBus.snapshot();
+            long currentTime = System.currentTimeMillis();
+            long eventCount = events.size();
+            
+            // Check if there are new events
+            boolean hasNewEvents = eventCount > lastEventCount.get();
+            lastEventCount.set(eventCount);
+            
+            // Calculate bandwidth from recent events using actual byte counts
+            long bytesInThisPeriod = 0;
+            long bytesOutThisPeriod = 0;
+            long cutoffTime = currentTime - NETWORK_ACTIVITY_WINDOW_MS;
+            
+            // Only analyze recent events to avoid processing entire history
+            // Start from a reasonable point to avoid scanning thousands of old events
+            int startIndex = Math.max(0, (int)(eventCount - 100)); // Only check last 100 events max
+            
+            // Analyze recent events for bandwidth calculation
+            for (int i = startIndex; i < eventCount; i++) {
+                NetEventBus.NetEvent event = events.get(i);
+                if (event.ts >= cutoffTime) {
+                    long eventBytes = event.bytes > 0 ? event.bytes : estimateBytesFromEvent(event);
+                    
+                    if ("IN".equals(event.direction)) {
+                        bytesInThisPeriod += eventBytes;
+                    } else if ("OUT".equals(event.direction)) {
+                        bytesOutThisPeriod += eventBytes;
+                    }
+                }
+            }
+            
+            // Calculate speed (bytes per second)
+            long timeDelta = currentTime - lastNetworkUpdateTime.get();
+            if (timeDelta > 0) {
+                double inSpeed = (bytesInThisPeriod * 1000.0) / timeDelta;
+                double outSpeed = (bytesOutThisPeriod * 1000.0) / timeDelta;
+                double totalSpeed = inSpeed + outSpeed;
+                
+                // Show meter if there's activity or new events
+                if (hasNewEvents || totalSpeed > 0) {
+                    showNetworkMeter();
+                    updateNetworkSpeedDisplay(totalSpeed, inSpeed, outSpeed);
+                    
+                    // Reset hide timer
+                    if (networkHideTimer.isRunning()) {
+                        networkHideTimer.restart();
+                    } else {
+                        networkHideTimer.start();
+                    }
+                }
+            }
+            
+            lastNetworkUpdateTime.set(currentTime);
+            
+        } catch (Exception ex) {
+            // Silently handle any errors to avoid interfering with the UI
+        }
+    }
+    
+    /**
+     * Estimate bytes from network event information
+     */
+    private long estimateBytesFromEvent(NetEventBus.NetEvent event) {
+        if (event.info != null) {
+            String info = event.info.toLowerCase();
+            
+            // Look for size indicators in the event info
+            if (info.contains("kb") || info.contains("kilobyte")) {
+                return 1024; // Assume 1KB
+            } else if (info.contains("mb") || info.contains("megabyte")) {
+                return 1024 * 1024; // Assume 1MB
+            } else if (info.contains("byte")) {
+                return 100; // Small transfer
+            }
+        }
+        
+        // Default estimates based on connection type
+        switch (event.type) {
+            case "HTTP":
+            case "HTTPS":
+                return 2048; // Assume 2KB for HTTP requests
+            case "TCP":
+                return 512;  // Assume 512B for TCP connections
+            case "UDP":
+                return 256;  // Assume 256B for UDP packets
+            default:
+                return 100;  // Small default
+        }
+    }
+    
+    /**
+     * Update the network speed display with formatted text
+     */
+    private void updateNetworkSpeedDisplay(double totalSpeed, double inSpeed, double outSpeed) {
+        String speedText = formatNetworkSpeed(totalSpeed);
+        
+        // Add direction indicators if there's significant directional traffic
+        if (inSpeed > outSpeed * 2) {
+            speedText = "↓ " + speedText;
+        } else if (outSpeed > inSpeed * 2) {
+            speedText = "↑ " + speedText;
+        } else if (inSpeed > 0 && outSpeed > 0) {
+            speedText = "↕ " + speedText;
+        }
+        
+        final String finalSpeedText = speedText;
+        currentSpeedText.set(finalSpeedText);
+        
+        SwingUtilities.invokeLater(() -> {
+            networkMeterLabel.setText(finalSpeedText);
+            networkMeterLabel.repaint();
+        });
+    }
+    
+    /**
+     * Format speed in human-readable units
+     */
+    private String formatNetworkSpeed(double bytesPerSecond) {
+        if (bytesPerSecond < 1024) {
+            return String.format("%.0f B/s", bytesPerSecond);
+        } else if (bytesPerSecond < 1024 * 1024) {
+            return String.format("%.1f KB/s", bytesPerSecond / 1024.0);
+        } else {
+            return String.format("%.1f MB/s", bytesPerSecond / (1024.0 * 1024.0));
+        }
+    }
+    
+    /**
+     * Show the network meter
+     */
+    private void showNetworkMeter() {
+        if (!networkMeterEnabled) return; // Respect network meter enabled flag
+        
+        if (!networkMeterVisible) {
+            networkMeterVisible = true;
+            SwingUtilities.invokeLater(() -> {
+                networkMeterLabel.setVisible(true);
+                revalidate();
+                repaint();
+            });
+        }
+    }
+    
+    /**
+     * Hide the network meter
+     */
+    private void hideNetworkMeter() {
+        if (networkMeterVisible) {
+            networkMeterVisible = false;
+            SwingUtilities.invokeLater(() -> {
+                networkMeterLabel.setVisible(false);
+                revalidate();
+                repaint();
+            });
+        }
+    }
+    
+    /**
+     * Get current network speed text for testing/debugging
+     */
+    public String getCurrentNetworkSpeedText() {
+        return currentSpeedText.get();
+    }
+    
+    /**
+     * Check if network meter is currently visible
+     */
+    public boolean isNetworkMeterVisible() {
+        return networkMeterVisible;
+    }
+    
+    // ========== UI Manager Control Methods ==========
+    
+    /**
+     * Enable or disable status updates display
+     */
+    public void setUpdatesEnabled(boolean enabled) {
+        // For now, this controls whether temporary status messages are shown
+        // You could extend this to control other update behaviors
+        this.updatesEnabled = enabled;
+    }
+    
+    /**
+     * Enable or disable the runtime timer display
+     */
+    public void setTimerEnabled(boolean enabled) {
+        this.timerEnabled = enabled;
+        if (!enabled && runtimeTimer != null && runtimeTimer.isRunning()) {
+            // Hide the timer if currently visible and running
+            SwingUtilities.invokeLater(() -> {
+                runtimeLabel.setVisible(false);
+                revalidate();
+                repaint();
+            });
+        } else if (enabled && runtimeTimer != null && runtimeTimer.isRunning()) {
+            // Show the timer if it should be visible and is running
+            SwingUtilities.invokeLater(() -> {
+                runtimeLabel.setVisible(true);
+                revalidate();
+                repaint();
+            });
+        }
+    }
+    
+    /**
+     * Enable or disable the network meter display
+     */
+    public void setNetworkMeterEnabled(boolean enabled) {
+        this.networkMeterEnabled = enabled;
+        if (!enabled) {
+            // Hide the network meter if currently visible
+            hideNetworkMeter();
+            if (networkUpdateTimer != null && networkUpdateTimer.isRunning()) {
+                networkUpdateTimer.stop();
+            }
+        } else {
+            // Restart network monitoring if it was stopped
+            if (networkUpdateTimer != null && !networkUpdateTimer.isRunning()) {
+                networkUpdateTimer.start();
+            }
+        }
     }
 
     /** Start the configuration saving spinner */
@@ -323,10 +757,41 @@ public class StatusBar extends JPanel {
 
     private void setLabelTextOnEdt(String text) {
         if (SwingUtilities.isEventDispatchThread()) {
-            label.setText(text);
+            // Professional text truncation to prevent overflow
+            String displayText = truncateText(text, label.getWidth() - 20);
+            label.setText(displayText);
+            label.setToolTipText(text.length() > displayText.length() ? text : null);
         } else {
-            SwingUtilities.invokeLater(() -> label.setText(text));
+            SwingUtilities.invokeLater(() -> {
+                String displayText = truncateText(text, label.getWidth() - 20);
+                label.setText(displayText);
+                label.setToolTipText(text.length() > displayText.length() ? text : null);
+            });
         }
+    }
+    
+    /** Truncate text professionally with ellipsis */
+    private String truncateText(String text, int maxWidth) {
+        if (text == null || text.isEmpty() || maxWidth <= 0) {
+            return text;
+        }
+        
+        FontMetrics fm = label.getFontMetrics(label.getFont());
+        if (fm.stringWidth(text) <= maxWidth) {
+            return text;
+        }
+        
+        String ellipsis = "...";
+        int ellipsisWidth = fm.stringWidth(ellipsis);
+        
+        for (int i = text.length() - 1; i > 0; i--) {
+            String truncated = text.substring(0, i);
+            if (fm.stringWidth(truncated) + ellipsisWidth <= maxWidth) {
+                return truncated + ellipsis;
+            }
+        }
+        
+        return ellipsis;
     }
 
     private void setSpinnerTextOnEdt(String text) {
@@ -378,6 +843,15 @@ public class StatusBar extends JPanel {
         }
         if (runtimeTimer != null && runtimeTimer.isRunning()) {
             runtimeTimer.stop();
+        }
+        if (networkUpdateTimer != null && networkUpdateTimer.isRunning()) {
+            networkUpdateTimer.stop();
+        }
+        if (networkHideTimer != null && networkHideTimer.isRunning()) {
+            networkHideTimer.stop();
+        }
+        if (blinkTimer != null && blinkTimer.isRunning()) {
+            blinkTimer.stop();
         }
         super.removeNotify();
     }
