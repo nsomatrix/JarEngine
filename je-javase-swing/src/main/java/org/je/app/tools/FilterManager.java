@@ -693,4 +693,57 @@ public final class FilterManager {
     private static float parseFloat(String s, float def) {
         try { return s == null ? def : Float.parseFloat(s); } catch (Throwable t) { return def; }
     }
+
+    // ======= Defaults reset =======
+    public static synchronized void resetToDefaults() {
+        // Reset all filters to default values
+        colorMode = ColorMode.FULL_COLOR;
+        scanlines = false;
+        scanlinesIntensity = 0.12f;
+        vignette = false;
+        vignetteIntensity = 0.2f;
+        bloom = false;
+        bloomThreshold = 0.7f;
+        bloomIntensity = 0.6f;
+        bloomRadius = 2;
+        paletteMode = PaletteMode.NONE;
+        ditherMode = DitherMode.NONE;
+        brightness = 1.0f;
+        contrast = 1.0f;
+        gamma = 1.0f;
+        saturation = 1.0f;
+        // Persist the reset values
+        savePreferences();
+        // Trigger display refresh to apply changes immediately
+        triggerDisplayRefresh();
+    }
+
+    /**
+     * Trigger a display refresh to apply filter changes immediately
+     */
+    private static void triggerDisplayRefresh() {
+        try {
+            // Try to get the device display and trigger a repaint
+            if (org.je.device.DeviceFactory.getDevice() != null) {
+                org.je.device.DeviceDisplay display = org.je.device.DeviceFactory.getDevice().getDeviceDisplay();
+                if (display instanceof org.je.device.j2se.J2SEDeviceDisplay) {
+                    org.je.device.j2se.J2SEDeviceDisplay j2seDisplay = (org.je.device.j2se.J2SEDeviceDisplay) display;
+                    // Repaint the entire display area
+                    j2seDisplay.repaint(0, 0, j2seDisplay.getFullWidth(), j2seDisplay.getFullHeight());
+                }
+            }
+            
+            // Also try to refresh the Swing display component
+            javax.swing.SwingUtilities.invokeLater(() -> {
+                try {
+                    // Force repaint of all windows to ensure filter changes are visible
+                    for (java.awt.Window window : java.awt.Window.getWindows()) {
+                        window.repaint();
+                    }
+                } catch (Throwable ignored) {}
+            });
+        } catch (Throwable ignored) {
+            // Ignore errors - display refresh is best effort
+        }
+    }
 }

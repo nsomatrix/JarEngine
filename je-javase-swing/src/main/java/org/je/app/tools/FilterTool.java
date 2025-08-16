@@ -130,21 +130,24 @@ public class FilterTool extends JDialog {
 
         JButton reset = new JButton("Reset");
         reset.addActionListener(e -> {
-            rbFull.setSelected(true); FilterManager.setColorMode(FilterManager.ColorMode.FULL_COLOR);
-            cbScan.setSelected(false); FilterManager.setScanlines(false);
-            scanSlider.setValue(12); FilterManager.setScanlinesIntensity(0.12f);
-            cbVignette.setSelected(false); FilterManager.setVignette(false);
-            vigSlider.setValue(20); FilterManager.setVignetteIntensity(0.2f);
-            b.setValue(100); FilterManager.setBrightness(1.0f);
-            c.setValue(100); FilterManager.setContrast(1.0f);
-            g.setValue(100); FilterManager.setGamma(1.0f);
-            s.setValue(100); FilterManager.setSaturation(1.0f);
-            palBox.setSelectedItem(FilterManager.PaletteMode.NONE); FilterManager.setPaletteMode(FilterManager.PaletteMode.NONE);
-            dithBox.setSelectedItem(FilterManager.DitherMode.NONE); FilterManager.setDitherMode(FilterManager.DitherMode.NONE);
-            cbBloom.setSelected(false); FilterManager.setBloom(false);
-            th.setValue(70); FilterManager.setBloomThreshold(0.7f);
-            bi.setValue(60); FilterManager.setBloomIntensity(0.6f);
-            br.setValue(2);  FilterManager.setBloomRadius(2);
+            // Reset all filter settings to defaults
+            FilterManager.resetToDefaults();
+            // Update UI controls to reflect the reset values
+            rbFull.setSelected(true);
+            cbScan.setSelected(false);
+            scanSlider.setValue(12);
+            cbVignette.setSelected(false);
+            vigSlider.setValue(20);
+            b.setValue(100);
+            c.setValue(100);
+            g.setValue(100);
+            s.setValue(100);
+            palBox.setSelectedItem(FilterManager.PaletteMode.NONE);
+            dithBox.setSelectedItem(FilterManager.DitherMode.NONE);
+            cbBloom.setSelected(false);
+            th.setValue(70);
+            bi.setValue(60);
+            br.setValue(2);
         });
         JButton close = new JButton("Close");
         close.addActionListener(e -> setVisible(false));
