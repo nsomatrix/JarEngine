@@ -8,6 +8,8 @@ import java.io.File;
 import java.io.IOException;
 
 import org.je.app.UpdateChecker;
+import org.je.app.UpdateConfig;
+import org.je.app.AutoUpdateChecker;
 import org.je.app.util.BuildVersion;
 
 /**
@@ -22,10 +24,17 @@ public class UpdateDialog extends JDialog {
     private JButton checkButton;
     private JButton updateButton;
     private JButton closeButton;
+    private JButton settingsButton;
+    
+    // Auto-update settings components
+    private JCheckBox autoCheckBox;
+    private JComboBox<String> intervalComboBox;
+    private JLabel autoUpdateStatusLabel;
     
     private String currentVersion;
     private String latestVersion;
     private boolean updateAvailable = false;
+    private boolean settingsExpanded = false;
 
     public UpdateDialog(JFrame parent) {
         super(parent, "Check for Updates", true);
@@ -53,6 +62,27 @@ public class UpdateDialog extends JDialog {
         updateButton = new JButton("Update");
         updateButton.setEnabled(false);
         closeButton = new JButton("Close");
+        settingsButton = new JButton("Settings");
+        
+        // Auto-update settings components
+        autoCheckBox = new JCheckBox("Automatically check for updates", UpdateConfig.isAutoCheckEnabled());
+        
+        String[] intervals = {"Every 6 hours", "Every 12 hours", "Daily", "Every 2 days", "Weekly"};
+        intervalComboBox = new JComboBox<>(intervals);
+        
+        // Set current interval selection
+        int currentInterval = UpdateConfig.getCheckIntervalHours();
+        switch (currentInterval) {
+            case 6: intervalComboBox.setSelectedIndex(0); break;
+            case 12: intervalComboBox.setSelectedIndex(1); break;
+            case 24: intervalComboBox.setSelectedIndex(2); break;
+            case 48: intervalComboBox.setSelectedIndex(3); break;
+            case 168: intervalComboBox.setSelectedIndex(4); break;
+            default: intervalComboBox.setSelectedIndex(2); break; // Default to daily
+        }
+        
+        autoUpdateStatusLabel = new JLabel();
+        updateAutoUpdateStatus();
     }
 
     private void layoutComponents() {
@@ -79,6 +109,9 @@ public class UpdateDialog extends JDialog {
         statusPanel.add(progressBar, BorderLayout.SOUTH);
         contentPanel.add(statusPanel);
 
+        // Auto-update settings panel (initially hidden)
+        createSettingsPanel();
+
         add(contentPanel, BorderLayout.CENTER);
 
         // Button panel - use natural Swing spacing
@@ -86,8 +119,13 @@ public class UpdateDialog extends JDialog {
         buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
         buttonPanel.add(checkButton);
         buttonPanel.add(updateButton);
+        buttonPanel.add(settingsButton);
         buttonPanel.add(closeButton);
         add(buttonPanel, BorderLayout.SOUTH);
+    }
+
+    private void createSettingsPanel() {
+        // This will be added to the main content panel when settings are expanded
     }
 
     private void setupEventHandlers() {
@@ -105,10 +143,55 @@ public class UpdateDialog extends JDialog {
             }
         });
         
+        settingsButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                toggleSettings();
+            }
+        });
+        
         closeButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 dispose();
+            }
+        });
+
+        // Auto-update settings event handlers
+        autoCheckBox.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                boolean enabled = autoCheckBox.isSelected();
+                UpdateConfig.setAutoCheckEnabled(enabled);
+                intervalComboBox.setEnabled(enabled);
+                updateAutoUpdateStatus();
+                
+                // Restart auto-update service with new settings
+                AutoUpdateChecker.getInstance().restart();
+            }
+        });
+
+        intervalComboBox.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (!intervalComboBox.isEnabled()) return;
+                
+                int selectedIndex = intervalComboBox.getSelectedIndex();
+                int hours;
+                switch (selectedIndex) {
+                    case 0: hours = 6; break;    // Every 6 hours
+                    case 1: hours = 12; break;   // Every 12 hours
+                    case 2: hours = 24; break;   // Daily
+                    case 3: hours = 48; break;   // Every 2 days
+                    case 4: hours = 168; break;  // Weekly
+                    default: hours = 24; break;  // Default to daily
+                }
+                
+                UpdateConfig.setCheckIntervalHours(hours);
+                updateAutoUpdateStatus();
+                
+                // Restart auto-update service with new interval
+                AutoUpdateChecker.getInstance().restart();
             }
         });
     }
@@ -125,6 +208,13 @@ public class UpdateDialog extends JDialog {
                 try {
                     latestVersion = UpdateChecker.getLatestVersion();
                     updateAvailable = UpdateChecker.isUpdateAvailable(currentVersion, latestVersion);
+                    
+                    // Update the config with the latest version info
+                    UpdateConfig.markUpdateCheckCompleted();
+                    UpdateConfig.setLastKnownVersion(latestVersion);
+                    if (updateAvailable) {
+                        UpdateConfig.setUpdateNotificationShown(false); // Reset for new version
+                    }
                     
                     SwingUtilities.invokeLater(new Runnable() {
                         @Override
@@ -175,19 +265,38 @@ public class UpdateDialog extends JDialog {
             return;
         }
         
-        int result = JOptionPane.showConfirmDialog(
+        String message = "This will download and install version " + latestVersion + ".\n" +
+                        "The application will restart automatically.\n\n" +
+                        "Do you want to continue?";
+        
+        String[] options = {"Update Now", "Remind Me Later", "Cancel"};
+        
+        int result = JOptionPane.showOptionDialog(
             this,
-            "This will download and install version " + latestVersion + ".\n" +
-            "The application will restart automatically.\n\n" +
-            "Do you want to continue?",
+            message,
             "Confirm Update",
-            JOptionPane.YES_NO_OPTION,
-            JOptionPane.QUESTION_MESSAGE
+            JOptionPane.YES_NO_CANCEL_OPTION,
+            JOptionPane.QUESTION_MESSAGE,
+            null,
+            options,
+            options[0] // Default to "Update Now"
         );
         
-        if (result != JOptionPane.YES_OPTION) {
+        if (result == 1) { // Remind Me Later
+            UpdateConfig.snoozeReminder();
+            JOptionPane.showMessageDialog(this,
+                "You will be reminded about this update in " + 
+                UpdateConfig.getReminderIntervalHours() + " hours.",
+                "Reminder Set",
+                JOptionPane.INFORMATION_MESSAGE);
+            dispose();
+            return;
+        } else if (result != 0) { // Cancel or closed dialog
             return;
         }
+        
+        // Clear any existing reminder since user chose to update now
+        UpdateConfig.clearReminder();
         
         // Disable buttons during download
         checkButton.setEnabled(false);
@@ -250,5 +359,79 @@ public class UpdateDialog extends JDialog {
             "Update Error",
             JOptionPane.ERROR_MESSAGE
         );
+    }
+
+    private void toggleSettings() {
+        settingsExpanded = !settingsExpanded;
+        
+        JPanel contentPanel = (JPanel) getContentPane().getComponent(0);
+        
+        if (settingsExpanded) {
+            // Add settings panel
+            JPanel settingsPanel = createExpandedSettingsPanel();
+            contentPanel.add(Box.createVerticalStrut(10));
+            contentPanel.add(new JSeparator());
+            contentPanel.add(Box.createVerticalStrut(10));
+            contentPanel.add(settingsPanel);
+            settingsButton.setText("Hide Settings");
+        } else {
+            // Remove settings panel
+            int componentCount = contentPanel.getComponentCount();
+            if (componentCount >= 7) { // version panel, strut, status panel, strut, separator, strut, settings panel
+                contentPanel.remove(componentCount - 1); // settings panel
+                contentPanel.remove(componentCount - 2); // strut
+                contentPanel.remove(componentCount - 3); // separator
+                contentPanel.remove(componentCount - 4); // strut
+            }
+            settingsButton.setText("Settings");
+        }
+        
+        pack();
+        setLocationRelativeTo(getParent());
+    }
+
+    private JPanel createExpandedSettingsPanel() {
+        JPanel settingsPanel = new JPanel();
+        settingsPanel.setLayout(new BoxLayout(settingsPanel, BoxLayout.Y_AXIS));
+        settingsPanel.setBorder(BorderFactory.createTitledBorder("Automatic Updates"));
+
+        // Auto-check setting
+        JPanel autoCheckPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        autoCheckPanel.add(autoCheckBox);
+        settingsPanel.add(autoCheckPanel);
+
+        // Interval setting
+        JPanel intervalPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        intervalPanel.add(new JLabel("Check frequency:"));
+        intervalPanel.add(intervalComboBox);
+        intervalComboBox.setEnabled(autoCheckBox.isSelected());
+        settingsPanel.add(intervalPanel);
+
+        // Status display
+        JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        statusPanel.add(autoUpdateStatusLabel);
+        settingsPanel.add(statusPanel);
+
+        // "Remind me later" info and controls
+        if (UpdateConfig.isRemindMeLater()) {
+            JPanel reminderPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            reminderPanel.add(new JLabel("Reminder set for next update check"));
+            JButton clearReminderButton = new JButton("Clear Reminder");
+            clearReminderButton.addActionListener(e -> {
+                UpdateConfig.clearReminder();
+                toggleSettings(); // Refresh the panel
+                toggleSettings();
+            });
+            reminderPanel.add(clearReminderButton);
+            settingsPanel.add(reminderPanel);
+        }
+
+        return settingsPanel;
+    }
+
+    private void updateAutoUpdateStatus() {
+        if (autoUpdateStatusLabel != null) {
+            autoUpdateStatusLabel.setText(AutoUpdateChecker.getInstance().getStatusInfo());
+        }
     }
 }

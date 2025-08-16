@@ -79,6 +79,7 @@ import org.je.app.ui.swing.SwingAboutDialog;
 import org.je.app.ui.swing.SwingDeviceComponent;
 import org.je.app.util.SleepManager;
 import org.je.app.util.SelfDestructManager;
+import org.je.app.AutoUpdateChecker;
 import org.je.app.ui.swing.SwingDialogWindow;
 import org.je.app.ui.swing.SwingDisplayComponent;
 import org.je.app.ui.swing.SwingErrorMessageDialogPanel;
@@ -740,6 +741,12 @@ public class Main extends JFrame {
             // Cleanup self-destruct manager
             if (selfDestructManager != null) {
                 selfDestructManager.cleanup();
+            }
+            // Cleanup automatic update checker
+            try {
+                AutoUpdateChecker.getInstance().stop();
+            } catch (Exception e) {
+                Logger.error("Error stopping automatic update checker during shutdown", e);
             }
 			menuExitListener.actionPerformed(null);
 		}
@@ -1542,6 +1549,13 @@ menuTools.add(menuLogConsole);
 		
 		// Start timer to monitor MIDlet state
 		midletStateTimer.start();
+		
+		// Initialize automatic update checker
+		try {
+			AutoUpdateChecker.getInstance().initialize(this);
+		} catch (Exception e) {
+			Logger.error("Failed to initialize automatic update checker", e);
+		}
 	}
 
     protected Component createContents(Container parent) {
