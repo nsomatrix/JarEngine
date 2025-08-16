@@ -115,7 +115,6 @@ public class StatusBar extends JPanel {
         };
         this.spinnerLabel.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 14));
         this.spinnerLabel.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 4));
-        this.spinnerLabel.setVisible(false);
         this.spinnerLabel.setToolTipText("Processing Activity");
         
         // Create main status label with professional styling
@@ -766,7 +765,7 @@ public class StatusBar extends JPanel {
             spinnerActive = true;
             currentFrame = 0;
             setSpinnerTextOnEdt(BRAILLE_FRAMES[currentFrame]);
-            spinnerLabel.setVisible(true);
+            // Don't change visibility - spinner is always "visible" but shows space when inactive
             if (!spinnerTimer.isRunning()) {
                 spinnerTimer.start();
             }
@@ -780,7 +779,8 @@ public class StatusBar extends JPanel {
             if (spinnerTimer.isRunning()) {
                 spinnerTimer.stop();
             }
-            spinnerLabel.setVisible(false);
+            // Set to space character instead of hiding to prevent layout changes
+            setSpinnerTextOnEdt(" ");
         }
     }
 
