@@ -92,22 +92,15 @@ public final class Themes {
             // Step 6: Restore slider states immediately
             restoreAndFixSliderStates(sliderStates);
             
-            // Step 7: Update device display and trigger repaint (minimal delay)
-            SwingUtilities.invokeLater(() -> {
-                updateDeviceDisplayTheme(isDarkTheme(theme) ? "dark" : "light");
-                
-                // Force immediate launcher refresh without delays
-                if (common != null) {
-                    common.setThemeColors(colors.backgroundRGB, colors.foregroundRGB, colors.secondaryRGB);
+            // Step 7: Update device display immediately (we're already on EDT)
+            updateDeviceDisplayTheme(isDarkTheme(theme) ? "dark" : "light");
+            
+            // Single repaint pass for visible windows only
+            for (Window w : Window.getWindows()) {
+                if (w != null && w.isVisible() && w.isDisplayable()) {
+                    w.repaint();
                 }
-                
-                // Single repaint pass for visible windows only
-                for (Window w : Window.getWindows()) {
-                    if (w != null && w.isVisible() && w.isDisplayable()) {
-                        w.repaint();
-                    }
-                }
-            });
+            }
             
         } catch (Exception ex) {
             Logger.error("Theme switching failed: " + theme, ex);

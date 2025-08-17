@@ -401,71 +401,109 @@ public class Main extends JFrame {
 
 	private ActionListener menuLightThemeListener = new ActionListener() {
 		public void actionPerformed(ActionEvent e) {
-			// Only pass Window instances
-			java.util.List<java.awt.Window> windows = new java.util.ArrayList<>();
-			windows.add(Main.this);
-			if (logConsoleDialog != null) windows.add(logConsoleDialog);
-			if (recordStoreManagerDialog != null) windows.add(recordStoreManagerDialog);
-			if (adaptiveResolutionFrame != null) windows.add(adaptiveResolutionFrame);
-			Themes.applyTheme("maclight", common, windows.toArray(new java.awt.Window[0]));
-			// Update any non-Window panels/dialog panels
-			if (resizeDeviceDisplayDialog != null) SwingUtilities.updateComponentTreeUI(resizeDeviceDisplayDialog);
-			// Restart launcher if we're in launcher mode (to update LauncherCanvas theme)
-			try {
-				if (MIDletBridge.getMIDletContext() != null && MIDletBridge.getMIDletContext().isLauncher()) {
-					try { Thread.sleep(100); } catch (InterruptedException ignored) {}
-					common.startLauncher(MIDletBridge.getMIDletContext());
-				}
-			} catch (Throwable ex) {
-				Logger.error("Failed to refresh launcher after theme change", ex);
-			}
-			if (statusBar != null) statusBar.showThemeApplied("maclight");
+			applyThemeWithDebouncing("maclight");
 		}
 	};
 
 	private ActionListener menuDarkThemeListener = new ActionListener() {
 		public void actionPerformed(ActionEvent e) {
-			// Only pass Window instances
-			java.util.List<java.awt.Window> windows = new java.util.ArrayList<>();
-			windows.add(Main.this);
-			if (logConsoleDialog != null) windows.add(logConsoleDialog);
-			if (recordStoreManagerDialog != null) windows.add(recordStoreManagerDialog);
-			if (adaptiveResolutionFrame != null) windows.add(adaptiveResolutionFrame);
-			Themes.applyTheme("macdark", common, windows.toArray(new java.awt.Window[0]));
-			if (resizeDeviceDisplayDialog != null) SwingUtilities.updateComponentTreeUI(resizeDeviceDisplayDialog);
-			try {
-				if (MIDletBridge.getMIDletContext() != null && MIDletBridge.getMIDletContext().isLauncher()) {
-					try { Thread.sleep(100); } catch (InterruptedException ignored) {}
-					common.startLauncher(MIDletBridge.getMIDletContext());
-				}
-			} catch (Throwable ex) {
-				Logger.error("Failed to refresh launcher after theme change", ex);
-			}
-			if (statusBar != null) statusBar.showThemeApplied("macdark");
+			applyThemeWithDebouncing("macdark");
 		}
 	};
 
 	private ActionListener themeListener(String themeKey) {
 		return new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				java.util.List<java.awt.Window> windows = new java.util.ArrayList<>();
-				windows.add(Main.this);
-				if (logConsoleDialog != null) windows.add(logConsoleDialog);
-				if (recordStoreManagerDialog != null) windows.add(recordStoreManagerDialog);
-				if (adaptiveResolutionFrame != null) windows.add(adaptiveResolutionFrame);
-				Themes.applyTheme(themeKey, common, windows.toArray(new java.awt.Window[0]));
-				if (resizeDeviceDisplayDialog != null) SwingUtilities.updateComponentTreeUI(resizeDeviceDisplayDialog);
-				try {
-					if (MIDletBridge.getMIDletContext() != null && MIDletBridge.getMIDletContext().isLauncher()) {
-						try { Thread.sleep(100); } catch (InterruptedException ignored) {}
-						common.startLauncher(MIDletBridge.getMIDletContext());
-					}
-				} catch (Throwable ex) {
-					Logger.error("Failed to refresh launcher after theme change", ex);
-				}
-				if (statusBar != null) statusBar.showThemeApplied(themeKey);
+				applyThemeWithDebouncing(themeKey);
 			}
 		};
+	}
+
+	// Debouncing fields for theme switching
+	private javax.swing.Timer themeDebounceTimer;
+	private volatile boolean launcherRestartInProgress = false;
+	
+	/**
+	 * Apply theme with debouncing to prevent freezes during rapid theme switching.
+	 * This method fixes the EDT blocking issues and race conditions.
+	 */
+	private void applyThemeWithDebouncing(String themeKey) {
+		// Cancel any pending theme change
+		if (themeDebounceTimer != null && themeDebounceTimer.isRunning()) {
+			themeDebounceTimer.stop();
+		}
+		
+		// Create debounced timer (250ms delay to prevent rapid switches)
+		themeDebounceTimer = new javax.swing.Timer(250, e -> {
+			// Apply theme immediately on EDT
+			java.util.List<java.awt.Window> windows = new java.util.ArrayList<>();
+			windows.add(Main.this);
+			if (logConsoleDialog != null) windows.add(logConsoleDialog);
+			if (recordStoreManagerDialog != null) windows.add(recordStoreManagerDialog);
+			if (adaptiveResolutionFrame != null) windows.add(adaptiveResolutionFrame);
+			
+			// Apply theme - this is fast and safe on EDT
+			Themes.applyTheme(themeKey, common, windows.toArray(new java.awt.Window[0]));
+			
+			// Update any non-Window panels/dialog panels
+			if (resizeDeviceDisplayDialog != null) {
+				SwingUtilities.updateComponentTreeUI(resizeDeviceDisplayDialog);
+			}
+			
+			// Show theme applied status immediately
+			if (statusBar != null) {
+				statusBar.showThemeApplied(themeKey);
+			}
+			
+			// Handle launcher restart asynchronously to avoid EDT blocking
+			restartLauncherAsync();
+		});
+		
+		// Set timer to fire only once
+		themeDebounceTimer.setRepeats(false);
+		themeDebounceTimer.start();
+	}
+	
+	/**
+	 * Restart launcher asynchronously to avoid blocking the EDT.
+	 * Uses background thread with proper synchronization.
+	 */
+	private void restartLauncherAsync() {
+		// Only restart if we're in launcher mode and not already restarting
+		if (launcherRestartInProgress) {
+			return; // Skip if restart already in progress
+		}
+		
+		try {
+			if (MIDletBridge.getMIDletContext() != null && MIDletBridge.getMIDletContext().isLauncher()) {
+				launcherRestartInProgress = true;
+				
+				// Use background thread for heavy launcher operations
+				new Thread(() -> {
+					try {
+						// Small delay to let theme application complete
+						Thread.sleep(50);
+						
+						// Restart launcher on EDT but after current event processing
+						SwingUtilities.invokeLater(() -> {
+							try {
+								common.startLauncher(MIDletBridge.getMIDletContext());
+							} catch (Throwable ex) {
+								Logger.error("Failed to refresh launcher after theme change", ex);
+							} finally {
+								launcherRestartInProgress = false;
+							}
+						});
+					} catch (InterruptedException ex) {
+						Thread.currentThread().interrupt();
+						launcherRestartInProgress = false;
+					}
+				}, "LauncherRestartThread").start();
+			}
+		} catch (Throwable ex) {
+			Logger.error("Failed to schedule launcher restart after theme change", ex);
+			launcherRestartInProgress = false;
+		}
 	}
 
 	private ActionListener menuExitListener = new ActionListener() {
@@ -734,6 +772,12 @@ public class Main extends JFrame {
 
 	private WindowAdapter windowListener = new WindowAdapter() {
 		public void windowClosing(WindowEvent ev) {
+			// Cleanup theme debounce timer to prevent memory leaks
+			if (themeDebounceTimer != null && themeDebounceTimer.isRunning()) {
+				themeDebounceTimer.stop();
+				themeDebounceTimer = null;
+			}
+			
 			// Cleanup sleep manager
 			if (sleepManager != null) {
 				sleepManager.cleanup();
