@@ -197,7 +197,9 @@ public class J2SEDeviceDisplay implements DeviceDisplayImpl
 	}
 
 	public void repaint(int x, int y, int width, int height) {
-		context.getDisplayComponent().repaintRequest(x, y, width, height);
+		if (context != null && context.getDisplayComponent() != null) {
+			context.getDisplayComponent().repaintRequest(x, y, width, height);
+		}
 	}
 
 	public void setScrollDown(boolean state) {

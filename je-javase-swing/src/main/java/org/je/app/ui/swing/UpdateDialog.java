@@ -6,6 +6,10 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.IOException;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 import org.je.app.UpdateChecker;
 import org.je.app.UpdateConfig;
@@ -306,44 +310,41 @@ public class UpdateDialog extends JDialog {
         progressBar.setVisible(true);
         statusLabel.setText("Downloading update...");
         
-        // Run download in background
-        SwingUtilities.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    // Create temporary file for download
-                    File tempFile = File.createTempFile("JarEngine-update-", ".jar");
-                    tempFile.deleteOnExit();
-                    
-                    // Download the update
-                    UpdateChecker.downloadUpdate(latestVersion, tempFile);
-                    
-                    // Show success message
-                    SwingUtilities.invokeLater(new Runnable() {
-                        @Override
-                        public void run() {
-                            statusLabel.setText("Update downloaded successfully. Installing...");
-                            progressBar.setIndeterminate(false);
-                            progressBar.setValue(100);
-                        }
-                    });
-                    
-                    // Wait a moment for user to see the message, then apply update
-                    Thread.sleep(2000);
-                    
-                    // Apply the update (this will restart the application)
-                    UpdateChecker.applyUpdateAndRestart(tempFile, latestVersion);
-                    
-                } catch (Exception e) {
-                    SwingUtilities.invokeLater(new Runnable() {
-                        @Override
-                        public void run() {
-                            handleUpdateError(e);
-                        }
-                    });
-                }
+        // Run download in background with progress tracking
+        new Thread(() -> {
+            try {
+                // Create temporary file for download
+                File tempFile = File.createTempFile("JarEngine-update-", ".jar");
+                tempFile.deleteOnExit();
+                
+                // Show download progress
+                SwingUtilities.invokeLater(() -> {
+                    progressBar.setIndeterminate(false);
+                    progressBar.setValue(0);
+                    statusLabel.setText("Preparing download...");
+                });
+                
+                // Download the update with progress updates
+                downloadWithProgress(latestVersion, tempFile);
+                
+                // Show success message
+                SwingUtilities.invokeLater(() -> {
+                    statusLabel.setText("Update downloaded successfully. Installing...");
+                    progressBar.setValue(100);
+                });
+                
+                // Wait a moment for user to see the message, then apply update
+                Thread.sleep(2000);
+                
+                // Apply the update (this will restart the application)
+                UpdateChecker.applyUpdateAndRestart(tempFile, latestVersion);
+                
+            } catch (Exception e) {
+                SwingUtilities.invokeLater(() -> {
+                    handleUpdateError(e);
+                });
             }
-        });
+        }, "UpdateDownloader").start();
     }
 
     private void handleUpdateError(Exception e) {
@@ -359,6 +360,61 @@ public class UpdateDialog extends JDialog {
             "Update Error",
             JOptionPane.ERROR_MESSAGE
         );
+    }
+
+    /**
+     * Download update with progress tracking
+     */
+    private void downloadWithProgress(String version, File destinationFile) throws IOException {
+        String downloadUrl = "https://github.com/nsomatrix/JarEngine/releases/download/v" + version + "/JarEngine-" + version + ".jar";
+        
+        URL url = new URL(downloadUrl);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+        connection.setConnectTimeout(30000);
+        connection.setReadTimeout(30000);
+        connection.setRequestProperty("User-Agent", "JarEngine-Updater/1.0");
+
+        int responseCode = connection.getResponseCode();
+        if (responseCode != HttpURLConnection.HTTP_OK) {
+            throw new IOException("Failed to download update. HTTP error code: " + responseCode + 
+                               " for URL: " + downloadUrl);
+        }
+
+        int contentLength = connection.getContentLength();
+        if (contentLength <= 0) {
+            // If content length unknown, use indeterminate progress
+            SwingUtilities.invokeLater(() -> {
+                progressBar.setIndeterminate(true);
+                statusLabel.setText("Downloading update...");
+            });
+        }
+
+        try (InputStream in = connection.getInputStream();
+             FileOutputStream out = new FileOutputStream(destinationFile)) {
+            
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+            int totalBytesRead = 0;
+            
+            while ((bytesRead = in.read(buffer)) != -1) {
+                out.write(buffer, 0, bytesRead);
+                totalBytesRead += bytesRead;
+                
+                if (contentLength > 0) {
+                    final int progress = (int) ((totalBytesRead * 100.0) / contentLength);
+                    SwingUtilities.invokeLater(() -> {
+                        progressBar.setValue(progress);
+                        statusLabel.setText(String.format("Downloading update... %d%%", progress));
+                    });
+                }
+            }
+        }
+        
+        // Verify the downloaded file
+        if (!destinationFile.exists() || destinationFile.length() == 0) {
+            throw new IOException("Downloaded file is invalid or empty");
+        }
     }
 
     private void toggleSettings() {

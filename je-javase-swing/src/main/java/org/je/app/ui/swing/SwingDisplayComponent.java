@@ -399,8 +399,11 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 		}
 
 		Device device = DeviceFactory.getDevice();
-		if (device != null) {
+		if (device != null && device.getDeviceDisplay() != null) {
 			J2SEDeviceDisplay deviceDisplay = (J2SEDeviceDisplay) device.getDeviceDisplay();
+			if (deviceDisplay == null) {
+				return;
+			}
 			int deviceWidth = device.getDeviceDisplay().getFullWidth();
 			int deviceHeight = device.getDeviceDisplay().getFullHeight();
 
@@ -420,14 +423,16 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 				}
 			}
 
-			if (deviceDisplay.isFullScreenMode()) {
-				fireDisplayRepaint(
-						graphicsSurface, x, y, width, height);
-			} else {
-				fireDisplayRepaint(
-						graphicsSurface, 0, 0, graphicsSurface.getImage().getWidth(), graphicsSurface.getImage().getHeight());
+			if (graphicsSurface != null && graphicsSurface.getImage() != null) {
+				if (deviceDisplay.isFullScreenMode()) {
+					fireDisplayRepaint(
+							graphicsSurface, x, y, width, height);
+				} else {
+					fireDisplayRepaint(
+							graphicsSurface, 0, 0, graphicsSurface.getImage().getWidth(), graphicsSurface.getImage().getHeight());
+				}
+				repaint();
 			}
-			repaint();
 		}
 	}
 
