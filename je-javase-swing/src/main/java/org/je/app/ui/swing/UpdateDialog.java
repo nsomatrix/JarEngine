@@ -28,17 +28,18 @@ public class UpdateDialog extends JDialog {
     private JButton checkButton;
     private JButton updateButton;
     private JButton closeButton;
-    private JButton settingsButton;
     
     // Auto-update settings components
     private JCheckBox autoCheckBox;
     private JComboBox<String> intervalComboBox;
     private JLabel autoUpdateStatusLabel;
     
+    // Version display components
+    private JLabel latestVersionLabel;
+    
     private String currentVersion;
     private String latestVersion;
     private boolean updateAvailable = false;
-    private boolean settingsExpanded = false;
 
     public UpdateDialog(JFrame parent) {
         super(parent, "Check for Updates", true);
@@ -66,7 +67,6 @@ public class UpdateDialog extends JDialog {
         updateButton = new JButton("Update");
         updateButton.setEnabled(false);
         closeButton = new JButton("Close");
-        settingsButton = new JButton("Settings");
         
         // Auto-update settings components
         autoCheckBox = new JCheckBox("Automatically check for updates", UpdateConfig.isAutoCheckEnabled());
@@ -97,40 +97,68 @@ public class UpdateDialog extends JDialog {
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
         contentPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        // Version info panel
-        JPanel versionPanel = new JPanel(new GridLayout(2, 2));
-        versionPanel.add(new JLabel("Current Version:"));
-        versionPanel.add(new JLabel(currentVersion));
-        versionPanel.add(new JLabel("Latest Version:"));
-        versionPanel.add(new JLabel("Unknown"));
+        // Version info panel with better styling
+        JPanel versionPanel = new JPanel(new GridLayout(2, 2, 10, 5));
+        versionPanel.setBorder(BorderFactory.createTitledBorder("Version Information"));
+        
+        JLabel currentVersionLabel = new JLabel("Current Version:");
+        currentVersionLabel.setFont(currentVersionLabel.getFont().deriveFont(Font.BOLD));
+        versionPanel.add(currentVersionLabel);
+        
+        JLabel currentVersionValue = new JLabel(currentVersion);
+        currentVersionValue.setFont(currentVersionValue.getFont().deriveFont(Font.PLAIN));
+        versionPanel.add(currentVersionValue);
+        
+        JLabel latestVersionLabel = new JLabel("Latest Version:");
+        latestVersionLabel.setFont(latestVersionLabel.getFont().deriveFont(Font.BOLD));
+        versionPanel.add(latestVersionLabel);
+        
+        this.latestVersionLabel = new JLabel("Unknown");
+        this.latestVersionLabel.setFont(this.latestVersionLabel.getFont().deriveFont(Font.PLAIN));
+        versionPanel.add(this.latestVersionLabel);
 
         contentPanel.add(versionPanel);
-        contentPanel.add(Box.createVerticalStrut(5));
+        contentPanel.add(Box.createVerticalStrut(15));
 
         // Status and progress panel
-        JPanel statusPanel = new JPanel(new BorderLayout());
+        JPanel statusPanel = new JPanel(new BorderLayout(0, 10));
+        statusPanel.setBorder(BorderFactory.createTitledBorder("Update Status"));
         statusPanel.add(statusLabel, BorderLayout.CENTER);
         statusPanel.add(progressBar, BorderLayout.SOUTH);
         contentPanel.add(statusPanel);
 
-        // Auto-update settings panel (initially hidden)
-        createSettingsPanel();
+        // Auto-update settings panel (always visible)
+        contentPanel.add(Box.createVerticalStrut(15));
+        contentPanel.add(createExpandedSettingsPanel());
 
         add(contentPanel, BorderLayout.CENTER);
 
-        // Button panel - use natural Swing spacing
+        // Button panel with better spacing and styling
         JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
+        buttonPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 10, 10));
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 0, 10, 0));
+        
+        // Style buttons for better appearance
+        styleButton(checkButton, "Check for updates");
+        styleButton(updateButton, "Download and install update");
+        styleButton(closeButton, "Close dialog");
+        
         buttonPanel.add(checkButton);
         buttonPanel.add(updateButton);
-        buttonPanel.add(settingsButton);
         buttonPanel.add(closeButton);
         add(buttonPanel, BorderLayout.SOUTH);
     }
-
-    private void createSettingsPanel() {
-        // This will be added to the main content panel when settings are expanded
+    
+    /**
+     * Apply consistent styling to buttons
+     */
+    private void styleButton(JButton button, String tooltip) {
+        button.setToolTipText(tooltip);
+        button.setFocusPainted(false);
+        button.setPreferredSize(new Dimension(120, 30));
     }
+
+
 
     private void setupEventHandlers() {
         checkButton.addActionListener(new ActionListener() {
@@ -144,13 +172,6 @@ public class UpdateDialog extends JDialog {
             @Override
             public void actionPerformed(ActionEvent e) {
                 downloadAndInstallUpdate();
-            }
-        });
-        
-        settingsButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                toggleSettings();
             }
         });
         
@@ -251,10 +272,7 @@ public class UpdateDialog extends JDialog {
         }
         
         // Update the latest version display
-        JPanel contentPanel = (JPanel) getContentPane().getComponent(0);
-        JPanel versionPanel = (JPanel) contentPanel.getComponent(0);
-        JLabel latestVersionLabel = (JLabel) versionPanel.getComponent(3);
-        latestVersionLabel.setText(latestVersion != null ? latestVersion : "Unknown");
+        updateLatestVersionDisplay(latestVersion != null ? latestVersion : "Unknown");
     }
 
     private void handleCheckError(Exception e) {
@@ -417,34 +435,11 @@ public class UpdateDialog extends JDialog {
         }
     }
 
-    private void toggleSettings() {
-        settingsExpanded = !settingsExpanded;
-        
-        JPanel contentPanel = (JPanel) getContentPane().getComponent(0);
-        
-        if (settingsExpanded) {
-            // Add settings panel
-            JPanel settingsPanel = createExpandedSettingsPanel();
-            contentPanel.add(Box.createVerticalStrut(10));
-            contentPanel.add(new JSeparator());
-            contentPanel.add(Box.createVerticalStrut(10));
-            contentPanel.add(settingsPanel);
-            settingsButton.setText("Hide Settings");
-        } else {
-            // Remove settings panel
-            int componentCount = contentPanel.getComponentCount();
-            if (componentCount >= 7) { // version panel, strut, status panel, strut, separator, strut, settings panel
-                contentPanel.remove(componentCount - 1); // settings panel
-                contentPanel.remove(componentCount - 2); // strut
-                contentPanel.remove(componentCount - 3); // separator
-                contentPanel.remove(componentCount - 4); // strut
-            }
-            settingsButton.setText("Settings");
-        }
-        
-        pack();
-        setLocationRelativeTo(getParent());
-    }
+
+    
+
+    
+
 
     private JPanel createExpandedSettingsPanel() {
         JPanel settingsPanel = new JPanel();
@@ -452,31 +447,38 @@ public class UpdateDialog extends JDialog {
         settingsPanel.setBorder(BorderFactory.createTitledBorder("Automatic Updates"));
 
         // Auto-check setting
-        JPanel autoCheckPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JPanel autoCheckPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        autoCheckPanel.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
         autoCheckPanel.add(autoCheckBox);
         settingsPanel.add(autoCheckPanel);
 
         // Interval setting
-        JPanel intervalPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JPanel intervalPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        intervalPanel.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
         intervalPanel.add(new JLabel("Check frequency:"));
+        intervalPanel.add(Box.createHorizontalStrut(10));
         intervalPanel.add(intervalComboBox);
         intervalComboBox.setEnabled(autoCheckBox.isSelected());
         settingsPanel.add(intervalPanel);
 
         // Status display
-        JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JPanel statusPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+        statusPanel.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
         statusPanel.add(autoUpdateStatusLabel);
         settingsPanel.add(statusPanel);
 
         // "Remind me later" info and controls
         if (UpdateConfig.isRemindMeLater()) {
-            JPanel reminderPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+            JPanel reminderPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+            reminderPanel.setBorder(BorderFactory.createEmptyBorder(5, 0, 5, 0));
             reminderPanel.add(new JLabel("Reminder set for next update check"));
+            reminderPanel.add(Box.createHorizontalStrut(15));
             JButton clearReminderButton = new JButton("Clear Reminder");
+            styleButton(clearReminderButton, "Remove the reminder for this update");
             clearReminderButton.addActionListener(e -> {
                 UpdateConfig.clearReminder();
-                toggleSettings(); // Refresh the panel
-                toggleSettings();
+                // Refresh the status display
+                updateAutoUpdateStatus();
             });
             reminderPanel.add(clearReminderButton);
             settingsPanel.add(reminderPanel);
@@ -488,6 +490,15 @@ public class UpdateDialog extends JDialog {
     private void updateAutoUpdateStatus() {
         if (autoUpdateStatusLabel != null) {
             autoUpdateStatusLabel.setText(AutoUpdateChecker.getInstance().getStatusInfo());
+        }
+    }
+    
+    /**
+     * Update the latest version display
+     */
+    private void updateLatestVersionDisplay(String version) {
+        if (latestVersionLabel != null) {
+            latestVersionLabel.setText(version);
         }
     }
 }
