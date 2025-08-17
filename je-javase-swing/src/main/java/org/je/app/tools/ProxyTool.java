@@ -7,11 +7,13 @@ import java.awt.Frame;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
+import javax.swing.UIManager;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
@@ -234,7 +236,9 @@ public class ProxyTool extends JFrame {
         mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5, 5, 5, 5);
+        // Use consistent spacing relative to system defaults
+        int pad = Math.max(4, UIManager.getInt("Panel.margin"));
+        gbc.insets = new Insets(pad, pad, pad, pad);
         gbc.anchor = GridBagConstraints.WEST;
         
         // Proxy settings section
@@ -300,6 +304,10 @@ public class ProxyTool extends JFrame {
         add(buttonPanel, BorderLayout.SOUTH);
         
         pack();
-        setMinimumSize(new Dimension(400, 350));
+        // Set minimum size relative to screen size instead of hardcoded values
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        int minWidth = Math.max(400, screenSize.width / 4);
+        int minHeight = Math.max(350, screenSize.height / 4);
+        setMinimumSize(new Dimension(minWidth, minHeight));
     }
 }

@@ -6,6 +6,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+import javax.swing.UIManager;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -113,7 +114,9 @@ public class StatusBar extends JPanel {
                 g2d.dispose();
             }
         };
-        this.spinnerLabel.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 14));
+        // Use relative font sizing based on system defaults
+        Font baseFont = UIManager.getFont("Label.font");
+        this.spinnerLabel.setFont(new Font(Font.MONOSPACED, Font.PLAIN, Math.max(10, baseFont.getSize())));
         this.spinnerLabel.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 4));
         this.spinnerLabel.setToolTipText("Processing Activity");
         
@@ -123,7 +126,7 @@ public class StatusBar extends JPanel {
         
         // Create runtime timer label with professional styling
         this.runtimeLabel = new JLabel("");
-        this.runtimeLabel.setFont(new Font(Font.MONOSPACED, Font.BOLD, 11));
+        this.runtimeLabel.setFont(new Font(Font.MONOSPACED, Font.BOLD, Math.max(9, baseFont.getSize() - 1)));
         this.runtimeLabel.setForeground(new Color(41, 128, 185)); // Professional blue
         this.runtimeLabel.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 4));
         this.runtimeLabel.setVisible(false);
@@ -131,7 +134,7 @@ public class StatusBar extends JPanel {
         
         // Create integrated network meter label with professional styling
         this.networkMeterLabel = new JLabel("");
-        this.networkMeterLabel.setFont(new Font(Font.MONOSPACED, Font.BOLD, 11));
+        this.networkMeterLabel.setFont(new Font(Font.MONOSPACED, Font.BOLD, Math.max(9, baseFont.getSize() - 1)));
         this.networkMeterLabel.setForeground(new Color(39, 174, 96)); // Professional green
         this.networkMeterLabel.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 4));
         this.networkMeterLabel.setVisible(false);
@@ -254,14 +257,14 @@ public class StatusBar extends JPanel {
         JPanel rightSection = new JPanel(new BorderLayout());
         rightSection.add(networkMeterLabel, BorderLayout.CENTER);
         
-        // Add subtle separators between sections
+        // Add subtle separators between sections - use natural height
         JPanel separatorLeft = new JPanel();
-        separatorLeft.setPreferredSize(new Dimension(1, 16));
+        separatorLeft.setPreferredSize(new Dimension(1, 0)); // Let height be natural
         separatorLeft.setBackground(Color.LIGHT_GRAY);
         separatorLeft.setOpaque(false);
         
         JPanel separatorRight = new JPanel();
-        separatorRight.setPreferredSize(new Dimension(1, 16));
+        separatorRight.setPreferredSize(new Dimension(1, 0)); // Let height be natural
         separatorRight.setBackground(Color.LIGHT_GRAY);
         separatorRight.setOpaque(false);
         

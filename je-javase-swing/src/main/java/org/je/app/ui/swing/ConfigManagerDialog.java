@@ -91,7 +91,13 @@ public class ConfigManagerDialog extends SwingDialogPanel {
     JScrollPane scroll = new JScrollPane(exportSelectionPanel,
         JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
         JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-    scroll.setPreferredSize(new Dimension(420, 200));
+    // Use natural sizing with reasonable constraints instead of hardcoded dimensions
+    scroll.setPreferredSize(null); // Let it size naturally
+    // Set minimum and maximum constraints to prevent extremes
+    Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+    int maxWidth = Math.min(500, screenSize.width / 3);
+    int maxHeight = Math.min(300, screenSize.height / 3);
+    scroll.setMaximumSize(new Dimension(maxWidth, maxHeight));
     panel.add(scroll, c);
 
     // Selection controls
@@ -667,7 +673,11 @@ public class ConfigManagerDialog extends SwingDialogPanel {
             panel.add(cb);
         }
         JScrollPane sp = new JScrollPane(panel);
-        sp.setPreferredSize(new Dimension(420, 240));
+        // Use natural sizing with reasonable constraints
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        int maxWidth = Math.min(500, screenSize.width / 3);
+        int maxHeight = Math.min(350, screenSize.height / 3);
+        sp.setMaximumSize(new Dimension(maxWidth, maxHeight));
         int res = JOptionPane.showConfirmDialog(this, sp, "Select items to import", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
         if (res != JOptionPane.OK_OPTION) return null;
         Map<String, Boolean> sel = new LinkedHashMap<>();

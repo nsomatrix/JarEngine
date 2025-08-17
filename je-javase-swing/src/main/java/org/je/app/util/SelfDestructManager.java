@@ -59,12 +59,15 @@ public class SelfDestructManager {
 
         JPanel mainPanel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(5, 5, 5, 5);
+        // Use consistent spacing relative to system defaults
+        int pad = Math.max(4, UIManager.getInt("Panel.margin"));
+        gbc.insets = new Insets(pad, pad, pad, pad);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
         // Title
         JLabel titleLabel = new JLabel("Set Self-Destruct Timer");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        Font baseFont = UIManager.getFont("Label.font");
+        titleLabel.setFont(baseFont.deriveFont(Font.BOLD, baseFont.getSize() * 1.2f));
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.gridwidth = 2;
@@ -72,16 +75,16 @@ public class SelfDestructManager {
 
         // Timer format explanation
         JLabel formatLabel = new JLabel("Format: DD:HH:MM:SS (Days:Hours:Minutes:Seconds)");
-        formatLabel.setFont(new Font("Arial", Font.ITALIC, 10));
+        formatLabel.setFont(baseFont.deriveFont(Font.ITALIC, baseFont.getSize() * 0.9f));
         gbc.gridy = 1;
-        gbc.insets = new Insets(2, 5, 10, 5);
+        gbc.insets = new Insets(pad/2, pad, pad*2, pad);
         mainPanel.add(formatLabel, gbc);
 
         // Timer input
         JLabel timerLabel = new JLabel("Timer:");
         gbc.gridy = 2;
         gbc.gridwidth = 1;
-        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.insets = new Insets(pad, pad, pad, pad);
         mainPanel.add(timerLabel, gbc);
 
         JTextField timerField = new JTextField(DEFAULT_TIMER, 15);
@@ -92,11 +95,11 @@ public class SelfDestructManager {
 
         // Examples
         JLabel exampleLabel = new JLabel("Examples: 00:01:30:00 = 1h 30m, 01:00:00:00 = 1 day");
-        exampleLabel.setFont(new Font("Arial", Font.PLAIN, 9));
+        exampleLabel.setFont(baseFont.deriveFont(Font.PLAIN, baseFont.getSize() * 0.8f));
         gbc.gridx = 0;
         gbc.gridy = 3;
         gbc.gridwidth = 2;
-        gbc.insets = new Insets(2, 5, 15, 5);
+        gbc.insets = new Insets(pad/2, pad, pad*3, pad);
         mainPanel.add(exampleLabel, gbc);
 
         // Buttons
@@ -129,7 +132,7 @@ public class SelfDestructManager {
         gbc.gridx = 0;
         gbc.gridy = 4;
         gbc.gridwidth = 2;
-        gbc.insets = new Insets(15, 5, 5, 5);
+        gbc.insets = new Insets(pad*3, pad, pad, pad);
         mainPanel.add(buttonPanel, gbc);
 
         configDialog.add(mainPanel, BorderLayout.CENTER);
@@ -194,37 +197,40 @@ public class SelfDestructManager {
 
         JPanel mainPanel = new JPanel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(10, 15, 10, 15);
+        // Use consistent spacing relative to system defaults
+        int pad = Math.max(4, UIManager.getInt("Panel.margin"));
+        gbc.insets = new Insets(pad*2, pad*3, pad*2, pad*3);
 
         // Status icon
         JLabel statusIcon = new JLabel("⚠️");
-        statusIcon.setFont(new Font("Dialog", Font.BOLD, 24));
+        Font baseFont = UIManager.getFont("Label.font");
+        statusIcon.setFont(baseFont.deriveFont(Font.BOLD, baseFont.getSize() * 2.0f));
         gbc.gridx = 0;
         gbc.gridy = 0;
         mainPanel.add(statusIcon, gbc);
 
         // Title
         JLabel titleLabel = new JLabel("Self-Destruct Timer Active");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        titleLabel.setFont(baseFont.deriveFont(Font.BOLD, baseFont.getSize() * 1.2f));
         gbc.gridx = 1;
         gbc.gridy = 0;
         mainPanel.add(titleLabel, gbc);
 
         // Timer info
         JLabel timerInfoLabel = new JLabel("Time Remaining:");
-        timerInfoLabel.setFont(new Font("Arial", Font.BOLD, 12));
+        timerInfoLabel.setFont(baseFont.deriveFont(Font.BOLD, baseFont.getSize() * 1.0f));
         gbc.gridx = 0;
         gbc.gridy = 1;
         gbc.gridwidth = 2;
-        gbc.insets = new Insets(15, 15, 5, 15);
+        gbc.insets = new Insets(pad*3, pad*3, pad, pad*3);
         mainPanel.add(timerInfoLabel, gbc);
 
         // Countdown label (will be updated live)
         JLabel countdownLabel = new JLabel(getFormattedRemainingTime());
-        countdownLabel.setFont(new Font("Monospaced", Font.BOLD, 18));
+        countdownLabel.setFont(new Font("Monospaced", Font.BOLD, Math.round(baseFont.getSize() * 1.5f)));
         countdownLabel.setForeground(Color.RED);
         gbc.gridy = 2;
-        gbc.insets = new Insets(5, 15, 15, 15);
+        gbc.insets = new Insets(pad, pad*3, pad*3, pad*3);
         mainPanel.add(countdownLabel, gbc);
 
         // Deactivate button
@@ -242,7 +248,7 @@ public class SelfDestructManager {
         });
 
         gbc.gridy = 3;
-        gbc.insets = new Insets(10, 15, 10, 15);
+        gbc.insets = new Insets(pad*2, pad*3, pad*2, pad*3);
         mainPanel.add(deactivateButton, gbc);
 
         deactivationDialog.add(mainPanel, BorderLayout.CENTER);

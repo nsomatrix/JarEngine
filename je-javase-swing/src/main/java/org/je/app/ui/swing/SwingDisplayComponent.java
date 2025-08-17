@@ -13,6 +13,7 @@ import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.util.Enumeration;
 import java.util.Iterator;
+import javax.swing.UIManager;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 
@@ -372,7 +373,9 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 		g2d.fillRoundRect(overlayX, overlayY, overlayWidth, overlayHeight, 8, 8);
 		
 		// Set font and color for text
-		g2d.setFont(new Font("Monospaced", Font.BOLD, 12));
+		// Use relative font sizing based on system defaults
+		Font baseFont = UIManager.getFont("Label.font");
+		g2d.setFont(new Font("Monospaced", Font.BOLD, Math.max(10, baseFont.getSize())));
 		// Draw shadow for better readability
 		g2d.setColor(new Color(0, 0, 0, 180));
 		g2d.drawString(String.format("%.1f FPS", currentFps), overlayX + 9, overlayY + 21);

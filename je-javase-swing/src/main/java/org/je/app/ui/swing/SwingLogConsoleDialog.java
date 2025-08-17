@@ -13,6 +13,7 @@ import java.util.Date;
 import java.util.Vector;
 
 import javax.swing.JCheckBoxMenuItem;
+import javax.swing.UIManager;
 import javax.swing.JFrame;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
@@ -139,7 +140,9 @@ public class SwingLogConsoleDialog extends JFrame implements LoggerAppender {
 		setJMenuBar(menuBar);
 
 		this.logArea = new LogTextArea(20, 40, 1000);
-		Font logFont = new Font("Monospaced", Font.PLAIN, 12);
+		// Use relative font sizing based on system defaults
+		Font baseFont = UIManager.getFont("TextArea.font");
+		Font logFont = new Font("Monospaced", Font.PLAIN, Math.max(10, baseFont.getSize()));
 		this.logArea.setFont(logFont);
 
 		JScrollPane scrollPane = new JScrollPane(this.logArea);

@@ -5,6 +5,7 @@ import java.awt.Frame;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.Toolkit;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
@@ -59,7 +60,14 @@ public class SwingErrorMessageDialogPanel extends SwingDialogPanel implements Me
 		stackTraceArea = new JTextArea();
 		stackTraceArea.setEditable(false);
 		stackTracePane = new JScrollPane(stackTraceArea);
-		stackTracePane.setPreferredSize(new Dimension(250, 250));
+		// Use natural sizing with reasonable constraints instead of hardcoded size
+		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+		int maxWidth = Math.min(600, screenSize.width / 2);
+		int maxHeight = Math.min(400, screenSize.height / 2);
+		stackTracePane.setMaximumSize(new Dimension(maxWidth, maxHeight));
+		// Set minimum rows/columns to provide a reasonable starting size
+		stackTraceArea.setRows(15);
+		stackTraceArea.setColumns(50);
 		
 	}
 	

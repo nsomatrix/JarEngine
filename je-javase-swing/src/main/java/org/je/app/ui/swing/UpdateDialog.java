@@ -150,12 +150,17 @@ public class UpdateDialog extends JDialog {
     }
     
     /**
-     * Apply consistent styling to buttons
+     * Apply consistent styling to buttons - uses natural sizing
      */
     private void styleButton(JButton button, String tooltip) {
         button.setToolTipText(tooltip);
         button.setFocusPainted(false);
-        button.setPreferredSize(new Dimension(120, 30));
+        // Remove hardcoded size - let button size naturally based on text and font
+        // Add consistent padding for professional appearance
+        button.setBorder(BorderFactory.createCompoundBorder(
+            button.getBorder(),
+            BorderFactory.createEmptyBorder(8, 16, 8, 16)
+        ));
     }
 
 

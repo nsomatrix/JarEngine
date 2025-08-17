@@ -7,6 +7,7 @@ import java.awt.Toolkit;
 
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
+import javax.swing.UIManager;
 
 import org.je.app.Main;
 import org.je.app.util.BuildVersion;
@@ -53,7 +54,9 @@ public class SwingAboutDialog extends SwingDialogPanel {
 		c.weightx = 1;
 		c.gridwidth = GridBagConstraints.REMAINDER;
 		textLabel = new JLabel("JarEngine");
-		textLabel.setFont(new Font("Default", Font.BOLD, 18));
+		// Use relative font sizing based on system defaults
+		Font baseFont = UIManager.getFont("Label.font");
+		textLabel.setFont(baseFont.deriveFont(Font.BOLD, baseFont.getSize() * 1.5f));
 		add(textLabel, c);
 
 		c.gridy = 1;

@@ -39,8 +39,12 @@ public class StatusGraphPanel extends JPanel {
         this.maxValue = maxValue;
         this.showGrid = showGrid;
         
-        setPreferredSize(new Dimension(200, 150));
-        setMinimumSize(new Dimension(150, 100));
+        // Use natural sizing with reasonable constraints
+        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        int prefWidth = Math.min(200, screenSize.width / 6);
+        int prefHeight = Math.min(150, screenSize.height / 6);
+        setPreferredSize(new Dimension(prefWidth, prefHeight));
+        setMinimumSize(new Dimension(Math.max(100, prefWidth * 2/3), Math.max(75, prefHeight * 2/3)));
         setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
     }
     
@@ -85,7 +89,8 @@ public class StatusGraphPanel extends JPanel {
         
         // Draw title using system default font (adapts to themes)
         g2d.setColor(getForeground());
-        Font titleFont = getFont().deriveFont(Font.PLAIN, 10);
+        Font baseFont = UIManager.getFont("Label.font");
+        Font titleFont = baseFont.deriveFont(Font.PLAIN, Math.max(8, baseFont.getSize() * 0.8f));
         g2d.setFont(titleFont);
         FontMetrics fm = g2d.getFontMetrics();
         int titleWidth = fm.stringWidth(title);
@@ -95,7 +100,7 @@ public class StatusGraphPanel extends JPanel {
             if (dataPoints.isEmpty()) {
                 // Draw empty graph message using system default font
                 g2d.setColor(getForeground().darker());
-                Font messageFont = getFont().deriveFont(Font.PLAIN, 8);
+                Font messageFont = baseFont.deriveFont(Font.PLAIN, Math.max(7, baseFont.getSize() * 0.7f));
                 g2d.setFont(messageFont);
                 String message = "No data available";
                 int messageWidth = g2d.getFontMetrics().stringWidth(message);
@@ -159,7 +164,8 @@ public class StatusGraphPanel extends JPanel {
     
     private void drawAxisLabels(Graphics2D g2d, int xOffset, int yOffset, int width, int height, double maxValue) {
         g2d.setColor(getForeground());
-        Font labelFont = getFont().deriveFont(Font.PLAIN, 7);
+        Font baseFont = UIManager.getFont("Label.font");
+        Font labelFont = baseFont.deriveFont(Font.PLAIN, Math.max(6, baseFont.getSize() * 0.6f));
         g2d.setFont(labelFont);
         
         // Y-axis labels

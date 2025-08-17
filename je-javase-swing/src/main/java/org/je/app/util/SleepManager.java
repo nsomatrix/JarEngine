@@ -161,7 +161,9 @@ public class SleepManager {
                     if (fadeAlpha > 0.5f) {
                         g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, fadeAlpha));
                         g2d.setColor(new Color(180, 180, 180)); // Professional grey
-                        g2d.setFont(new Font("Arial", Font.PLAIN, 16));
+                        // Use relative font sizing based on system defaults
+                        Font baseFont = UIManager.getFont("Label.font");
+                        g2d.setFont(baseFont.deriveFont(Font.PLAIN, baseFont.getSize() * 1.3f));
                         
                         String hintText = "Click to Wake";
                         FontMetrics fm = g2d.getFontMetrics();

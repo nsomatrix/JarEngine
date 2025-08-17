@@ -67,27 +67,43 @@ public class ReplicateInstancesTool extends JDialog {
     
     private void initComponents() {
         instanceCountLabel = new JLabel("1", SwingConstants.CENTER);
-        instanceCountLabel.setFont(new Font("Arial", Font.BOLD, 24));
-        instanceCountLabel.setPreferredSize(new Dimension(80, 40));
-        instanceCountLabel.setBorder(BorderFactory.createEtchedBorder());
+        // Use relative font sizing instead of hardcoded pixel size
+        Font baseFont = UIManager.getFont("Label.font");
+        instanceCountLabel.setFont(baseFont.deriveFont(Font.BOLD, baseFont.getSize() * 1.8f));
+        instanceCountLabel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createEtchedBorder(),
+            BorderFactory.createEmptyBorder(8, 16, 8, 16)
+        ));
         instanceCountLabel.setToolTipText("Number of instances to launch (1-10)");
         
         decreaseButton = new JButton("←");
-        decreaseButton.setFont(new Font("Arial", Font.BOLD, 16));
-        decreaseButton.setPreferredSize(new Dimension(50, 40));
+        decreaseButton.setFont(baseFont.deriveFont(Font.BOLD, baseFont.getSize() * 1.2f));
+        decreaseButton.setBorder(BorderFactory.createCompoundBorder(
+            decreaseButton.getBorder(),
+            BorderFactory.createEmptyBorder(8, 12, 8, 12)
+        ));
         decreaseButton.setToolTipText("Decrease number of instances (Left Arrow)");
         
         increaseButton = new JButton("→");
-        increaseButton.setFont(new Font("Arial", Font.BOLD, 16));
-        increaseButton.setPreferredSize(new Dimension(50, 40));
+        increaseButton.setFont(baseFont.deriveFont(Font.BOLD, baseFont.getSize() * 1.2f));
+        increaseButton.setBorder(BorderFactory.createCompoundBorder(
+            increaseButton.getBorder(),
+            BorderFactory.createEmptyBorder(8, 12, 8, 12)
+        ));
         increaseButton.setToolTipText("Increase number of instances (Right Arrow)");
         
         launchButton = new JButton("Launch Instances");
-        launchButton.setPreferredSize(new Dimension(150, 35));
+        launchButton.setBorder(BorderFactory.createCompoundBorder(
+            launchButton.getBorder(),
+            BorderFactory.createEmptyBorder(8, 16, 8, 16)
+        ));
         launchButton.setToolTipText("Launch the selected number of emulator instances");
         
         cancelButton = new JButton("Cancel");
-        cancelButton.setPreferredSize(new Dimension(100, 35));
+        cancelButton.setBorder(BorderFactory.createCompoundBorder(
+            cancelButton.getBorder(),
+            BorderFactory.createEmptyBorder(8, 16, 8, 16)
+        ));
         cancelButton.setToolTipText("Cancel and close this dialog (Escape)");
     }
     

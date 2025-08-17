@@ -44,8 +44,19 @@ public class NetworkTools extends JFrame {
         tabs.addTab("UDP", new UdpPanel());
 
         add(tabs, BorderLayout.CENTER);
-        setSize(800, 540);
+        pack(); // Use natural sizing based on content
         setLocationRelativeTo(owner);
+        
+        // Set a reasonable minimum size without forcing exact dimensions
+        Dimension minSize = new Dimension(600, 400);
+        setMinimumSize(minSize);
+        
+        // If packed size is too small, grow it slightly but keep it reasonable
+        Dimension packedSize = getSize();
+        if (packedSize.width < minSize.width || packedSize.height < minSize.height) {
+            setSize(Math.max(packedSize.width, minSize.width), 
+                   Math.max(packedSize.height, minSize.height));
+        }
         if (selectedTabIndex >= 0 && selectedTabIndex < tabs.getTabCount()) {
             tabs.setSelectedIndex(selectedTabIndex);
         }
