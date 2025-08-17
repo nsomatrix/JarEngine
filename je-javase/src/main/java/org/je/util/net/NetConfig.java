@@ -117,8 +117,7 @@ public final class NetConfig {
                 int r = super.read();
                 if (r >= 0) {
                     applyDelay(1);
-                    // Publish byte count for network monitoring
-                    publishByteActivity("IN", 1);
+                    // Remove byte-level event publishing to avoid spam
                 }
                 return r;
             }
@@ -126,8 +125,7 @@ public final class NetConfig {
                 int n = super.read(b, off, len);
                 if (n > 0) {
                     applyDelay(n);
-                    // Publish byte count for network monitoring
-                    publishByteActivity("IN", n);
+                    // Remove byte-level event publishing to avoid spam
                 }
                 return n;
             }
@@ -135,14 +133,6 @@ public final class NetConfig {
                 if (first) { first = false; sleepQuiet(computeLatencyOnce(rnd)); }
                 int d = computeSleepMs(bytes);
                 if (d > 0) sleepQuiet(d);
-            }
-            private void publishByteActivity(String direction, long bytes) {
-                try {
-                    org.je.util.NetEventBus.publish("DATA", direction, "throttled-stream", 
-                        "Stream activity", bytes);
-                } catch (Exception ignored) {
-                    // Don't let network monitoring break actual I/O
-                }
             }
         }
 
@@ -153,27 +143,17 @@ public final class NetConfig {
             @Override public void write(int b) throws IOException {
                 applyDelay(1);
                 super.write(b);
-                // Publish byte count for network monitoring
-                publishByteActivity("OUT", 1);
+                // Remove byte-level event publishing to avoid spam
             }
             @Override public void write(byte[] b, int off, int len) throws IOException {
                 applyDelay(len);
                 super.write(b, off, len);
-                // Publish byte count for network monitoring
-                publishByteActivity("OUT", len);
+                // Remove byte-level event publishing to avoid spam
             }
             private void applyDelay(int bytes) {
                 if (first) { first = false; sleepQuiet(computeLatencyOnce(rnd)); }
                 int d = computeSleepMs(bytes);
                 if (d > 0) sleepQuiet(d);
-            }
-            private void publishByteActivity(String direction, long bytes) {
-                try {
-                    org.je.util.NetEventBus.publish("DATA", direction, "throttled-stream", 
-                        "Stream activity", bytes);
-                } catch (Exception ignored) {
-                    // Don't let network monitoring break actual I/O
-                }
             }
         }
     }
