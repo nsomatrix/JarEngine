@@ -272,7 +272,17 @@ public class NetworkTools extends JFrame {
                     exchange.sendResponseHeaders(200, body.length);
                     try (OutputStream os = exchange.getResponseBody()) { os.write(body); }
                 });
-                server.setExecutor(java.util.concurrent.Executors.newCachedThreadPool());
+                // Use bounded thread pool to prevent resource exhaustion
+                java.util.concurrent.ThreadPoolExecutor executor = new java.util.concurrent.ThreadPoolExecutor(
+                    2, 8, 60L, java.util.concurrent.TimeUnit.SECONDS,
+                    new java.util.concurrent.LinkedBlockingQueue<>(50),
+                    r -> {
+                        Thread t = new Thread(r, "MockServer-Worker");
+                        t.setDaemon(true);
+                        return t;
+                    }
+                );
+                server.setExecutor(executor);
                 server.start();
                 start.setEnabled(false); stop.setEnabled(true);
                 JOptionPane.showMessageDialog(this, "Mock server running on 127.0.0.1:"+p, "Mock", JOptionPane.INFORMATION_MESSAGE);
@@ -281,7 +291,14 @@ public class NetworkTools extends JFrame {
             }
         }
         private void onStop() {
-            if (server != null) { server.stop(0); server = null; }
+            if (server != null) { 
+                server.stop(0); 
+                // Shutdown executor to clean up threads
+                if (server.getExecutor() instanceof java.util.concurrent.ThreadPoolExecutor) {
+                    ((java.util.concurrent.ThreadPoolExecutor) server.getExecutor()).shutdown();
+                }
+                server = null; 
+            }
             start.setEnabled(true); stop.setEnabled(false);
         }
     }

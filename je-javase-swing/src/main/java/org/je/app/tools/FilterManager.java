@@ -63,10 +63,11 @@ public final class FilterManager {
     private static volatile float gamma = 1.0f;      // 1.0 = neutral
     private static volatile float saturation = 1.0f; // 1.0 = neutral
 
-    // Scratch buffers reused to avoid per-frame allocations
-    private static BufferedImage scratchBig; // destination-sized
-    private static BufferedImage scratchSmall; // source-sized for pre-ops
-    private static BufferedImage bloomA, bloomB; // for bloom passes
+    // Thread-local scratch buffers to avoid synchronization and per-frame allocations
+    private static final ThreadLocal<BufferedImage> scratchBig = new ThreadLocal<>();
+    private static final ThreadLocal<BufferedImage> scratchSmall = new ThreadLocal<>();
+    private static final ThreadLocal<BufferedImage> bloomA = new ThreadLocal<>();
+    private static final ThreadLocal<BufferedImage> bloomB = new ThreadLocal<>();
 
     private static final ColorConvertOp GRAY_OP = new ColorConvertOp(ColorSpace.getInstance(ColorSpace.CS_GRAY), null);
 
@@ -139,22 +140,35 @@ public final class FilterManager {
     /**
      * Render source image scaled into dest size and apply configured filters.
      * Returns an internal BufferedImage; caller must not mutate its raster.
+     * 
+     * Performance: Removed synchronization to prevent blocking main render thread.
+     * Uses thread-local buffers for thread safety.
      */
-    public static synchronized BufferedImage renderFiltered(BufferedImage src, int destW, int destH, Object interpHint) {
+    public static BufferedImage renderFiltered(BufferedImage src, int destW, int destH, Object interpHint) {
         if (src == null || destW <= 0 || destH <= 0) return null;
         final int srcW = src.getWidth();
         final int srcH = src.getHeight();
 
-        // Ensure buffers
-        if (scratchSmall == null || scratchSmall.getWidth() != srcW || scratchSmall.getHeight() != srcH) {
-            scratchSmall = new BufferedImage(srcW, srcH, BufferedImage.TYPE_INT_ARGB);
+        // Ensure thread-local buffers
+        BufferedImage scratchSmallBuf = scratchSmall.get();
+        if (scratchSmallBuf == null || scratchSmallBuf.getWidth() != srcW || scratchSmallBuf.getHeight() != srcH) {
+            scratchSmallBuf = new BufferedImage(srcW, srcH, BufferedImage.TYPE_INT_ARGB);
+            scratchSmall.set(scratchSmallBuf);
         }
-        if (scratchBig == null || scratchBig.getWidth() != destW || scratchBig.getHeight() != destH) {
-            scratchBig = new BufferedImage(destW, destH, BufferedImage.TYPE_INT_ARGB);
+        
+        BufferedImage scratchBigBuf = scratchBig.get();
+        if (scratchBigBuf == null || scratchBigBuf.getWidth() != destW || scratchBigBuf.getHeight() != destH) {
+            scratchBigBuf = new BufferedImage(destW, destH, BufferedImage.TYPE_INT_ARGB);
+            scratchBig.set(scratchBigBuf);
         }
-        if (bloomA == null || bloomA.getWidth() != destW || bloomA.getHeight() != destH) {
-            bloomA = new BufferedImage(destW, destH, BufferedImage.TYPE_INT_ARGB);
-            bloomB = new BufferedImage(destW, destH, BufferedImage.TYPE_INT_ARGB);
+        
+        BufferedImage bloomABuf = bloomA.get();
+        BufferedImage bloomBBuf = bloomB.get();
+        if (bloomABuf == null || bloomABuf.getWidth() != destW || bloomABuf.getHeight() != destH) {
+            bloomABuf = new BufferedImage(destW, destH, BufferedImage.TYPE_INT_ARGB);
+            bloomBBuf = new BufferedImage(destW, destH, BufferedImage.TYPE_INT_ARGB);
+            bloomA.set(bloomABuf);
+            bloomB.set(bloomBBuf);
         }
 
         boolean needsPreOps = colorMode != ColorMode.FULL_COLOR ||
@@ -166,17 +180,17 @@ public final class FilterManager {
         BufferedImage toScale;
         if (needsPreOps) {
             // Copy src to small scratch
-            Graphics2D gS = scratchSmall.createGraphics();
+            Graphics2D gS = scratchSmallBuf.createGraphics();
             try {
                 gS.drawImage(src, 0, 0, null);
             } finally { gS.dispose(); }
 
             // Apply color mode
             if (colorMode == ColorMode.GRAYSCALE) {
-                GRAY_OP.filter(scratchSmall, scratchSmall);
+                GRAY_OP.filter(scratchSmallBuf, scratchSmallBuf);
             } else if (colorMode == ColorMode.MONOCHROME) {
-                GRAY_OP.filter(scratchSmall, scratchSmall);
-                thresholdToMonochromeInPlace(scratchSmall, 0x80);
+                GRAY_OP.filter(scratchSmallBuf, scratchSmallBuf);
+                thresholdToMonochromeInPlace(scratchSmallBuf, 0x80);
             }
 
             // Brightness/Contrast via RescaleOp (linear): out = in*scale + offset
@@ -186,26 +200,26 @@ public final class FilterManager {
                 float[] scales = new float[]{scale, scale, scale, 1.0f};
                 float[] offsets = new float[]{offset, offset, offset, 0f};
                 RescaleOp op = new RescaleOp(scales, offsets, null);
-                op.filter(scratchSmall, scratchSmall);
+                op.filter(scratchSmallBuf, scratchSmallBuf);
             }
 
             // Gamma via LUT (RGB only)
             if (Math.abs(gamma - 1.0f) > 0.001f) {
                 ensureGammaLUT();
-                applyLUTInPlace(scratchSmall, gammaLUT);
+                applyLUTInPlace(scratchSmallBuf, gammaLUT);
             }
 
             // Saturation adjustment in RGB space using luminance mix
             if (Math.abs(saturation - 1.0f) > 0.001f) {
-                adjustSaturationInPlace(scratchSmall, saturation);
+                adjustSaturationInPlace(scratchSmallBuf, saturation);
             }
-            toScale = scratchSmall;
+            toScale = scratchSmallBuf;
         } else {
             toScale = src;
         }
 
         // Scale to destination
-        Graphics2D gB = scratchBig.createGraphics();
+        Graphics2D gB = scratchBigBuf.createGraphics();
         try {
             if (interpHint != null) {
                 gB.setRenderingHint(RenderingHints.KEY_INTERPOLATION, interpHint);
@@ -215,23 +229,23 @@ public final class FilterManager {
 
         // Bloom before palette/dither so palette can clamp final look if desired
         if (bloom) {
-            applyBloom(scratchBig, bloomA, bloomB, bloomThreshold, bloomIntensity, bloomRadius);
+            applyBloom(scratchBigBuf, bloomABuf, bloomBBuf, bloomThreshold, bloomIntensity, bloomRadius);
         }
 
         // Palette + Dithering at destination scale
         if (paletteMode != PaletteMode.NONE) {
-            applyPaletteAndDither(scratchBig, paletteMode, ditherMode);
+            applyPaletteAndDither(scratchBigBuf, paletteMode, ditherMode);
         }
 
         // Overlays at destination scale
         if (scanlines) {
-            drawScanlines(scratchBig, scanlinesIntensity);
+            drawScanlines(scratchBigBuf, scanlinesIntensity);
         }
         if (vignette) {
-            drawVignette(scratchBig, vignetteIntensity);
+            drawVignette(scratchBigBuf, vignetteIntensity);
         }
 
-        return scratchBig;
+        return scratchBigBuf;
     }
 
     private static void thresholdToMonochromeInPlace(BufferedImage img, int threshold) {

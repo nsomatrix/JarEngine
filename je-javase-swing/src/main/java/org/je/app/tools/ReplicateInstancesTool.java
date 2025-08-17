@@ -37,10 +37,14 @@ public class ReplicateInstancesTool extends JDialog {
     private static final int LAUNCH_DELAY_MS = 500;
     private static final int SHUTDOWN_TIMEOUT_SECONDS = 5;
     
-    // Process management
+    // Process management with bounded resources
     private static final ConcurrentHashMap<Integer, Process> runningProcesses = new ConcurrentHashMap<>();
     private static final AtomicInteger processCounter = new AtomicInteger(0);
-    private static final ExecutorService processExecutor = Executors.newCachedThreadPool();
+    private static final ExecutorService processExecutor = Executors.newFixedThreadPool(5, r -> {
+        Thread t = new Thread(r, "ProcessMonitor-" + processCounter.incrementAndGet());
+        t.setDaemon(true);
+        return t;
+    });
     
     private JLabel instanceCountLabel;
     private JButton decreaseButton;

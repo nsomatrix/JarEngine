@@ -137,9 +137,26 @@ public class FPSTool extends JFrame {
     
     @Override
     public void dispose() {
-        if (fpsUpdateTimer != null) {
+        if (fpsUpdateTimer != null && fpsUpdateTimer.isRunning()) {
             fpsUpdateTimer.stop();
+            fpsUpdateTimer = null;
         }
         super.dispose();
+    }
+    
+    @Override
+    public void setVisible(boolean visible) {
+        super.setVisible(visible);
+        if (fpsUpdateTimer != null) {
+            if (visible) {
+                if (!fpsUpdateTimer.isRunning()) {
+                    fpsUpdateTimer.start();
+                }
+            } else {
+                if (fpsUpdateTimer.isRunning()) {
+                    fpsUpdateTimer.stop();
+                }
+            }
+        }
     }
 }

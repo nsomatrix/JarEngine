@@ -56,10 +56,10 @@ public class StatusBar extends JPanel {
     private static final Color GREEN_COLOR = new Color(0, 200, 0);
     private static final Color RED_COLOR = new Color(200, 0, 0);
     
-    // Network meter fields
-    private static final int NETWORK_UPDATE_INTERVAL_MS = 1000; // Update every second
-    private static final int NETWORK_HIDE_DELAY_MS = 3000; // Hide after 3 seconds of inactivity
-    private static final int NETWORK_ACTIVITY_WINDOW_MS = 2000; // Consider events from last 2 seconds
+    // Network meter fields - optimized intervals
+    private static final int NETWORK_UPDATE_INTERVAL_MS = 2000; // Update every 2 seconds to reduce load
+    private static final int NETWORK_HIDE_DELAY_MS = 5000; // Hide after 5 seconds of inactivity
+    private static final int NETWORK_ACTIVITY_WINDOW_MS = 3000; // Consider events from last 3 seconds
     private final AtomicLong lastEventCount = new AtomicLong(0);
     private final AtomicLong lastNetworkUpdateTime = new AtomicLong(System.currentTimeMillis());
     private final AtomicReference<String> currentSpeedText = new AtomicReference<>("");

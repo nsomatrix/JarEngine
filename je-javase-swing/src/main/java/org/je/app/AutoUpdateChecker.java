@@ -2,6 +2,7 @@ package org.je.app;
 
 import javax.swing.*;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -19,11 +20,21 @@ import org.je.app.util.BuildVersion;
  * - Non-blocking notifications
  * - Respects user preferences (can be disabled)
  * - Integrates with existing UpdateChecker and UpdateDialog
+ * 
+ * Threading: Uses shared executor to prevent thread leaks
  */
 public class AutoUpdateChecker {
 
     private static AutoUpdateChecker instance;
-    private ScheduledExecutorService scheduler;
+    private static final ScheduledExecutorService SHARED_EXECUTOR = 
+        Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "AutoUpdateChecker-Shared");
+            t.setDaemon(true);
+            return t;
+        });
+    
+    private ScheduledFuture<?> periodicTask;
+    private ScheduledFuture<?> initialTask;
     private JFrame parentFrame;
     private volatile boolean running = false;
 
@@ -67,19 +78,16 @@ public class AutoUpdateChecker {
 
         Logger.debug("Starting automatic update checker service");
         
-        scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            Thread t = new Thread(r, "AutoUpdateChecker");
-            t.setDaemon(true); // Don't prevent JVM shutdown
-            return t;
-        });
-
+        // Cancel any existing tasks
+        cancelTasks();
+        
         // Schedule the first check after a short delay (30 seconds)
         // to allow the application to fully start up
-        scheduler.schedule(this::performUpdateCheck, 30, TimeUnit.SECONDS);
+        initialTask = SHARED_EXECUTOR.schedule(this::performUpdateCheck, 30, TimeUnit.SECONDS);
 
         // Then schedule regular checks based on the configured interval
         long intervalMinutes = UpdateConfig.getCheckIntervalHours() * 60;
-        scheduler.scheduleAtFixedRate(this::performUpdateCheck, 
+        periodicTask = SHARED_EXECUTOR.scheduleAtFixedRate(this::performUpdateCheck, 
             intervalMinutes, intervalMinutes, TimeUnit.MINUTES);
 
         running = true;
@@ -95,50 +103,37 @@ public class AutoUpdateChecker {
 
         Logger.debug("Stopping automatic update checker service");
         
-        if (scheduler != null) {
-            scheduler.shutdown();
-            try {
-                if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
-                    scheduler.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                scheduler.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
-            scheduler = null;
-        }
-
+        cancelTasks();
         running = false;
+    }
+    
+    /**
+     * Cancel all scheduled tasks
+     */
+    private void cancelTasks() {
+        if (initialTask != null && !initialTask.isDone()) {
+            initialTask.cancel(false);
+            initialTask = null;
+        }
+        if (periodicTask != null && !periodicTask.isDone()) {
+            periodicTask.cancel(false);
+            periodicTask = null;
+        }
     }
 
     /**
-     * Restart the service with new settings (runs in background to avoid UI freeze)
+     * Restart the service with new settings (thread-safe)
      */
     public void restart() {
-        // Run stop/start in a background thread to avoid blocking the UI
-        new Thread(() -> {
+        // Use shared executor instead of creating new threads
+        SHARED_EXECUTOR.execute(() -> {
             synchronized (AutoUpdateChecker.this) {
-                stopImmediate();
+                stop();
                 if (UpdateConfig.isAutoCheckEnabled()) {
                     start();
                 }
             }
-        }, "AutoUpdateChecker-Restart").start();
-    }
-
-    /**
-     * Stop the service immediately without waiting (for use in restart)
-     */
-    private synchronized void stopImmediate() {
-        if (!running) {
-            return;
-        }
-        Logger.debug("Stopping automatic update checker service (immediate)");
-        if (scheduler != null) {
-            scheduler.shutdownNow();
-            scheduler = null;
-        }
-        running = false;
+        });
     }
 
     /**
@@ -329,17 +324,8 @@ public class AutoUpdateChecker {
      * Force a manual check for updates (called from UI)
      */
     public void checkNow() {
-        if (!running) {
-            // If service is not running, just perform a one-time check
-            Thread checkThread = new Thread(() -> performUpdateCheck(), "ManualUpdateCheck");
-            checkThread.setDaemon(true);
-            checkThread.start();
-        } else {
-            // If service is running, schedule an immediate check
-            if (scheduler != null) {
-                scheduler.schedule(this::performUpdateCheck, 0, TimeUnit.SECONDS);
-            }
-        }
+        // Always use shared executor for consistency
+        SHARED_EXECUTOR.execute(this::performUpdateCheck);
     }
 
     /**

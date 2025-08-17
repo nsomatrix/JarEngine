@@ -168,12 +168,19 @@ public class ProxyTool extends JFrame {
         testButton.setEnabled(proxyEnabled);
     }
     
+    private java.util.concurrent.ExecutorService testExecutor = 
+        java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "ProxyTest");
+            t.setDaemon(true);
+            return t;
+        });
+    
     private void testProxyConnection() {
         testButton.setEnabled(false);
         testButton.setText("Testing...");
         
-        // Run test in background thread
-        new Thread(new Runnable() {
+        // Run test in managed thread pool
+        testExecutor.submit(new Runnable() {
             public void run() {
                 final boolean success = proxyConfig.testProxy();
                 
@@ -196,7 +203,7 @@ public class ProxyTool extends JFrame {
                     }
                 });
             }
-        }).start();
+        });
     }
     
     private void applySettings() {
@@ -309,5 +316,21 @@ public class ProxyTool extends JFrame {
         int minWidth = Math.max(400, screenSize.width / 4);
         int minHeight = Math.max(350, screenSize.height / 4);
         setMinimumSize(new Dimension(minWidth, minHeight));
+    }
+    
+    @Override
+    public void dispose() {
+        if (testExecutor != null && !testExecutor.isShutdown()) {
+            testExecutor.shutdown();
+            try {
+                if (!testExecutor.awaitTermination(2, java.util.concurrent.TimeUnit.SECONDS)) {
+                    testExecutor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                testExecutor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
+        super.dispose();
     }
 }

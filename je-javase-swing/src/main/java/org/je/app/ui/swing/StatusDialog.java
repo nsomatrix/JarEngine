@@ -113,10 +113,10 @@ public class StatusDialog extends SwingDialogPanel {
     }
     
     private void startLiveUpdates() {
-        // Update every 500ms for better real-time monitoring
-        updateTimer = new Timer(500, new ActionListener() {
+        // Update every 2 seconds to reduce system impact
+        updateTimer = new Timer(2000, new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                if (!isUpdating.get()) {
+                if (!isUpdating.get() && isVisible()) {
                     updateAllPanels();
                 }
             }
@@ -769,9 +769,25 @@ public class StatusDialog extends SwingDialogPanel {
     
     @Override
     public void removeNotify() {
-        if (updateTimer != null) {
+        if (updateTimer != null && updateTimer.isRunning()) {
             updateTimer.stop();
         }
         super.removeNotify();
+    }
+    
+    @Override
+    public void setVisible(boolean visible) {
+        super.setVisible(visible);
+        if (updateTimer != null) {
+            if (visible) {
+                if (!updateTimer.isRunning()) {
+                    updateTimer.start();
+                }
+            } else {
+                if (updateTimer.isRunning()) {
+                    updateTimer.stop();
+                }
+            }
+        }
     }
 }

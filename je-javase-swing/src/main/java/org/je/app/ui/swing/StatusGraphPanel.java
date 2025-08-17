@@ -54,9 +54,10 @@ public class StatusGraphPanel extends JPanel {
             long currentTime = System.currentTimeMillis();
             dataPoints.add(new DataPoint(currentTime, value));
             
-            // Remove old data points if we exceed the maximum
-            while (dataPoints.size() > maxDataPoints) {
-                dataPoints.remove(0);
+            // Remove old data points if we exceed the maximum (more efficient batch removal)
+            if (dataPoints.size() > maxDataPoints) {
+                int removeCount = dataPoints.size() - maxDataPoints;
+                dataPoints.subList(0, removeCount).clear();
             }
         }
         

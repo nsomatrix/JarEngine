@@ -21,6 +21,7 @@ import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import org.je.app.util.MidletURLReference;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.Iterator;
 import org.je.util.JadProperties;
 import org.je.util.JadMidletEntry;
 
@@ -34,7 +35,22 @@ public class ConfigManagerDialog extends SwingDialogPanel {
     private final JButton uninstallBtn = new JButton("Uninstall Selected");
     private final JButton refreshBtn = new JButton("Refresh");
     private final JButton openFolderBtn = new JButton("Open Config Folder");
-    private final Map<String, ImageIcon> iconCache = new ConcurrentHashMap<>();
+    private final Map<String, ImageIcon> iconCache = new ConcurrentHashMap<String, ImageIcon>() {
+        private static final int MAX_CACHE_SIZE = 100;
+        
+        @Override
+        public ImageIcon put(String key, ImageIcon value) {
+            if (size() >= MAX_CACHE_SIZE) {
+                // Remove oldest entries when cache is full
+                Iterator<String> iterator = keySet().iterator();
+                for (int i = 0; i < 10 && iterator.hasNext(); i++) {
+                    iterator.next();
+                    iterator.remove();
+                }
+            }
+            return super.put(key, value);
+        }
+    };
     private final ImageIcon placeholderIcon = loadPlaceholderIcon();
     private volatile boolean iconsLoading = false;
 
