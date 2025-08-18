@@ -688,6 +688,8 @@ public class StatusBar extends JPanel {
     private void hideNetworkMeter() {
         if (networkMeterVisible) {
             networkMeterVisible = false;
+            // Clear accumulated network events to free memory
+            org.je.util.NetEventBus.clear();
             SwingUtilities.invokeLater(() -> {
                 networkMeterLabel.setVisible(false);
                 revalidate();
