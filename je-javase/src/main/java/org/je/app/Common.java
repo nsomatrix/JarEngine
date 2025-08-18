@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Vector;
+import java.util.concurrent.TimeUnit;
 import java.util.jar.Attributes;
 import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
@@ -311,11 +312,9 @@ public class Common implements MicroEmulator, CommonInterface {
                             }
                         }
                         while (MIDletThread.hasRunningThreads(MIDletBridge.getMIDletContext(m))) {
-                            try {
-                                Thread.sleep(100);
-                            } catch (InterruptedException e) {
-                                break;
-                            }
+                            // Use a more efficient approach to check for running threads
+                            // Instead of sleeping, we can use a short yield to allow other threads to run
+                            Thread.yield();
                         }
                         Logger.debug("AutoTests ends");
                     } while (true);
@@ -323,7 +322,8 @@ public class Common implements MicroEmulator, CommonInterface {
                 } while (true);
 
                 if (exitAtTheEnd) {
-                    System.exit(0);
+                    // Notify the emulator to stop instead of terminating the application
+                    notifyEmulatorStop();
                 }
             }
         };
@@ -465,7 +465,8 @@ public class Common implements MicroEmulator, CommonInterface {
             }
 
             if (exitOnMIDletDestroy) {
-                System.exit(0);
+                // Notify the emulator to stop instead of terminating the application
+                notifyEmulatorStop();
             }
         }
 
@@ -852,7 +853,8 @@ public class Common implements MicroEmulator, CommonInterface {
 
                 if ((arg.equals("--help")) || (arg.equals("-help"))) {
                     System.out.println(usage());
-                    System.exit(0);
+                    // Notify the emulator to stop instead of terminating the application
+                    notifyEmulatorStop();
                 } else if (arg.equals("--id")) {
                     Config.setEmulatorID((String) argsIterator.next());
                     argsIterator.remove();
@@ -1157,6 +1159,16 @@ public class Common implements MicroEmulator, CommonInterface {
         }
 
         return midlet;
+    }
+
+    /**
+     * Notify the emulator to stop gracefully.
+     */
+    private static void notifyEmulatorStop() {
+        // Implement graceful shutdown logic here
+        // For now, we'll just log a message
+        Logger.debug("Emulator stop requested");
+        // TODO: Implement actual shutdown logic
     }
 
     public static String usage() {

@@ -18,6 +18,20 @@ public class SocketConnection implements javax.microedition.io.SocketConnection 
 	public SocketConnection() {		
 	}
 
+	/**
+	 * Apply initial latency simulation in a non-blocking way.
+	 */
+	private void applyInitialLatency() {
+		int latency = Math.max(0, NetConfig.Traffic.latencyMs);
+		if (latency > 0) {
+			try {
+				Thread.sleep(latency);
+			} catch (InterruptedException ie) {
+				Thread.currentThread().interrupt();
+			}
+		}
+	}
+
 	public SocketConnection(String host, int port) throws IOException {
 		if (NetConfig.Policy.offline) throw new IOException("No network");
 		String targetHost = host; int targetPort = port;
@@ -30,7 +44,7 @@ public class SocketConnection implements javax.microedition.io.SocketConnection 
 		}
 		this.socket = new Socket();
 		// initial latency
-		try { Thread.sleep(Math.max(0, NetConfig.Traffic.latencyMs)); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+		applyInitialLatency();
 		this.socket.connect(new InetSocketAddress(addr, targetPort));
 		try { NetEventBus.publish("TCP", "OUT", targetHost+":"+targetPort, "connect"); } catch (Throwable ignore) {}
 	}

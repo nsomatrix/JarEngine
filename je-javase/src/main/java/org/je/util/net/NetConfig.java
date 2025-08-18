@@ -106,7 +106,11 @@ public final class NetConfig {
 
         private static void sleepQuiet(int ms) {
             if (ms <= 0) return;
-            try { Thread.sleep(ms); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
+            try { 
+                Thread.sleep(ms); 
+            } catch (InterruptedException ie) { 
+                Thread.currentThread().interrupt(); 
+            }
         }
 
         private static final class ThrottledInputStream extends FilterInputStream {
@@ -366,7 +370,11 @@ public final class NetConfig {
                 savePreferences();
             } else {
                 Thread t = new Thread(() -> {
-                    try { Thread.sleep(SAVE_DEBOUNCE_MS); } catch (InterruptedException ignored) {}
+                    try { 
+                        Thread.sleep(SAVE_DEBOUNCE_MS); 
+                    } catch (InterruptedException ignored) {
+                        Thread.currentThread().interrupt();
+                    }
                     synchronized (NetConfig.class) {
                         if (pendingSave && System.currentTimeMillis() - lastSaveTime >= SAVE_DEBOUNCE_MS) savePreferences();
                     }
