@@ -69,6 +69,17 @@ public final class FilterManager {
     private static final ThreadLocal<BufferedImage> bloomA = new ThreadLocal<>();
     private static final ThreadLocal<BufferedImage> bloomB = new ThreadLocal<>();
 
+    /**
+     * Clear thread-local buffers to prevent memory leaks.
+     * Should be called during application shutdown or thread cleanup.
+     */
+    public static void clearThreadLocalBuffers() {
+        scratchBig.remove();
+        scratchSmall.remove();
+        bloomA.remove();
+        bloomB.remove();
+    }
+
     private static final ColorConvertOp GRAY_OP = new ColorConvertOp(ColorSpace.getInstance(ColorSpace.CS_GRAY), null);
 
     // Cached gamma LUT
@@ -82,7 +93,13 @@ public final class FilterManager {
     private static volatile long lastSaveTime = 0L;
 
     static {
-        try { loadPreferences(); } catch (Throwable ignored) {}
+        try { 
+            loadPreferences(); 
+            // Add shutdown hook to clean up thread-local buffers
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                clearThreadLocalBuffers();
+            }, "FilterManagerCleanup"));
+        } catch (Throwable ignored) {}
     }
 
     private FilterManager() {}
@@ -657,6 +674,7 @@ public final class FilterManager {
 
     // Debounced saver state
     private static volatile Thread saveThread;
+    private static final Object saveThreadLock = new Object();
 
     public static void savePreferencesAsync() {
         pendingSave = true;
@@ -665,14 +683,20 @@ public final class FilterManager {
             savePreferences();
             return;
         }
-        // Schedule a delayed save if one isn't already running
-        if (saveThread == null || !saveThread.isAlive()) {
-            saveThread = new Thread(() -> {
-                try { Thread.sleep(800); } catch (InterruptedException ignored) {}
-                savePreferences();
-            }, "FilterPrefsSaver");
-            saveThread.setDaemon(true);
-            try { saveThread.start(); } catch (IllegalThreadStateException ignored) {}
+        // Schedule a delayed save if one isn't already running (thread-safe)
+        synchronized (saveThreadLock) {
+            if (saveThread == null || !saveThread.isAlive()) {
+                saveThread = new Thread(() -> {
+                    try { Thread.sleep(800); } catch (InterruptedException ignored) {}
+                    savePreferences();
+                }, "FilterPrefsSaver");
+                saveThread.setDaemon(true);
+                try { 
+                    saveThread.start(); 
+                } catch (IllegalThreadStateException ignored) {
+                    // Thread was already started by another thread
+                }
+            }
         }
     }
 

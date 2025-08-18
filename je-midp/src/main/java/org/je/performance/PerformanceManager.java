@@ -290,6 +290,9 @@ public final class PerformanceManager {
         preferencesLoaded = true;
     }
 
+    private static volatile Thread savePreferencesThread;
+    private static final Object savePreferencesThreadLock = new Object();
+
     private static synchronized void savePreferencesAsync() {
         if (!preferencesLoaded) return; // don't save during static initialization until load completes
         long now = System.currentTimeMillis();
@@ -298,17 +301,25 @@ public final class PerformanceManager {
         if (now - lastSaveTime >= SAVE_DEBOUNCE_MS) {
             savePreferences();
         } else {
-            // schedule a delayed save via a daemon thread
-            Thread t = new Thread(() -> {
-                try { Thread.sleep(SAVE_DEBOUNCE_MS); } catch (InterruptedException ignored) {}
-                synchronized (PerformanceManager.class) {
-                    if (pendingSave && System.currentTimeMillis() - lastSaveTime >= SAVE_DEBOUNCE_MS) {
-                        savePreferences();
+            // schedule a delayed save via a daemon thread (thread-safe)
+            synchronized (savePreferencesThreadLock) {
+                if (savePreferencesThread == null || !savePreferencesThread.isAlive()) {
+                    savePreferencesThread = new Thread(() -> {
+                        try { Thread.sleep(SAVE_DEBOUNCE_MS); } catch (InterruptedException ignored) {}
+                        synchronized (PerformanceManager.class) {
+                            if (pendingSave && System.currentTimeMillis() - lastSaveTime >= SAVE_DEBOUNCE_MS) {
+                                savePreferences();
+                            }
+                        }
+                    }, "PerfPrefsSaver");
+                    savePreferencesThread.setDaemon(true);
+                    try {
+                        savePreferencesThread.start();
+                    } catch (IllegalThreadStateException ignored) {
+                        // Thread was already started by another thread
                     }
                 }
-            }, "PerfPrefsSaver");
-            t.setDaemon(true);
-            t.start();
+            }
         }
     }
 

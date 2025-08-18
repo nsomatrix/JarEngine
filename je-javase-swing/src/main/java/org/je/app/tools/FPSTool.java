@@ -19,6 +19,7 @@ public class FPSTool extends JFrame {
     public static volatile int targetFps = 30; // Default FPS
     public static volatile double currentFps = 0.0; // Current FPS for overlay
     private static volatile int frameCount = 0; // Frame counter for FPS calculation
+    private static final Object fpsLock = new Object(); // Synchronization for compound operations
     
     public FPSTool(Frame parent) {
         super("FPS Tool");
@@ -126,12 +127,16 @@ public class FPSTool extends JFrame {
     
     // Method to be called from display component to count frames
     public static void incrementFrameCount() {
-        frameCount++;
+        synchronized (fpsLock) {
+            frameCount++;
+        }
     }
     
     private void updateCurrentFps() {
-        currentFps = frameCount;
-        frameCount = 0;
+        synchronized (fpsLock) {
+            currentFps = frameCount;
+            frameCount = 0;
+        }
         // Don't update any label - current FPS only shows on canvas overlay
     }
     

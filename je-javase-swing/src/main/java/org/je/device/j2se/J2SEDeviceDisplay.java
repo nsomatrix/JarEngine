@@ -133,9 +133,16 @@ public class J2SEDeviceDisplay implements DeviceDisplayImpl
 			if (uiBackgroundColor == null) uiBackgroundColor = UIManager.getColor("control");
 			uiForegroundColor = UIManager.getColor("Label.foreground");
 			if (uiForegroundColor == null) uiForegroundColor = UIManager.getColor("textText");
-		} catch (Throwable ignore) {}
-		if (uiBackgroundColor == null) uiBackgroundColor = backgroundColor != null ? backgroundColor : new java.awt.Color(0xFFFFFF);
-		if (uiForegroundColor == null) uiForegroundColor = foregroundColor != null ? foregroundColor : new java.awt.Color(0x000000);
+		} catch (Throwable ignore) {
+			// Silently ignore UIManager access failures
+		}
+		// Provide sensible fallbacks
+		if (uiBackgroundColor == null) {
+			uiBackgroundColor = backgroundColor != null ? backgroundColor : new java.awt.Color(0xFFFFFF);
+		}
+		if (uiForegroundColor == null) {
+			uiForegroundColor = foregroundColor != null ? foregroundColor : new java.awt.Color(0x000000);
+		}
 
 		// Use theme colors for UI areas only
 		g.setColor(uiBackgroundColor);

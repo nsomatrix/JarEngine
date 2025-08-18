@@ -94,9 +94,9 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 
 			if (device.hasPointerEvents()) {
 				if (!fullScreenMode) {
-					Iterator it = device.getSoftButtons().iterator();
+					Iterator<SoftButton> it = device.getSoftButtons().iterator();
 					while (it.hasNext()) {
-						SoftButton button = (SoftButton) it.next();
+						SoftButton button = it.next();
 						if (button.isVisible()) {
 							org.je.device.impl.Rectangle pb = button.getPaintable();
 							if (pb != null) {
@@ -222,10 +222,13 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 
 		public void mouseMoved(MouseEvent e) {
 			if (showMouseCoordinates) {
-				StringBuffer buf = new StringBuffer();
-				Point p = deviceCoordinate(DeviceFactory.getDevice().getDeviceDisplay(), e.getPoint());
-				buf.append(p.x).append(",").append(p.y);
-				Common.setStatusBar(buf.toString());
+				Device device = DeviceFactory.getDevice();
+				if (device != null && device.getDeviceDisplay() != null) {
+					StringBuffer buf = new StringBuffer();
+					Point p = deviceCoordinate(device.getDeviceDisplay(), e.getPoint());
+					buf.append(p.x).append(",").append(p.y);
+					Common.setStatusBar(buf.toString());
+				}
 			}
 		}
 
@@ -360,29 +363,36 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 		
 		// Set up graphics for overlay
 		Graphics2D g2d = (Graphics2D) g.create();
-		g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-		
-		// Position overlay in top-left corner
-		int overlayX = 10;
-		int overlayY = 10;
-		int overlayWidth = 90;
-		int overlayHeight = 30;
-		
-		// Draw semi-transparent background
-		g2d.setColor(new Color(0, 0, 0, 140));
-		g2d.fillRoundRect(overlayX, overlayY, overlayWidth, overlayHeight, 8, 8);
-		
-		// Set font and color for text
-		// Use relative font sizing based on system defaults
-		Font baseFont = UIManager.getFont("Label.font");
-		g2d.setFont(new Font("Monospaced", Font.BOLD, Math.max(10, baseFont.getSize())));
-		// Draw shadow for better readability
-		g2d.setColor(new Color(0, 0, 0, 180));
-		g2d.drawString(String.format("%.1f FPS", currentFps), overlayX + 9, overlayY + 21);
-		g2d.setColor(Color.WHITE);
-		g2d.drawString(String.format("%.1f FPS", currentFps), overlayX + 8, overlayY + 20);
-		
-		g2d.dispose();
+		try {
+			g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			
+			// Position overlay in top-left corner
+			int overlayX = 10;
+			int overlayY = 10;
+			int overlayWidth = 90;
+			int overlayHeight = 30;
+			
+			// Draw semi-transparent background
+			g2d.setColor(new Color(0, 0, 0, 140));
+			g2d.fillRoundRect(overlayX, overlayY, overlayWidth, overlayHeight, 8, 8);
+			
+			// Set font and color for text
+			// Use relative font sizing based on system defaults
+			Font baseFont = UIManager.getFont("Label.font");
+			if (baseFont != null) {
+				g2d.setFont(new Font("Monospaced", Font.BOLD, Math.max(10, baseFont.getSize())));
+			} else {
+				g2d.setFont(new Font("Monospaced", Font.BOLD, 12));
+			}
+			
+			// Draw shadow for better readability
+			g2d.setColor(new Color(0, 0, 0, 180));
+			g2d.drawString(String.format("%.1f FPS", currentFps), overlayX + 9, overlayY + 21);
+			g2d.setColor(Color.WHITE);
+			g2d.drawString(String.format("%.1f FPS", currentFps), overlayX + 8, overlayY + 20);
+		} finally {
+			g2d.dispose();
+		}
 	}
 
 
@@ -475,9 +485,14 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 	}
 	
 	private J2SEButton getButtonByButtonName(ButtonName buttonName) {
+		Device device = DeviceFactory.getDevice();
+		if (device == null) {
+			return null;
+		}
+		
 		J2SEButton result;
-		for (Enumeration e = DeviceFactory.getDevice().getButtons().elements(); e.hasMoreElements();) {
-			result = (J2SEButton) e.nextElement();
+		for (Enumeration<J2SEButton> e = device.getButtons().elements(); e.hasMoreElements();) {
+			result = e.nextElement();
 			if (result.getFunctionalName() == buttonName) {
 				return result;
 			}
@@ -498,20 +513,27 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
     // Utility to map component coordinates to device coordinates
     private Point mapToDeviceCoordinates(int x, int y) {
 		Device device = DeviceFactory.getDevice();
-		if (device == null || graphicsSurface == null || graphicsSurface.getImage() == null) {
+		if (device == null || device.getDeviceDisplay() == null || 
+		    graphicsSurface == null || graphicsSurface.getImage() == null) {
 			return new Point(x, y);
 		}
-		int deviceWidth = graphicsSurface.getImage().getWidth(null);
-		int deviceHeight = graphicsSurface.getImage().getHeight(null);
-		int compWidth = getWidth();
-		int compHeight = getHeight();
+		
+		try {
+			int deviceWidth = graphicsSurface.getImage().getWidth(null);
+			int deviceHeight = graphicsSurface.getImage().getHeight(null);
+			int compWidth = getWidth();
+			int compHeight = getHeight();
 
-		if (compWidth <= 0 || compHeight <= 0 || deviceWidth <= 0 || deviceHeight <= 0) {
+			if (compWidth <= 0 || compHeight <= 0 || deviceWidth <= 0 || deviceHeight <= 0) {
+				return new Point(x, y);
+			}
+
+			int mappedX = (int) Math.round(x * (deviceWidth / (double) compWidth));
+			int mappedY = (int) Math.round(y * (deviceHeight / (double) compHeight));
+			return new Point(mappedX, mappedY);
+		} catch (Exception e) {
+			// Fallback if any operation fails
 			return new Point(x, y);
 		}
-
-		int mappedX = (int) Math.round(x * (deviceWidth / (double) compWidth));
-		int mappedY = (int) Math.round(y * (deviceHeight / (double) compHeight));
-		return new Point(mappedX, mappedY);
 	}
 }
