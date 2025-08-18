@@ -1831,9 +1831,23 @@ menuTools.add(menuLogConsole);
 			setResizable(false);
 		}
 
-		pack();
-
-		devicePanel.requestFocus();
+		// Ensure UI components are fully initialized before pack()
+		SwingUtilities.invokeLater(new Runnable() {
+			public void run() {
+				try {
+					// Validate component tree first
+					validate();
+					// Then pack safely
+					pack();
+					devicePanel.requestFocus();
+				} catch (Exception e) {
+					Logger.error("Error during updateDevice pack(): " + e.getMessage(), e);
+					// Fallback: set a reasonable size instead of pack()
+					setSize(getPreferredSize());
+					devicePanel.requestFocus();
+				}
+			}
+		});
 		
 		// Update resize menu state based on MIDlet status
 		updateResizeMenuState();
@@ -1949,12 +1963,16 @@ menuTools.add(menuLogConsole);
 		
 		// Remove shutdown hook as it's causing issues with repeated notifyDestroyed calls
 		
-		// Ensure Common has the correct currentTheme and bridged palette before any launcher is created
-		try {
-			java.util.List<java.awt.Window> windows = new java.util.ArrayList<>();
-			windows.add(app);
-			org.je.app.ui.swing.Themes.applyTheme(org.je.app.Config.getCurrentTheme(), app.common, windows.toArray(new java.awt.Window[0]));
-		} catch (Throwable ignored) {}
+		// Apply theme once after main window is fully constructed
+		SwingUtilities.invokeLater(new Runnable() {
+			public void run() {
+				try {
+					java.util.List<java.awt.Window> windows = new java.util.ArrayList<>();
+					windows.add(app);
+					org.je.app.ui.swing.Themes.applyTheme(org.je.app.Config.getCurrentTheme(), app.common, windows.toArray(new java.awt.Window[0]));
+				} catch (Throwable ignored) {}
+			}
+		});
 
 		app.common.initParams(params, null, J2SEDevice.class);
 		
