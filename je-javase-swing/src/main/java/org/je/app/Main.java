@@ -671,8 +671,17 @@ public class Main extends JFrame {
 			BufferedImage img = graphicsSurface.getImage();
 			BufferedImage scaledImg = new BufferedImage((int)(img.getWidth() * scale), (int)(img.getHeight() * scale), img.getType());
 			Graphics2D imgGraphics = scaledImg.createGraphics();
-			imgGraphics.scale(scale, scale);
-			imgGraphics.drawImage(img, 0, 0, null);
+			try {
+				// Use nearest neighbor for pixel-perfect scaling (no blur)
+				imgGraphics.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+				// Disable antialiasing for sharp pixels
+				imgGraphics.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_OFF);
+				imgGraphics.scale(scale, scale);
+				imgGraphics.drawImage(img, 0, 0, null);
+			} finally {
+				// Always dispose graphics resources
+				imgGraphics.dispose();
+			}
 			
 			((ImageIcon) (((JLabel) adaptiveResolutionFrame.getContentPane()).getIcon())).setImage(scaledImg);
 			((JLabel) adaptiveResolutionFrame.getContentPane()).repaint();
@@ -710,10 +719,9 @@ public class Main extends JFrame {
 	};
 
     private ComponentListener componentListener = new ComponentAdapter() {
-        Timer timer;
-        final Object resizeTimerLock = new Object();
-
-		int count = 0;
+        private Timer timer;
+        private final Object resizeTimerLock = new Object();
+        private int count = 0;
 
         public void componentResized(ComponentEvent e) {
             if (suppressAutoResize) {
@@ -776,6 +784,12 @@ public class Main extends JFrame {
 			if (themeDebounceTimer != null && themeDebounceTimer.isRunning()) {
 				themeDebounceTimer.stop();
 				themeDebounceTimer = null;
+			}
+			
+			// Cleanup MIDlet state timer
+			if (midletStateTimer != null && midletStateTimer.isRunning()) {
+				midletStateTimer.stop();
+				midletStateTimer = null;
 			}
 			
 			// Cleanup sleep manager
@@ -1881,7 +1895,7 @@ menuTools.add(menuLogConsole);
 	}
 	
 	// Timer to periodically check MIDlet state and update resize menu availability
-	private javax.swing.Timer midletStateTimer = new javax.swing.Timer(500, new ActionListener() {
+	private javax.swing.Timer midletStateTimer = new javax.swing.Timer(1000, new ActionListener() { // Reduced frequency from 500ms to 1000ms
 		public void actionPerformed(ActionEvent e) {
 			updateResizeMenuState();
 		}
