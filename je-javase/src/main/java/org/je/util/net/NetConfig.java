@@ -112,12 +112,15 @@ public final class NetConfig {
         private static final class ThrottledInputStream extends FilterInputStream {
             private boolean first = true;
             private final Random rnd = new Random();
+            private long bytesSinceLastEvent = 0;
+            private long lastEventTime = System.currentTimeMillis();
+            private final String target = "throttled-stream";
             protected ThrottledInputStream(InputStream in) { super(in); }
             @Override public int read() throws IOException {
                 int r = super.read();
                 if (r >= 0) {
                     applyDelay(1);
-                    // Remove byte-level event publishing to avoid spam
+                    publishBytes(1);
                 }
                 return r;
             }
@@ -125,7 +128,7 @@ public final class NetConfig {
                 int n = super.read(b, off, len);
                 if (n > 0) {
                     applyDelay(n);
-                    // Remove byte-level event publishing to avoid spam
+                    publishBytes(n);
                 }
                 return n;
             }
@@ -134,26 +137,71 @@ public final class NetConfig {
                 int d = computeSleepMs(bytes);
                 if (d > 0) sleepQuiet(d);
             }
+            private void publishBytes(long n) {
+                bytesSinceLastEvent += n;
+                long now = System.currentTimeMillis();
+                if (bytesSinceLastEvent > 0 && (now - lastEventTime > 250)) {
+                    try {
+                        org.je.util.NetEventBus.publish("DATA", "IN", target, "Stream activity", bytesSinceLastEvent);
+                    } catch (Exception ignored) {}
+                    bytesSinceLastEvent = 0;
+                    lastEventTime = now;
+                }
+            }
+            @Override
+            public void close() throws IOException {
+                if (bytesSinceLastEvent > 0) {
+                    try {
+                        org.je.util.NetEventBus.publish("DATA", "IN", target, "Stream activity", bytesSinceLastEvent);
+                    } catch (Exception ignored) {}
+                    bytesSinceLastEvent = 0;
+                }
+                super.close();
+            }
         }
 
         private static final class ThrottledOutputStream extends FilterOutputStream {
             private boolean first = true;
             private final Random rnd = new Random();
+            private long bytesSinceLastEvent = 0;
+            private long lastEventTime = System.currentTimeMillis();
+            private final String target = "throttled-stream";
             protected ThrottledOutputStream(OutputStream out) { super(out); }
             @Override public void write(int b) throws IOException {
                 applyDelay(1);
                 super.write(b);
-                // Remove byte-level event publishing to avoid spam
+                publishBytes(1);
             }
             @Override public void write(byte[] b, int off, int len) throws IOException {
                 applyDelay(len);
                 super.write(b, off, len);
-                // Remove byte-level event publishing to avoid spam
+                publishBytes(len);
             }
             private void applyDelay(int bytes) {
                 if (first) { first = false; sleepQuiet(computeLatencyOnce(rnd)); }
                 int d = computeSleepMs(bytes);
                 if (d > 0) sleepQuiet(d);
+            }
+            private void publishBytes(long n) {
+                bytesSinceLastEvent += n;
+                long now = System.currentTimeMillis();
+                if (bytesSinceLastEvent > 0 && (now - lastEventTime > 250)) {
+                    try {
+                        org.je.util.NetEventBus.publish("DATA", "OUT", target, "Stream activity", bytesSinceLastEvent);
+                    } catch (Exception ignored) {}
+                    bytesSinceLastEvent = 0;
+                    lastEventTime = now;
+                }
+            }
+            @Override
+            public void close() throws IOException {
+                if (bytesSinceLastEvent > 0) {
+                    try {
+                        org.je.util.NetEventBus.publish("DATA", "OUT", target, "Stream activity", bytesSinceLastEvent);
+                    } catch (Exception ignored) {}
+                    bytesSinceLastEvent = 0;
+                }
+                super.close();
             }
         }
     }
