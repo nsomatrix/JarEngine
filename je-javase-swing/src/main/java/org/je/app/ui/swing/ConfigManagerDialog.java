@@ -103,21 +103,33 @@ public class ConfigManagerDialog extends SwingDialogPanel {
 
     // Selection area
     c.gridy++;
+    c.fill = GridBagConstraints.BOTH; // Allow both horizontal and vertical expansion
+    c.weightx = 1.0; // Allow horizontal expansion
+    c.weighty = 1.0; // Allow vertical expansion
     exportSelectionPanel.setLayout(new BoxLayout(exportSelectionPanel, BoxLayout.Y_AXIS));
     JScrollPane scroll = new JScrollPane(exportSelectionPanel,
         JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
         JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-    // Use natural sizing with reasonable constraints instead of hardcoded dimensions
-    scroll.setPreferredSize(null); // Let it size naturally
-    // Set minimum and maximum constraints to prevent extremes
+    // Set stable sizing constraints to prevent layout issues when content changes
     Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-    int maxWidth = Math.min(500, screenSize.width / 3);
-    int maxHeight = Math.min(300, screenSize.height / 3);
+    // Use industry standard responsive sizing ratios
+    int maxWidth = Math.min(screenSize.width * 40 / 100, screenSize.width / 3);  // 40% or 1/3 of screen
+    int maxHeight = Math.min(screenSize.height * 25 / 100, screenSize.height / 3); // 25% or 1/3 of screen
+    int minWidth = Math.max(250, screenSize.width / 8);  // Minimum 250px or 1/8 screen width
+    int minHeight = Math.max(120, maxHeight / 3);        // Minimum 120px or 1/3 of max height
+    
+    // Set consistent sizing to prevent shrinking when content changes
+    scroll.setPreferredSize(new Dimension(maxWidth, maxHeight));
+    scroll.setMinimumSize(new Dimension(minWidth, minHeight));
     scroll.setMaximumSize(new Dimension(maxWidth, maxHeight));
     panel.add(scroll, c);
 
     // Selection controls
     c.gridy++;
+    c.fill = GridBagConstraints.NONE; // Reset fill for buttons
+    c.weightx = 0.0; // Reset weight for buttons
+    c.weighty = 0.0; // Reset weight for buttons
+    c.anchor = GridBagConstraints.WEST; // Align to the left
     JPanel selButtons = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
     selButtons.add(selectAllBtn);
     selButtons.add(selectNoneBtn);
@@ -126,7 +138,7 @@ public class ConfigManagerDialog extends SwingDialogPanel {
 
         JButton exportBtn = new JButton("Export Configuration");
         JButton importBtn = new JButton("Import Configuration");
-        c.gridy++; c.fill = GridBagConstraints.NONE;
+        c.gridy++;
         panel.add(exportBtn, c);
         c.gridy++;
         panel.add(importBtn, c);
@@ -514,8 +526,19 @@ public class ConfigManagerDialog extends SwingDialogPanel {
             g.checkbox = cb;
             exportSelectionPanel.add(cb);
         }
+        // Ensure proper layout refresh to maintain scroll pane size
         exportSelectionPanel.revalidate();
         exportSelectionPanel.repaint();
+        // Also revalidate the parent container to ensure scroll pane maintains proper size
+        SwingUtilities.invokeLater(() -> {
+            Container parent = exportSelectionPanel.getParent();
+            while (parent != null && !(parent instanceof JScrollPane)) {
+                parent = parent.getParent();
+            }
+            if (parent != null) {
+                parent.revalidate();
+            }
+        });
     }
 
     private void setAllExportSelections(boolean selected) {
