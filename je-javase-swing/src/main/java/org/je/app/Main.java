@@ -284,12 +284,12 @@ public class Main extends JFrame {
 			if (!picturesFolder.exists()) {
 				picturesFolder.mkdirs();
 			}
-			
+
 			// Generate auto filename with timestamp
 			String timestamp = new java.text.SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(new java.util.Date());
 			String filename = "jar_engine_recording_" + timestamp + ".gif";
 			File captureFile = new File(picturesFolder, filename);
-			
+
 			// Handle file override automatically
 			int counter = 1;
 			while (captureFile.exists()) {
@@ -325,8 +325,8 @@ public class Main extends JFrame {
 					}
 				}
 			});
-			
-			Message.info("Recording started: " + captureFile.getName());
+			// Removed annoying popup dialog, only status bar message remains
+			// Message.info("Recording started: " + captureFile.getName());
 		}
 	};
 
@@ -336,7 +336,8 @@ public class Main extends JFrame {
 				if (encoder != null) {
 					encoder.finish();
 					encoder = null;
-					Message.info("Recording stopped and saved");
+					// Removed annoying dialog, only status bar message remains
+					// Message.info("Recording stopped and saved");
 					if (statusBar != null) statusBar.showRecordingStopped();
 				}
 			}
