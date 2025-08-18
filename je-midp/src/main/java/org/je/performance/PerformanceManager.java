@@ -297,27 +297,29 @@ public final class PerformanceManager {
         if (!preferencesLoaded) return; // don't save during static initialization until load completes
         long now = System.currentTimeMillis();
         pendingSave = true;
-        // Simple debounce: only save if sufficient time passed or force after delay
-        if (now - lastSaveTime >= SAVE_DEBOUNCE_MS) {
-            savePreferences();
-        } else {
-            // schedule a delayed save via a daemon thread (thread-safe)
-            synchronized (savePreferencesThreadLock) {
-                if (savePreferencesThread == null || !savePreferencesThread.isAlive()) {
-                    savePreferencesThread = new Thread(() -> {
-                        try { Thread.sleep(SAVE_DEBOUNCE_MS); } catch (InterruptedException ignored) {}
-                        synchronized (PerformanceManager.class) {
-                            if (pendingSave && System.currentTimeMillis() - lastSaveTime >= SAVE_DEBOUNCE_MS) {
+        // Schedule a background save with debounce to avoid blocking the EDT.
+        // Compute remaining delay relative to last save time and always perform the actual
+        // file I/O on a daemon thread so menu action listeners (EDT) are not blocked.
+        final long delay = Math.max(0, SAVE_DEBOUNCE_MS - (now - lastSaveTime));
+        synchronized (savePreferencesThreadLock) {
+            if (savePreferencesThread == null || !savePreferencesThread.isAlive()) {
+                savePreferencesThread = new Thread(() -> {
+                    try { Thread.sleep(delay); } catch (InterruptedException ignored) {}
+                    synchronized (PerformanceManager.class) {
+                        if (pendingSave && System.currentTimeMillis() - lastSaveTime >= SAVE_DEBOUNCE_MS) {
+                            try {
                                 savePreferences();
+                            } catch (Throwable ignored) {
+                                // Best effort: never propagate exceptions to background thread
                             }
                         }
-                    }, "PerfPrefsSaver");
-                    savePreferencesThread.setDaemon(true);
-                    try {
-                        savePreferencesThread.start();
-                    } catch (IllegalThreadStateException ignored) {
-                        // Thread was already started by another thread
                     }
+                }, "PerfPrefsSaver");
+                savePreferencesThread.setDaemon(true);
+                try {
+                    savePreferencesThread.start();
+                } catch (IllegalThreadStateException ignored) {
+                    // Thread was already started by another thread
                 }
             }
         }

@@ -33,6 +33,8 @@ public final class UIManagerConfig {
     private static volatile boolean pendingSave = false;
     private static long lastSaveTime = 0L;
     private static final long SAVE_DEBOUNCE_MS = 750; // batch rapid changes
+    private static volatile Thread savePreferencesThread;
+    private static final Object savePreferencesThreadLock = new Object();
 
     static {
         loadPreferences();
@@ -122,31 +124,24 @@ public final class UIManagerConfig {
 
     public static void savePreferencesAsync() {
         if (!preferencesLoaded) return; // don't save during static initialization until load completes
-        
-        synchronized (UIManagerConfig.class) {
-            pendingSave = true;
-            long now = System.currentTimeMillis();
-            
-            // Simple debounce: only save if sufficient time passed or force after delay
-            if (now - lastSaveTime >= SAVE_DEBOUNCE_MS) {
-                savePreferences();
-            } else {
-                // Schedule a delayed save via a daemon thread
-                Thread t = new Thread(() -> {
-                    try { 
-                        Thread.sleep(SAVE_DEBOUNCE_MS); 
-                    } catch (InterruptedException ignored) {}
-                    
+        pendingSave = true;
+        final long now = System.currentTimeMillis();
+        final long delay = Math.max(0, SAVE_DEBOUNCE_MS - (now - lastSaveTime));
+
+        synchronized (savePreferencesThreadLock) {
+            if (savePreferencesThread == null || !savePreferencesThread.isAlive()) {
+                savePreferencesThread = new Thread(() -> {
+                    try { Thread.sleep(delay); } catch (InterruptedException ignored) {}
                     synchronized (UIManagerConfig.class) {
                         if (pendingSave && System.currentTimeMillis() - lastSaveTime >= SAVE_DEBOUNCE_MS) {
-                            savePreferences();
+                            try {
+                                savePreferences();
+                            } catch (Throwable ignored) {}
                         }
                     }
                 }, "UIManagerPrefsSaver");
-                t.setDaemon(true);
-                try {
-                    t.start();
-                } catch (IllegalThreadStateException ignored) {}
+                savePreferencesThread.setDaemon(true);
+                try { savePreferencesThread.start(); } catch (IllegalThreadStateException ignored) {}
             }
         }
     }
