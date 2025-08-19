@@ -211,6 +211,11 @@ public final class NetConfig {
     }
 
     public static final class TLS {
+        /**
+         * WARNING: Setting trustAll=true disables certificate validation.
+         * This should ONLY be used for testing with self-signed certificates or internal CAs.
+         * NEVER enable this in production environments as it makes connections vulnerable to MITM attacks.
+         */
         public static volatile boolean trustAll = false;
         // Capture original JVM defaults so we can restore them
         private static final HostnameVerifier ORIGINAL_HOSTNAME_VERIFIER = HttpsURLConnection.getDefaultHostnameVerifier();

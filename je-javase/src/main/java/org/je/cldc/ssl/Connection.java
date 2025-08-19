@@ -2,9 +2,12 @@ package org.je.cldc.ssl;
 
 import java.io.IOException;
 import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 
 import javax.microedition.io.SecureConnection;
@@ -14,6 +17,7 @@ import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
 
 import org.je.cldc.CertificateImpl;
@@ -38,30 +42,23 @@ public class Connection extends org.je.cldc.socket.SocketConnection implements S
 		int port = Integer.parseInt(name.substring(portSepIndex + 1));
 		String host = name.substring("ssl://".length(), portSepIndex);
 		
-		// TODO validate certificate chains
-	    TrustManager[] trustAllCerts = new TrustManager[]{
-	        new X509TrustManager() {
-	            public X509Certificate[] getAcceptedIssuers() {
-	                return null;
-	            }
-	            public void checkClientTrusted(
-	                X509Certificate[] certs, String authType) {
-	            }
-	            public void checkServerTrusted(
-	                X509Certificate[] certs, String authType) {
-	            }
-	        }
-	    };
-		
 		try {
-			SSLContext sc = SSLContext.getInstance("SSL");			
-			sc.init(null, trustAllCerts, new SecureRandom());
+			// Use system default trust store for proper certificate validation
+			TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+			tmf.init((KeyStore) null); // Use system default keystore
+			TrustManager[] trustManagers = tmf.getTrustManagers();
+			
+			// Create SSL context with proper certificate validation
+			SSLContext sc = SSLContext.getInstance("TLS");			
+			sc.init(null, trustManagers, new SecureRandom());
 			SSLSocketFactory factory = sc.getSocketFactory();
 			socket = factory.createSocket(host, port);
 		} catch (NoSuchAlgorithmException ex) {
-			throw new IOException(ex.toString());
+			throw new IOException("SSL algorithm not available: " + ex.getMessage());
 		} catch (KeyManagementException ex) {
-			throw new IOException(ex.toString());
+			throw new IOException("SSL key management error: " + ex.getMessage());
+		} catch (KeyStoreException ex) {
+			throw new IOException("SSL keystore error: " + ex.getMessage());
 		}
 		
 		return this;
