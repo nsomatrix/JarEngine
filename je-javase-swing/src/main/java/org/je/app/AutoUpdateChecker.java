@@ -33,6 +33,21 @@ public class AutoUpdateChecker {
             return t;
         });
     
+    static {
+        // Add shutdown hook to cleanly shutdown the executor
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try {
+                SHARED_EXECUTOR.shutdown();
+                if (!SHARED_EXECUTOR.awaitTermination(5, TimeUnit.SECONDS)) {
+                    SHARED_EXECUTOR.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                SHARED_EXECUTOR.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }, "AutoUpdateChecker-Shutdown"));
+    }
+    
     private ScheduledFuture<?> periodicTask;
     private ScheduledFuture<?> initialTask;
     private JFrame parentFrame;
@@ -72,11 +87,8 @@ public class AutoUpdateChecker {
         }
 
         if (!UpdateConfig.isAutoCheckEnabled()) {
-            Logger.debug("Auto update checking is disabled by user preference");
             return;
         }
-
-        Logger.debug("Starting automatic update checker service");
         
         // Cancel any existing tasks
         cancelTasks();
@@ -100,8 +112,6 @@ public class AutoUpdateChecker {
         if (!running) {
             return;
         }
-
-        Logger.debug("Stopping automatic update checker service");
         
         cancelTasks();
         running = false;
@@ -150,17 +160,13 @@ public class AutoUpdateChecker {
         try {
             // Check if we should actually perform the check
             if (!UpdateConfig.isAutoCheckEnabled()) {
-                Logger.debug("Auto update check skipped - disabled by user");
                 return;
             }
 
             // Check if it's time to check for updates
             if (!UpdateConfig.shouldCheckForUpdates() && !UpdateConfig.shouldShowReminder()) {
-                Logger.debug("Auto update check skipped - not time yet");
                 return;
             }
-
-            Logger.debug("Performing automatic update check...");
 
             // Get current and latest versions
             String currentVersion = BuildVersion.getVersion();
@@ -185,8 +191,8 @@ public class AutoUpdateChecker {
             }
 
         } catch (Exception e) {
-            Logger.error("Error during automatic update check", e);
-            // Don't show error to user for background checks, just log it
+            // Silently handle errors in background update checks
+            // No logging to avoid terminal spam
         }
     }
 

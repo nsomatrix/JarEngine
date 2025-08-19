@@ -5,7 +5,10 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * Industry-standard update checker for JarEngine
@@ -21,6 +24,10 @@ public class UpdateChecker {
 
     private static final String UPDATE_URL = "https://raw.githubusercontent.com/nsomatrix/JarEngine/main/version.txt";
     private static final String DOWNLOAD_BASE_URL = "https://github.com/nsomatrix/JarEngine/releases/download/";
+    
+    // Security: Version validation pattern
+    private static final Pattern VERSION_PATTERN = Pattern.compile("^[0-9]+\\.[0-9]+\\.[0-9]+$");
+    private static final long MAX_DOWNLOAD_SIZE = 100 * 1024 * 1024; // 100MB max
 
     /**
      * Get the latest version from the remote repository
@@ -29,9 +36,12 @@ public class UpdateChecker {
         URL url = new URL(UPDATE_URL);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("GET");
-        connection.setConnectTimeout(10000); // 10 second timeout
+        connection.setConnectTimeout(5000); // 5 second timeout - more responsive
         connection.setReadTimeout(10000);
         connection.setRequestProperty("User-Agent", "JarEngine-Updater/1.0");
+        connection.setRequestProperty("Accept", "text/plain");
+        connection.setRequestProperty("Cache-Control", "no-cache"); // Ensure fresh data
+        connection.setUseCaches(false); // Disable caching for version checks
 
         int responseCode = connection.getResponseCode();
         if (responseCode == HttpURLConnection.HTTP_OK) {
@@ -55,7 +65,14 @@ public class UpdateChecker {
         if (currentVersion == null || currentVersion.equals("n/a") || latestVersion == null) {
             return false;
         }
-        return latestVersion.compareTo(currentVersion) > 0;
+        
+        // Security: Validate version format
+        if (!VERSION_PATTERN.matcher(currentVersion).matches() || 
+            !VERSION_PATTERN.matcher(latestVersion).matches()) {
+            return false;
+        }
+        
+        return compareVersions(latestVersion, currentVersion) > 0;
     }
 
     /**
@@ -67,9 +84,11 @@ public class UpdateChecker {
         URL url = new URL(downloadUrl);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("GET");
-        connection.setConnectTimeout(30000); // 30 second timeout for download
-        connection.setReadTimeout(30000);
+        connection.setConnectTimeout(15000); // 15 second timeout for download connect
+        connection.setReadTimeout(60000); // 60 second timeout for large file download
         connection.setRequestProperty("User-Agent", "JarEngine-Updater/1.0");
+        connection.setRequestProperty("Accept", "application/java-archive");
+        connection.setInstanceFollowRedirects(true); // Follow redirects automatically
 
         int responseCode = connection.getResponseCode();
         if (responseCode != HttpURLConnection.HTTP_OK) {
@@ -78,7 +97,7 @@ public class UpdateChecker {
         }
 
         // Get content length for progress tracking
-        int contentLength = connection.getContentLength();
+        long contentLength = connection.getContentLengthLong(); // Use long for large files
         
         try (InputStream in = connection.getInputStream()) {
             if (contentLength > 0) {
@@ -88,6 +107,11 @@ public class UpdateChecker {
                 // Fallback to simple copy if content length unknown
                 Files.copy(in, destinationFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
             }
+        }
+        
+        // Security: Validate download size
+        if (destinationFile.length() > MAX_DOWNLOAD_SIZE) {
+            throw new IOException("Downloaded file exceeds maximum allowed size");
         }
         
         // Verify the downloaded file
@@ -104,21 +128,17 @@ public class UpdateChecker {
     /**
      * Copy input stream to file with progress tracking
      */
-    private static void copyWithProgress(InputStream in, File destinationFile, int contentLength) throws IOException {
+    private static void copyWithProgress(InputStream in, File destinationFile, long contentLength) throws IOException {
         try (FileOutputStream out = new FileOutputStream(destinationFile)) {
-            byte[] buffer = new byte[8192];
+            byte[] buffer = new byte[16384]; // Larger buffer for better performance
             int bytesRead;
-            int totalBytesRead = 0;
+            long totalBytesRead = 0;
             
             while ((bytesRead = in.read(buffer)) != -1) {
                 out.write(buffer, 0, bytesRead);
                 totalBytesRead += bytesRead;
                 
-                // Log progress every 100KB
-                if (totalBytesRead % (100 * 1024) == 0) {
-                    int progress = (int) ((totalBytesRead * 100.0) / contentLength);
-                    System.out.println("Download progress: " + progress + "%");
-                }
+                // Progress tracking removed to reduce background logging
             }
         }
     }
@@ -177,10 +197,8 @@ public class UpdateChecker {
 
         // Try direct Java-based update first (more reliable)
         try {
-            System.out.println("Attempting direct Java-based update...");
             applyUpdateDirectly(downloadedJar, currentJar, newJarFile, javaBin, latestVersion);
         } catch (Exception e) {
-            System.out.println("Direct update failed, falling back to script-based approach: " + e.getMessage());
             // Fall back to script-based approach
             applyUpdateWithScript(downloadedJar, currentJar, newJarFile, javaBin, latestVersion);
         }
@@ -190,32 +208,23 @@ public class UpdateChecker {
      * Apply update directly using Java file operations (more reliable)
      */
     private static void applyUpdateDirectly(File downloadedJar, File currentJar, File newJarFile, String javaBin, String latestVersion) throws IOException {
-        System.out.println("Starting direct update process...");
-        System.out.println("Current JAR: " + currentJar.getAbsolutePath());
-        System.out.println("Downloaded JAR: " + downloadedJar.getAbsolutePath());
-        System.out.println("New JAR: " + newJarFile.getAbsolutePath());
         
         // First, try to move the downloaded file to the new location
         if (Files.exists(newJarFile.toPath())) {
             try {
-                System.out.println("Removing existing new JAR file...");
                 Files.delete(newJarFile.toPath());
             } catch (IOException e) {
-                System.out.println("Warning: Could not remove existing new JAR: " + e.getMessage());
+                // Non-critical: continue with update process
             }
         }
         
         // Try to move the downloaded file
         try {
-            System.out.println("Moving downloaded JAR to new location...");
             Files.move(downloadedJar.toPath(), newJarFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            System.out.println("Downloaded JAR moved successfully");
         } catch (IOException e) {
-            System.out.println("Move failed, trying copy then delete: " + e.getMessage());
             // If move fails, try copy then delete
             Files.copy(downloadedJar.toPath(), newJarFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
             downloadedJar.delete(); // Clean up temp file
-            System.out.println("Downloaded JAR copied successfully");
         }
         
         // Verify the new file exists and is readable
@@ -223,22 +232,16 @@ public class UpdateChecker {
             throw new IOException("New JAR file is not accessible after copy/move operation");
         }
         
-        System.out.println("New JAR file verified successfully");
-        
         // Now try to delete the old JAR
         if (Files.exists(currentJar.toPath())) {
             try {
-                System.out.println("Removing old JAR file...");
                 Files.delete(currentJar.toPath());
-                System.out.println("Old JAR removed successfully");
             } catch (IOException e) {
-                System.out.println("Warning: Could not remove old JAR: " + e.getMessage());
                 // This is not critical, continue with the update
             }
         }
         
         // Start the new version
-        System.out.println("Starting new application...");
         ProcessBuilder pb = new ProcessBuilder(javaBin, "-jar", newJarFile.getAbsolutePath());
         pb.directory(currentJar.getParentFile());
         
@@ -249,7 +252,6 @@ public class UpdateChecker {
         env.put("JARENGINE_NEW_VERSION", latestVersion);
         
         Process process = pb.start();
-        System.out.println("New application started successfully");
         
         // Exit the current application
         System.exit(0);
@@ -370,10 +372,6 @@ public class UpdateChecker {
             pw.println(scriptContent);
         }
         
-        // Log the script content for debugging
-        System.out.println("Update script created: " + tempScript.getAbsolutePath());
-        System.out.println("Log file will be created at: " + logFile.getAbsolutePath());
-        
         // Execute the script and exit the current application
         ProcessBuilder pb = new ProcessBuilder(command);
         pb.directory(currentJar.getParentFile());
@@ -384,7 +382,6 @@ public class UpdateChecker {
         env.put("JARENGINE_OLD_VERSION", getCurrentVersion());
         env.put("JARENGINE_NEW_VERSION", latestVersion);
         
-        System.out.println("Starting update script...");
         Process process = pb.start();
         
         // Give the script more time to start and execute
@@ -394,20 +391,14 @@ public class UpdateChecker {
             Thread.currentThread().interrupt();
         }
         
-        // Check if the log file was created and show its contents
-        if (logFile.exists()) {
-            try (BufferedReader reader = new BufferedReader(new FileReader(logFile))) {
-                String line;
-                System.out.println("Update script log:");
-                while ((line = reader.readLine()) != null) {
-                    System.out.println("  " + line);
-                }
-            } catch (IOException e) {
-                System.out.println("Could not read log file: " + e.getMessage());
+        // Clean up temporary files
+        try {
+            if (logFile.exists()) {
+                logFile.delete();
             }
+        } catch (Exception e) {
+            // Ignore cleanup errors
         }
-        
-        System.out.println("Exiting application for update...");
         System.exit(0);
     }
 
@@ -511,6 +502,26 @@ public class UpdateChecker {
         
         // Final fallback: just "java" and hope it's in PATH
         return "java";
+    }
+    
+    /**
+     * Compare two semantic version strings
+     * @return positive if version1 > version2, negative if version1 < version2, zero if equal
+     */
+    private static int compareVersions(String version1, String version2) {
+        String[] parts1 = version1.split("\\.");
+        String[] parts2 = version2.split("\\.");
+        
+        int maxLength = Math.max(parts1.length, parts2.length);
+        for (int i = 0; i < maxLength; i++) {
+            int v1 = i < parts1.length ? Integer.parseInt(parts1[i]) : 0;
+            int v2 = i < parts2.length ? Integer.parseInt(parts2[i]) : 0;
+            
+            if (v1 != v2) {
+                return Integer.compare(v1, v2);
+            }
+        }
+        return 0;
     }
     
     /**

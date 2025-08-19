@@ -5,6 +5,10 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Properties;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.je.log.Logger;
 
@@ -33,12 +37,39 @@ public final class UpdateConfig {
     private static volatile boolean pendingSave = false;
     private static long lastSaveTime = 0L;
     private static final long SAVE_DEBOUNCE_MS = 750; // batch rapid changes
-
+    
+    // ========= Thread Management =========
+    private static final ScheduledExecutorService SAVE_EXECUTOR = 
+        Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "UpdateConfigSaver");
+            t.setDaemon(true);
+            return t;
+        });
+    private static volatile ScheduledFuture<?> pendingSaveTask;
+    
     // ========= Constants =========
     private static final long HOUR_IN_MS = 60 * 60 * 1000L;
 
     static {
+        // Load preferences first
         loadPreferences();
+        
+        // Add shutdown hook to cleanly save any pending changes and shutdown executor
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try {
+                // Save any pending changes immediately
+                if (pendingSave) {
+                    savePreferences();
+                }
+                // Shutdown executor
+                SAVE_EXECUTOR.shutdown();
+                if (!SAVE_EXECUTOR.awaitTermination(2, TimeUnit.SECONDS)) {
+                    SAVE_EXECUTOR.shutdownNow();
+                }
+            } catch (Exception e) {
+                // Ignore errors during shutdown
+            }
+        }, "UpdateConfig-Shutdown"));
     }
 
     // ========= Public Getters =========
@@ -224,8 +255,7 @@ public final class UpdateConfig {
                 updateNotificationShown = Boolean.parseBoolean(p.getProperty("updateNotificationShown", Boolean.toString(updateNotificationShown)));
                 
             } catch (IOException | NumberFormatException e) {
-                Logger.debug("Could not load Update Config preferences: " + e.getMessage());
-                // Use defaults
+                // Could not load preferences, use defaults
             }
         }
         preferencesLoaded = true;
@@ -238,26 +268,23 @@ public final class UpdateConfig {
             pendingSave = true;
             long now = System.currentTimeMillis();
             
-            // Simple debounce: only save if sufficient time passed or force after delay
+            // Cancel any pending save task
+            if (pendingSaveTask != null && !pendingSaveTask.isDone()) {
+                pendingSaveTask.cancel(false);
+            }
+            
+            // Simple debounce: only save if sufficient time passed or schedule after delay
             if (now - lastSaveTime >= SAVE_DEBOUNCE_MS) {
                 savePreferences();
             } else {
-                // Schedule a delayed save via a daemon thread
-                Thread t = new Thread(() -> {
-                    try { 
-                        Thread.sleep(SAVE_DEBOUNCE_MS); 
-                    } catch (InterruptedException ignored) {}
-                    
+                // Schedule a delayed save using managed executor
+                pendingSaveTask = SAVE_EXECUTOR.schedule(() -> {
                     synchronized (UpdateConfig.class) {
                         if (pendingSave && System.currentTimeMillis() - lastSaveTime >= SAVE_DEBOUNCE_MS) {
                             savePreferences();
                         }
                     }
-                }, "UpdateConfigPrefsSaver");
-                t.setDaemon(true);
-                try {
-                    t.start();
-                } catch (IllegalThreadStateException ignored) {}
+                }, SAVE_DEBOUNCE_MS, TimeUnit.MILLISECONDS);
             }
         }
     }
@@ -279,7 +306,7 @@ public final class UpdateConfig {
         File prefsFile = getPreferencesFile();
         try (FileOutputStream fos = new FileOutputStream(prefsFile)) {
             p.store(fos, "Update Configuration for JarEngine\n# Generated automatically - do not edit manually");
-            Logger.debug("Update Config preferences saved to: " + prefsFile.getAbsolutePath());
+            // Preferences saved silently
         } catch (IOException e) {
             Logger.error("Failed to save Update Config preferences", e);
         }

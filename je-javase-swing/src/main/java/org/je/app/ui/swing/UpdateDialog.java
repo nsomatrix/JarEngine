@@ -10,6 +10,9 @@ import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.je.app.UpdateChecker;
 import org.je.app.UpdateConfig;
@@ -40,6 +43,29 @@ public class UpdateDialog extends JDialog {
     private String currentVersion;
     private String latestVersion;
     private boolean updateAvailable = false;
+    
+    // Thread management for background operations
+    private static final ExecutorService BACKGROUND_EXECUTOR = 
+        Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "UpdateDialog-Background");
+            t.setDaemon(true);
+            return t;
+        });
+    
+    static {
+        // Add shutdown hook to cleanly shutdown the executor
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try {
+                BACKGROUND_EXECUTOR.shutdown();
+                if (!BACKGROUND_EXECUTOR.awaitTermination(3, TimeUnit.SECONDS)) {
+                    BACKGROUND_EXECUTOR.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                BACKGROUND_EXECUTOR.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }, "UpdateDialog-Shutdown"));
+    }
 
     public UpdateDialog(JFrame parent) {
         super(parent, "Check for Updates", true);
@@ -231,35 +257,24 @@ public class UpdateDialog extends JDialog {
         progressBar.setVisible(true);
         statusLabel.setText("Checking for updates...");
         
-        // Run in background thread to avoid blocking UI
-        SwingUtilities.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    latestVersion = UpdateChecker.getLatestVersion();
-                    updateAvailable = UpdateChecker.isUpdateAvailable(currentVersion, latestVersion);
-                    
-                    // Update the config with the latest version info
-                    UpdateConfig.markUpdateCheckCompleted();
-                    UpdateConfig.setLastKnownVersion(latestVersion);
-                    if (updateAvailable) {
-                        UpdateConfig.setUpdateNotificationShown(false); // Reset for new version
-                    }
-                    
-                    SwingUtilities.invokeLater(new Runnable() {
-                        @Override
-                        public void run() {
-                            updateUIAfterCheck();
-                        }
-                    });
-                } catch (Exception e) {
-                    SwingUtilities.invokeLater(new Runnable() {
-                        @Override
-                        public void run() {
-                            handleCheckError(e);
-                        }
-                    });
+        // Run in proper background thread - NOT on EDT
+        BACKGROUND_EXECUTOR.execute(() -> {
+            try {
+                latestVersion = UpdateChecker.getLatestVersion();
+                updateAvailable = UpdateChecker.isUpdateAvailable(currentVersion, latestVersion);
+                
+                // Update the config with the latest version info
+                UpdateConfig.markUpdateCheckCompleted();
+                UpdateConfig.setLastKnownVersion(latestVersion);
+                if (updateAvailable) {
+                    UpdateConfig.setUpdateNotificationShown(false); // Reset for new version
                 }
+                
+                // Update UI on EDT
+                SwingUtilities.invokeLater(this::updateUIAfterCheck);
+            } catch (Exception e) {
+                // Handle errors on EDT
+                SwingUtilities.invokeLater(() -> handleCheckError(e));
             }
         });
     }
@@ -333,14 +348,14 @@ public class UpdateDialog extends JDialog {
         progressBar.setVisible(true);
         statusLabel.setText("Downloading update...");
         
-        // Run download in background with progress tracking
-        new Thread(() -> {
+        // Run download in managed background thread
+        BACKGROUND_EXECUTOR.execute(() -> {
             try {
                 // Create temporary file for download
                 File tempFile = File.createTempFile("JarEngine-update-", ".jar");
                 tempFile.deleteOnExit();
                 
-                // Show download progress
+                // Show download progress on EDT
                 SwingUtilities.invokeLater(() -> {
                     progressBar.setIndeterminate(false);
                     progressBar.setValue(0);
@@ -350,7 +365,7 @@ public class UpdateDialog extends JDialog {
                 // Download the update with progress updates
                 downloadWithProgress(latestVersion, tempFile);
                 
-                // Show success message
+                // Show success message on EDT
                 SwingUtilities.invokeLater(() -> {
                     statusLabel.setText("Update downloaded successfully. Installing...");
                     progressBar.setValue(100);
@@ -363,11 +378,9 @@ public class UpdateDialog extends JDialog {
                 UpdateChecker.applyUpdateAndRestart(tempFile, latestVersion);
                 
             } catch (Exception e) {
-                SwingUtilities.invokeLater(() -> {
-                    handleUpdateError(e);
-                });
+                SwingUtilities.invokeLater(() -> handleUpdateError(e));
             }
-        }, "UpdateDownloader").start();
+        });
     }
 
     private void handleUpdateError(Exception e) {
@@ -394,9 +407,11 @@ public class UpdateDialog extends JDialog {
         URL url = new URL(downloadUrl);
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("GET");
-        connection.setConnectTimeout(30000);
-        connection.setReadTimeout(30000);
+        connection.setConnectTimeout(15000); // Faster connection timeout
+        connection.setReadTimeout(60000); // Longer read timeout for large files
         connection.setRequestProperty("User-Agent", "JarEngine-Updater/1.0");
+        connection.setRequestProperty("Accept", "application/java-archive");
+        connection.setInstanceFollowRedirects(true);
 
         int responseCode = connection.getResponseCode();
         if (responseCode != HttpURLConnection.HTTP_OK) {
@@ -404,7 +419,7 @@ public class UpdateDialog extends JDialog {
                                " for URL: " + downloadUrl);
         }
 
-        int contentLength = connection.getContentLength();
+        long contentLength = connection.getContentLengthLong();
         if (contentLength <= 0) {
             // If content length unknown, use indeterminate progress
             SwingUtilities.invokeLater(() -> {
@@ -416,20 +431,23 @@ public class UpdateDialog extends JDialog {
         try (InputStream in = connection.getInputStream();
              FileOutputStream out = new FileOutputStream(destinationFile)) {
             
-            byte[] buffer = new byte[8192];
+            byte[] buffer = new byte[16384]; // Larger buffer for better performance
             int bytesRead;
-            int totalBytesRead = 0;
+            long totalBytesRead = 0;
+            long lastProgressUpdate = 0;
             
             while ((bytesRead = in.read(buffer)) != -1) {
                 out.write(buffer, 0, bytesRead);
                 totalBytesRead += bytesRead;
                 
-                if (contentLength > 0) {
+                // Update progress less frequently to avoid overwhelming EDT
+                if (contentLength > 0 && (totalBytesRead - lastProgressUpdate) > 32768) { // Update every 32KB
                     final int progress = (int) ((totalBytesRead * 100.0) / contentLength);
                     SwingUtilities.invokeLater(() -> {
                         progressBar.setValue(progress);
                         statusLabel.setText(String.format("Downloading update... %d%%", progress));
                     });
+                    lastProgressUpdate = totalBytesRead;
                 }
             }
         }
