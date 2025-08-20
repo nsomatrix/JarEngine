@@ -221,6 +221,8 @@ public class MIDletTimer extends Timer implements Runnable {
 	}
 
 	private static void terminateTimers(Map timers) {
+		Logger.debug("Terminating " + timers.size() + " timer(s)");
+		int terminated = 0;
 		for (Iterator iter = timers.keySet().iterator(); iter.hasNext();) {
 			Object o = iter.next();
 			if (o == null) {
@@ -230,10 +232,12 @@ public class MIDletTimer extends Timer implements Runnable {
 				MIDletTimer tm = (MIDletTimer) o;
 				Logger.warn("MIDlet timer created from [" + tm.name + "] still running");
 				tm.terminate();
+				terminated++;
 			} else {
 				Logger.debug("unrecognized Object [" + o.getClass().getName() + "]");
 			}
 		}
+		Logger.debug("Terminated " + terminated + " timer(s)");
 	}
 
 }

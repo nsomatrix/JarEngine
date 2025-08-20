@@ -185,7 +185,32 @@ public class Common implements MicroEmulator, CommonInterface {
         if ((midletContext != null) && (MIDletBridge.getMIDletContext() == midletContext) && !midletContext.isLauncher()) {
             Logger.debug("destroyMIDletContext");
         }
-        MIDletThread.contextDestroyed(midletContext);
+        
+        // Enhanced cleanup for long-running sessions
+        try {
+            // Clean up threads and timers
+            MIDletThread.contextDestroyed(midletContext);
+            
+            // Force memory cleanup for graphics resources
+            if (org.je.app.util.MemoryManager.class != null) {
+                org.je.app.util.MemoryManager.cleanupAllResources();
+            }
+            
+            // Clear performance caches
+            org.je.performance.PerformanceManager.clearSpriteCache();
+            
+            // Clear any thread-local filter buffers
+            try {
+                Class<?> filterManager = Class.forName("org.je.app.tools.FilterManager");
+                filterManager.getMethod("clearThreadLocalBuffers").invoke(null);
+            } catch (Exception ignored) {
+                // FilterManager might not be available in all configurations
+            }
+            
+        } catch (Exception e) {
+            Logger.error("Error during enhanced MIDlet cleanup", e);
+        }
+        
         synchronized (destroyNotify) {
             destroyNotify.notifyAll();
         }

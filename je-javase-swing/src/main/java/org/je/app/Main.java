@@ -1432,6 +1432,23 @@ menuTools.add(menuLogConsole);
 		});
 		menuHelp.add(menuConfigManager);
 
+		// Memory Monitor for long-running sessions
+		JMenuItem menuMemoryMonitor = new JMenuItem("Memory Monitor");
+		menuMemoryMonitor.setToolTipText("Monitor memory usage for long-running gaming sessions");
+		menuMemoryMonitor.addActionListener(e -> {
+			try {
+				org.je.app.tools.MemoryMonitorTool memoryTool = new org.je.app.tools.MemoryMonitorTool(Main.this);
+				memoryTool.setVisible(true);
+			} catch (Exception ex) {
+				Logger.error("Error opening Memory Monitor", ex);
+				JOptionPane.showMessageDialog(Main.this, 
+					"Error opening Memory Monitor: " + ex.getMessage(),
+					"Memory Monitor Error", 
+					JOptionPane.ERROR_MESSAGE);
+			}
+		});
+		menuHelp.add(menuMemoryMonitor);
+
 		// UI Manager submenu with status bar components
 		JMenu menuUIManager = new JMenu("UI Manager");
 		

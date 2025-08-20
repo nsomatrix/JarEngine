@@ -188,12 +188,19 @@ public final class PerformanceManager {
 
     private static synchronized void trimSpriteCacheIfNeeded() {
         if (spriteCacheBytes <= emulatedHeapLimitBytes) return;
-        clearSpriteCache();
+        clearSpriteCacheInternal();
     }
 
-    private static synchronized void clearSpriteCache() {
+    private static synchronized void clearSpriteCacheInternal() {
         spriteCache.clear();
         spriteCacheBytes = 0;
+    }
+    
+    /**
+     * Public method to clear sprite cache for memory management
+     */
+    public static void clearSpriteCache() {
+        clearSpriteCacheInternal();
     }
 
     public static boolean shouldSkipPaintFrame() {
