@@ -25,6 +25,12 @@ public class EventDispatcher implements Runnable {
 	
 	// High-precision timing for smoother frame pacing
 	private static final boolean USE_NANOSECOND_TIMING = true;
+	
+	// Adaptive frame pacing for smoother performance
+	private static volatile boolean adaptiveFramePacing = true;
+	private static volatile long frameTimeVariance = 0;
+	private static volatile int consecutiveSlowFrames = 0;
+	private static final int MAX_CONSECUTIVE_SLOW_FRAMES = 3;
 
 	public EventDispatcher() {
 	}
@@ -49,12 +55,48 @@ public class EventDispatcher implements Runnable {
 						difference = currentTime - lastPaintEventTime;
 					}
 					
+					// Adaptive frame pacing: adjust for frame time variance
+					if (adaptiveFramePacing && frameTimeVariance > 0) {
+						// Allow some variance tolerance for smoother pacing
+						long tolerance = frameTimeVariance / 4;
+						targetInterval = Math.max(targetInterval - tolerance, Math.max(targetInterval / 2, 1)); // Ensure minimum 1ms
+					}
+					
 					if (difference < targetInterval) {
-						event = null;
-						try {
-							wait(targetInterval - difference);
-						} catch (InterruptedException e) {
+						// Track consecutive slow frames
+						if (difference < targetInterval / 2) {
+							consecutiveSlowFrames++;
+							if (consecutiveSlowFrames > MAX_CONSECUTIVE_SLOW_FRAMES) {
+								// Skip frame limiting temporarily to catch up
+								consecutiveSlowFrames = 0;
+							} else {
+								event = null;
+															long waitTime = targetInterval - difference;
+							// Use shorter waits for better responsiveness and prevent negative waits
+							waitTime = Math.max(1, Math.min(waitTime, 16)); // Cap at ~60fps equivalent, minimum 1ms
+								try {
+									wait(waitTime);
+								} catch (InterruptedException e) {
+									Thread.currentThread().interrupt();
+								}
+							}
+						} else {
+							consecutiveSlowFrames = 0;
+							event = null;
+							try {
+								wait(targetInterval - difference);
+							} catch (InterruptedException e) {
+								Thread.currentThread().interrupt();
+							}
 						}
+					} else {
+						consecutiveSlowFrames = 0;
+								// Update frame time variance for adaptive pacing
+		if (adaptiveFramePacing) {
+			// Prevent overflow and ensure reasonable bounds
+			long newVariance = (frameTimeVariance + Math.abs(difference - targetInterval)) / 2;
+			frameTimeVariance = Math.min(newVariance, 1000); // Cap at 1 second
+		}
 					}
 				}
 					
@@ -71,6 +113,8 @@ public class EventDispatcher implements Runnable {
 					try {
 						wait();
 					} catch (InterruptedException e) {
+						Thread.currentThread().interrupt(); // Restore interrupt status
+						break; // Exit loop if interrupted
 					}
 				}
 			}
@@ -115,6 +159,24 @@ public class EventDispatcher implements Runnable {
 		synchronized (this) {
 			notify();
 		}
+	}
+	
+	/**
+	 * Enable/disable adaptive frame pacing for smoother performance
+	 */
+	public static void setAdaptiveFramePacing(boolean enabled) {
+		adaptiveFramePacing = enabled;
+		if (!enabled) {
+			frameTimeVariance = 0;
+			consecutiveSlowFrames = 0;
+		}
+	}
+	
+	/**
+	 * Get current adaptive frame pacing status
+	 */
+	public static boolean isAdaptiveFramePacing() {
+		return adaptiveFramePacing;
 	}
 
 	public void put(Event event) {

@@ -37,21 +37,34 @@ public class MIDletThread extends Thread {
 	public MIDletThread() {
 		super(THREAD_NAME_PREFIX + nextThreadNum());
 		register(this);
+		// Set optimal priority for fluid performance
+		if (org.je.performance.PerformanceManager.isFluidMode()) {
+			setPriority(Thread.MAX_PRIORITY - 1); // High priority but not max to avoid blocking system threads
+		}
 	}
 	
 	public MIDletThread(Runnable target) {
 		super(target, THREAD_NAME_PREFIX + nextThreadNum());
 		register(this);
+		if (org.je.performance.PerformanceManager.isFluidMode()) {
+			setPriority(Thread.MAX_PRIORITY - 1);
+		}
 	}
 	
 	public MIDletThread(Runnable target, String name) {
 		super(target, THREAD_NAME_PREFIX + name);
 		register(this);
+		if (org.je.performance.PerformanceManager.isFluidMode()) {
+			setPriority(Thread.MAX_PRIORITY - 1);
+		}
 	}
 	
 	public MIDletThread(String name) {
 		super(THREAD_NAME_PREFIX + name);
 		register(this);
+		if (org.je.performance.PerformanceManager.isFluidMode()) {
+			setPriority(Thread.MAX_PRIORITY - 1);
+		}
 	}
 	
 	private static void register(MIDletThread thread) {

@@ -135,24 +135,36 @@ public class Config {
 		// Start configuration save spinner
 		org.je.app.Common.startConfigSpinner();
 
-		urlsMRU.save(configXml.getChildOrNew("files").getChildOrNew("recent"));
+		// Run config save in background to avoid blocking UI
+		Thread saverThread = new Thread(() -> {
+			try {
+				urlsMRU.save(configXml.getChildOrNew("files").getChildOrNew("recent"));
 
-		File configFile = new File(getConfigPath(), "config2.xml");
+				File configFile = new File(getConfigPath(), "config2.xml");
 
-		getConfigPath().mkdirs();
-		FileWriter fw = null;
-		try {
-			fw = new FileWriter(configFile);
-			configXml.write(fw);
-			fw.close();
-		} catch (IOException ex) {
-			Logger.error(ex);
-		} finally {
-			IOUtils.closeQuietly(fw);
-		}
+				getConfigPath().mkdirs();
+				FileWriter fw = null;
+				try {
+					fw = new FileWriter(configFile);
+					configXml.write(fw);
+					fw.close();
+				} catch (IOException ex) {
+					Logger.error(ex);
+				} finally {
+					IOUtils.closeQuietly(fw);
+				}
+				
+				// Auto-stop spinner after a brief delay to show save completion
+				org.je.app.Common.showConfigSpinner(1200);
+			} catch (Exception ex) {
+				Logger.error("Failed to save config", ex);
+				// Stop spinner on error
+				org.je.app.Common.stopConfigSpinner();
+			}
+		}, "ConfigSaver");
 		
-		// Auto-stop spinner after a brief delay to show save completion
-		org.je.app.Common.showConfigSpinner(1200);
+		saverThread.setDaemon(true);
+		saverThread.start();
 	}
 
 	static Map getExtensions() {
@@ -432,6 +444,7 @@ public class Config {
 					xml = mainXml.getChildOrNew("height");
 					xml.setContent(String.valueOf(rect.height));
 
+					// Save config asynchronously to avoid blocking UI
 					saveConfig();
 					break;
 				}
@@ -515,6 +528,7 @@ public class Config {
 	}
 
 	public static void setWindow(String name, Rectangle window, boolean onStart) {
+		// Update config immediately
 		XMLElement windowsXml = configXml.getChildOrNew("windows");
 		XMLElement mainXml = windowsXml.getChildOrNew(name);
 		if (onStart) {
@@ -531,6 +545,7 @@ public class Config {
 		xml = mainXml.getChildOrNew("height");
 		xml.setContent(String.valueOf(window.height));
 
+		// Save config asynchronously to avoid blocking UI
 		saveConfig();
 	}
 

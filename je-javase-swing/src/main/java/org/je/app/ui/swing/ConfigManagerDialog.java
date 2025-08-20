@@ -228,14 +228,13 @@ public class ConfigManagerDialog extends SwingDialogPanel {
 
                 // Snapshot suite names on EDT to avoid concurrent access to DefaultListModel
                 final java.util.List<String> suites = new ArrayList<>();
-                try {
-                    SwingUtilities.invokeAndWait(() -> {
-                        for (int i = 0; i < suitesModel.size(); i++) {
-                            String s = suitesModel.get(i);
-                            if (s != null && !s.startsWith("<")) suites.add(s);
-                        }
-                    });
-                } catch (Exception ignored) {}
+                // Use invokeLater instead of invokeAndWait to avoid potential deadlocks
+                SwingUtilities.invokeLater(() -> {
+                    for (int i = 0; i < suitesModel.size(); i++) {
+                        String s = suitesModel.get(i);
+                        if (s != null && !s.startsWith("<")) suites.add(s);
+                    }
+                });
 
                 for (int i = 0; i < suites.size(); i++) {
                     String suite = suites.get(i);

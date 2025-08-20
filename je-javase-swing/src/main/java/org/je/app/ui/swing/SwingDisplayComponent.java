@@ -316,6 +316,12 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 	if (preferredDoubleBuffering != isDoubleBuffered()) {
 		setDoubleBuffered(preferredDoubleBuffering);
 	}
+	
+	// Enhanced rendering hints for fluid mode
+	if (PerformanceManager.isFluidMode()) {
+		// Optimize component for speed
+		setOpaque(true);
+	}
 		
 		if (graphicsSurface != null && graphicsSurface.getImage() != null) {
 			synchronized (graphicsSurface) {
@@ -326,9 +332,21 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 
 				if (compW > 0 && compH > 0 && imgW > 0 && imgH > 0) {
 					Graphics2D g2 = (Graphics2D) g;
-					if (PerformanceManager.isAntiAliasing()) {
-						g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+					
+					// Optimize rendering hints for fluid mode
+					if (PerformanceManager.isFluidMode()) {
+						// Speed-optimized rendering hints
+						g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_SPEED);
+						g2.setRenderingHint(RenderingHints.KEY_COLOR_RENDERING, RenderingHints.VALUE_COLOR_RENDER_SPEED);
+						g2.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
+						g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
+						g2.setRenderingHint(RenderingHints.KEY_DITHERING, RenderingHints.VALUE_DITHER_DISABLE);
+					} else {
+						if (PerformanceManager.isAntiAliasing()) {
+							g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+						}
 					}
+					
 					Object interp = PerformanceManager.isTextureFiltering() ? RenderingHints.VALUE_INTERPOLATION_BILINEAR : RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR;
 
 					// If filters are enabled, render through FilterManager; otherwise draw directly

@@ -310,18 +310,17 @@ public class Main extends JFrame {
 				long start = 0;
 
 				public void repaintInvoked(Object repaintObject) {
-					synchronized (Main.this) {
-						if (encoder != null) {
-							if (start == 0) {
-								start = System.currentTimeMillis();
-							} else {
-								long current = System.currentTimeMillis();
-								encoder.setDelay((int) (current - start));
-								start = current;
-							}
-
-							encoder.addFrame(((J2SEGraphicsSurface) repaintObject).getImage());
+					// Use atomic check to avoid synchronized block
+					if (encoder != null) {
+						if (start == 0) {
+							start = System.currentTimeMillis();
+						} else {
+							long current = System.currentTimeMillis();
+							encoder.setDelay((int) (current - start));
+							start = current;
 						}
+
+						encoder.addFrame(((J2SEGraphicsSurface) repaintObject).getImage());
 					}
 				}
 			});
@@ -332,14 +331,13 @@ public class Main extends JFrame {
 
 	private ActionListener menuStopRecordListener = new ActionListener() {
 		public void actionPerformed(ActionEvent e) {
-			synchronized (Main.this) {
-				if (encoder != null) {
-					encoder.finish();
-					encoder = null;
-					// Removed annoying dialog, only status bar message remains
-					// Message.info("Recording stopped and saved");
-					if (statusBar != null) statusBar.showRecordingStopped();
-				}
+			// Use atomic operation to avoid synchronized block
+			if (encoder != null) {
+				encoder.finish();
+				encoder = null;
+				// Removed annoying dialog, only status bar message remains
+				// Message.info("Recording stopped and saved");
+				if (statusBar != null) statusBar.showRecordingStopped();
 			}
 
 			menuStartRecord.setSelected(false);
@@ -509,11 +507,10 @@ public class Main extends JFrame {
 
 	private ActionListener menuExitListener = new ActionListener() {
 		public void actionPerformed(ActionEvent e) {
-			synchronized (Main.this) {
-				if (encoder != null) {
-					encoder.finish();
-					encoder = null;
-				}
+			// Use atomic operation to avoid synchronized block
+			if (encoder != null) {
+				encoder.finish();
+				encoder = null;
 			}
 
 			// Clean up MIDlet context
@@ -757,23 +754,21 @@ public class Main extends JFrame {
                 DeviceDisplayImpl deviceDisplay = deviceSafe != null ? (DeviceDisplayImpl) deviceSafe.getDeviceDisplay() : null;
                 if (deviceDisplay != null && deviceDisplay.isResizable()) {
                     devicePanel.revalidate();
-                    synchronized (resizeTimerLock) {
-                        if (timer == null) {
-                            timer = new Timer();
-                        }
-                        timer.schedule(new CountTimerTask(count) {
-                            public void run() {
-                                if (counter == count) {
-                                    Config.setDeviceEntryDisplaySize(deviceEntry, new Rectangle(0, 0, devicePanel
-                                            .getWidth(), devicePanel.getHeight()));
-                                    synchronized (resizeTimerLock) {
-                                        timer.cancel();
-                                        timer = null;
-                                    }
-                                }
-                            }
-                        }, 2000);
+                    // Use atomic operations to avoid synchronized blocks
+                    if (timer == null) {
+                        timer = new Timer();
                     }
+                    timer.schedule(new CountTimerTask(count) {
+                        public void run() {
+                            if (counter == count) {
+                                Config.setDeviceEntryDisplaySize(deviceEntry, new Rectangle(0, 0, devicePanel
+                                        .getWidth(), devicePanel.getHeight()));
+                                // Use atomic operation to avoid synchronized block
+                                timer.cancel();
+                                timer = null;
+                            }
+                        }
+                    }, 2000);
                 }
 			}
 		}
@@ -1250,6 +1245,7 @@ JCheckBoxMenuItem tInput = addToggle.apply("Input Throttling");
 JCheckBoxMenuItem tSprite = addToggle.apply("Sprite Caching");
 JCheckBoxMenuItem tTex = addToggle.apply("Texture Filtering");
 JCheckBoxMenuItem tVSync = addToggle.apply("VSync");
+JCheckBoxMenuItem tFluid = addToggle.apply("Fluid Mode (Optimized for Smoothness)");
 
 // Initialize states from PerformanceManager
 tHardware.setSelected(PerformanceManager.isHardwareAcceleration());
@@ -1263,6 +1259,7 @@ tInput.setSelected(PerformanceManager.isInputThrottling());
 tSprite.setSelected(PerformanceManager.isSpriteCaching());
 tTex.setSelected(PerformanceManager.isTextureFiltering());
 tVSync.setSelected(PerformanceManager.isVSync());
+tFluid.setSelected(PerformanceManager.isFluidMode());
 
 // Wire listeners
 tHardware.addActionListener(ev -> PerformanceManager.setHardwareAcceleration(tHardware.isSelected()));
@@ -1276,6 +1273,21 @@ tInput.addActionListener(ev -> PerformanceManager.setInputThrottlingPersist(tInp
 tSprite.addActionListener(ev -> PerformanceManager.setSpriteCachingPersist(tSprite.isSelected()));
 tTex.addActionListener(ev -> PerformanceManager.setTextureFilteringPersist(tTex.isSelected()));
 tVSync.addActionListener(ev -> PerformanceManager.setVSync(tVSync.isSelected(), org.je.device.ui.EventDispatcher.maxFps));
+tFluid.addActionListener(ev -> {
+	// Run fluid mode setting in background to avoid UI blocking
+	SwingUtilities.invokeLater(() -> {
+		PerformanceManager.setFluidMode(tFluid.isSelected());
+		
+		// Update other checkboxes to reflect fluid mode changes
+		if (tFluid.isSelected()) {
+			tDB.setSelected(PerformanceManager.isDoubleBuffering());
+			tSprite.setSelected(PerformanceManager.isSpriteCaching());
+			tInput.setSelected(PerformanceManager.isInputThrottling());
+			tTex.setSelected(PerformanceManager.isTextureFiltering());
+			tFS.setSelected(PerformanceManager.isFrameSkipping());
+		}
+	});
+});
 
 // Add Reset Performance Settings at the bottom so toggle references are in scope
 menuPerformance.addSeparator();
@@ -1300,6 +1312,7 @@ menuPerfReset.addActionListener(e -> {
 		tSprite.setSelected(PerformanceManager.isSpriteCaching());
 		tTex.setSelected(PerformanceManager.isTextureFiltering());
 		tVSync.setSelected(PerformanceManager.isVSync());
+		tFluid.setSelected(PerformanceManager.isFluidMode());
 		if (statusBar != null) statusBar.showTemporaryStatus("Performance settings reset", 2500);
 		JOptionPane.showMessageDialog(this, "Performance settings were reset.", "Reset",
 				JOptionPane.INFORMATION_MESSAGE);

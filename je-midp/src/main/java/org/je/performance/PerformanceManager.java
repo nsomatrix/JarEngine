@@ -44,6 +44,8 @@ public final class PerformanceManager {
     private static volatile boolean spriteCaching;
     private static volatile boolean textureFiltering; // user can enable for better scaling quality
     private static volatile boolean vSync;
+    private static volatile boolean fluidMode; // Master toggle for optimal fluid settings
+    private static volatile boolean predictiveFrameSkipping; // Skip frames based on performance prediction
 
     // ========= Heap emulation =========
     private static volatile long emulatedHeapLimitBytes = 64L * 1024 * 1024; // 64 MB soft cap
@@ -72,7 +74,7 @@ public final class PerformanceManager {
     public static void setHardwareAcceleration(boolean v) {
         hardwareAcceleration = v;
         System.setProperty("sun.java2d.opengl", v ? "true" : "false");
-    savePreferencesAsync();
+        savePreferencesAsync();
     }
 
     public static boolean isAntiAliasing() { return antiAliasing; }
@@ -97,7 +99,7 @@ public final class PerformanceManager {
         if (powerSavingMode) {
             org.je.device.ui.EventDispatcher.maxFps = 15; // throttle
         }
-    savePreferencesAsync();
+        savePreferencesAsync();
     }
 
     public static boolean isIdleSkipping() { return idleSkipping; }
@@ -107,7 +109,11 @@ public final class PerformanceManager {
     public static boolean isFrameSkipping() { return frameSkipping; }
     public static void setFrameSkipping(boolean v) { frameSkipping = v; frameCounter = 0; }
     public static void setFrameSkippingPersist(boolean v) { frameSkipping = v; frameCounter = 0; savePreferencesAsync(); }
-    public static void setFrameSkipModulo(int modulo) { if (modulo >= 2) frameSkipModulo = modulo; }
+    public static void setFrameSkipModulo(int modulo) { 
+        if (modulo >= 2 && modulo <= 10) { // Reasonable bounds: 2 to 10
+            frameSkipModulo = modulo; 
+        }
+    }
 
     public static boolean isThreadPriorityBoost() { return threadPriorityBoost; }
     public static void setThreadPriorityBoost(boolean v, Thread eventThread) {
@@ -117,13 +123,17 @@ public final class PerformanceManager {
                 eventThread.setPriority(v ? Thread.MAX_PRIORITY : Thread.NORM_PRIORITY);
             } catch (SecurityException ignored) {}
         }
-    savePreferencesAsync();
+        savePreferencesAsync();
     }
 
     public static boolean isInputThrottling() { return inputThrottling; }
     public static void setInputThrottling(boolean v) { inputThrottling = v; }
     public static void setInputThrottlingPersist(boolean v) { inputThrottling = v; savePreferencesAsync(); }
-    public static void setPointerDragMinIntervalMs(int ms) { if (ms >= 1) pointerDragMinIntervalMs = ms; }
+    public static void setPointerDragMinIntervalMs(int ms) { 
+        if (ms >= 1 && ms <= 1000) { // Reasonable bounds: 1ms to 1 second
+            pointerDragMinIntervalMs = ms; 
+        }
+    }
 
     public static boolean isSpriteCaching() { return spriteCaching; }
     public static void setSpriteCaching(boolean v) { spriteCaching = v; if (!v) clearSpriteCache(); }
@@ -204,9 +214,34 @@ public final class PerformanceManager {
     }
 
     public static boolean shouldSkipPaintFrame() {
-        if (!frameSkipping) return false;
-        int c = ++frameCounter;
-        return c % frameSkipModulo != 0;
+        if (!frameSkipping && !predictiveFrameSkipping) return false;
+        
+        // Standard frame skipping
+        if (frameSkipping) {
+            int c = ++frameCounter;
+            if (c % frameSkipModulo == 0) return false;
+        }
+        
+        // Predictive frame skipping based on recent performance
+        if (predictiveFrameSkipping && fluidMode) {
+            // Skip frame if we're consistently running slow
+            Runtime runtime = Runtime.getRuntime();
+            long totalMemory = runtime.totalMemory();
+            long freeMemory = runtime.freeMemory();
+            
+            // Safety check for valid memory values
+            if (totalMemory > 0 && freeMemory >= 0 && freeMemory <= totalMemory) {
+                double memoryUsage = (double)(totalMemory - freeMemory) / totalMemory;
+                
+                // Skip frames when memory usage is high (>75%) for better fluidity
+                if (memoryUsage > 0.75) {
+                    frameCounter++;
+                    return frameCounter % 3 != 0; // Skip 2 out of every 3 frames
+                }
+            }
+        }
+        
+        return frameSkipping && (++frameCounter % frameSkipModulo != 0);
     }
 
     public static boolean shouldThrottlePointerDrag() {
@@ -219,12 +254,48 @@ public final class PerformanceManager {
         lastPointerDragTime = now;
         return false;
     }
+    
+    // ========= Fluid Mode Management =========
+    
+    public static boolean isFluidMode() { return fluidMode; }
+    
+    public static void setFluidMode(boolean enabled) {
+        fluidMode = enabled;
+        if (enabled) {
+            // Apply optimal settings for fluid performance
+            setDoubleBuffering(true);
+            setSpriteCaching(true);
+            setInputThrottling(true);
+            setPointerDragMinIntervalMs(8); // ~120Hz
+            setTextureFiltering(false); // Faster rendering
+            setFrameSkipping(false); // Smoother animation
+            setPredictiveFrameSkipping(true);
+            org.je.device.ui.EventDispatcher.setAdaptiveFramePacing(true);
+            
+            // Set optimal FPS for fluid mode
+            org.je.device.ui.EventDispatcher.maxFps = 60;
+        }
+        savePreferencesAsync();
+    }
+    
+    public static boolean isPredictiveFrameSkipping() { return predictiveFrameSkipping; }
+    
+    public static void setPredictiveFrameSkipping(boolean enabled) {
+        predictiveFrameSkipping = enabled;
+        savePreferencesAsync();
+    }
 
     public static void onIdleWaitHook() {
         if (idleSkipping) {
-            try { Thread.sleep(4); } catch (InterruptedException ignored) {}
+            try { 
+                Thread.sleep(4); 
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt(); // Restore interrupt status
+            }
         }
     }
+    
+
 
     // ======= Image / Heap tracking =======
     public static long getEmulatedUsageBytes() { return baseImageBytes + spriteCacheBytes; }
@@ -284,6 +355,8 @@ public final class PerformanceManager {
                 spriteCaching = Boolean.parseBoolean(p.getProperty("spriteCaching", Boolean.toString(spriteCaching)));
                 textureFiltering = Boolean.parseBoolean(p.getProperty("textureFiltering", Boolean.toString(textureFiltering)));
                 vSync = Boolean.parseBoolean(p.getProperty("vSync", Boolean.toString(vSync)));
+                fluidMode = Boolean.parseBoolean(p.getProperty("fluidMode", Boolean.toString(fluidMode)));
+                predictiveFrameSkipping = Boolean.parseBoolean(p.getProperty("predictiveFrameSkipping", Boolean.toString(predictiveFrameSkipping)));
                 try {
                     long heap = Long.parseLong(p.getProperty("emulatedHeapLimitBytes", Long.toString(emulatedHeapLimitBytes)));
                     setEmulatedHeapLimitBytes(heap);
@@ -300,39 +373,42 @@ public final class PerformanceManager {
     private static volatile Thread savePreferencesThread;
     private static final Object savePreferencesThreadLock = new Object();
 
-    private static synchronized void savePreferencesAsync() {
+    private static void savePreferencesAsync() {
         if (!preferencesLoaded) return; // don't save during static initialization until load completes
+        
+        // Use volatile flag to avoid blocking the calling thread
         long now = System.currentTimeMillis();
         pendingSave = true;
+        
         // Schedule a background save with debounce to avoid blocking the EDT.
         // Compute remaining delay relative to last save time and always perform the actual
         // file I/O on a daemon thread so menu action listeners (EDT) are not blocked.
         final long delay = Math.max(0, SAVE_DEBOUNCE_MS - (now - lastSaveTime));
-        synchronized (savePreferencesThreadLock) {
-            if (savePreferencesThread == null || !savePreferencesThread.isAlive()) {
-                savePreferencesThread = new Thread(() -> {
-                    try { Thread.sleep(delay); } catch (InterruptedException ignored) {}
-                    synchronized (PerformanceManager.class) {
-                        if (pendingSave && System.currentTimeMillis() - lastSaveTime >= SAVE_DEBOUNCE_MS) {
-                            try {
-                                savePreferences();
-                            } catch (Throwable ignored) {
-                                // Best effort: never propagate exceptions to background thread
-                            }
-                        }
-                    }
-                }, "PerfPrefsSaver");
-                savePreferencesThread.setDaemon(true);
+        
+        // Use a separate thread to avoid blocking the UI
+        Thread saverThread = new Thread(() -> {
+            try { 
+                Thread.sleep(delay); 
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+            
+            // Check if we still need to save
+            if (pendingSave && System.currentTimeMillis() - lastSaveTime >= SAVE_DEBOUNCE_MS) {
                 try {
-                    savePreferencesThread.start();
-                } catch (IllegalThreadStateException ignored) {
-                    // Thread was already started by another thread
+                    savePreferences();
+                } catch (Throwable ignored) {
+                    // Best effort: never propagate exceptions to background thread
                 }
             }
-        }
+        }, "PerfPrefsSaver");
+        
+        saverThread.setDaemon(true);
+        saverThread.start();
     }
 
-    private static synchronized void savePreferences() {
+    private static void savePreferences() {
         // Trigger config save callback if available
         if (configSaveCallback != null) {
             try {
@@ -342,6 +418,8 @@ public final class PerformanceManager {
         
         pendingSave = false;
         lastSaveTime = System.currentTimeMillis();
+        
+        // Create properties object
         Properties p = new Properties();
         p.setProperty("hardwareAcceleration", Boolean.toString(hardwareAcceleration));
         p.setProperty("antiAliasing", Boolean.toString(antiAliasing));
@@ -354,7 +432,11 @@ public final class PerformanceManager {
         p.setProperty("spriteCaching", Boolean.toString(spriteCaching));
         p.setProperty("textureFiltering", Boolean.toString(textureFiltering));
         p.setProperty("vSync", Boolean.toString(vSync));
+        p.setProperty("fluidMode", Boolean.toString(fluidMode));
+        p.setProperty("predictiveFrameSkipping", Boolean.toString(predictiveFrameSkipping));
         p.setProperty("emulatedHeapLimitBytes", Long.toString(emulatedHeapLimitBytes));
+        
+        // Save to file
         File f = getPreferencesFile();
         try (FileOutputStream out = new FileOutputStream(f)) {
             p.store(out, "JarEngine Performance Preferences");
@@ -376,6 +458,18 @@ public final class PerformanceManager {
         spriteCaching = false;
         textureFiltering = false;
         vSync = false;
+        fluidMode = false;
+        predictiveFrameSkipping = false;
+        
+        // Reset frame counters
+        frameCounter = 0;
+        lastPointerDragTime = 0;
+        pointerDragMinIntervalMs = 16;
+        
+        // Reset FPS and adaptive pacing
+        org.je.device.ui.EventDispatcher.maxFps = -1;
+        org.je.device.ui.EventDispatcher.setAdaptiveFramePacing(true);
+        
         // Emulated heap default
         emulatedHeapLimitBytes = 64L * 1024 * 1024;
         // Clear runtime counters/caches
