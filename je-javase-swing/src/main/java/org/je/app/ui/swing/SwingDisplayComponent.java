@@ -311,12 +311,11 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 		// Increment frame counter for FPS calculation
 		org.je.app.tools.FPSTool.incrementFrameCount();
 
-		// Apply double buffering preference dynamically
-		if (!PerformanceManager.isDoubleBuffering() && isDoubleBuffered()) {
-			setDoubleBuffered(false);
-		} else if (PerformanceManager.isDoubleBuffering() && !isDoubleBuffered()) {
-			setDoubleBuffered(true);
-		}
+			// Apply double buffering preference (cached to avoid repeated calls)
+	boolean preferredDoubleBuffering = PerformanceManager.isDoubleBuffering();
+	if (preferredDoubleBuffering != isDoubleBuffered()) {
+		setDoubleBuffered(preferredDoubleBuffering);
+	}
 		
 		if (graphicsSurface != null && graphicsSurface.getImage() != null) {
 			synchronized (graphicsSurface) {
@@ -420,32 +419,39 @@ public class SwingDisplayComponent extends JComponent implements DisplayComponen
 			int deviceWidth = device.getDeviceDisplay().getFullWidth();
 			int deviceHeight = device.getDeviceDisplay().getFullHeight();
 
-			synchronized (this) {
-				// Only recreate graphicsSurface if it doesn't exist or has wrong size
-				boolean needsNewSurface = graphicsSurface == null
-					|| graphicsSurface.getImage().getWidth(null) != deviceWidth
-					|| graphicsSurface.getImage().getHeight(null) != deviceHeight;
-				if (needsNewSurface) {
-					graphicsSurface = new J2SEGraphicsSurface(deviceWidth, deviceHeight, false, 0x000000);
-				}
-				synchronized (graphicsSurface) {
-					deviceDisplay.paintDisplayable(graphicsSurface, x, y, width, height);
-					if (!deviceDisplay.isFullScreenMode()) {
-						deviceDisplay.paintControls(graphicsSurface.getGraphics());
-					}
+					// Use single lock to reduce contention
+		J2SEGraphicsSurface currentSurface;
+		synchronized (this) {
+			// Only recreate graphicsSurface if it doesn't exist or has wrong size
+			boolean needsNewSurface = graphicsSurface == null
+				|| graphicsSurface.getImage().getWidth(null) != deviceWidth
+				|| graphicsSurface.getImage().getHeight(null) != deviceHeight;
+			if (needsNewSurface) {
+				graphicsSurface = new J2SEGraphicsSurface(deviceWidth, deviceHeight, false, 0x000000);
+			}
+			currentSurface = graphicsSurface;
+		}
+		
+		// Paint outside of 'this' lock to reduce contention
+		if (currentSurface != null) {
+			synchronized (currentSurface) {
+				deviceDisplay.paintDisplayable(currentSurface, x, y, width, height);
+				if (!deviceDisplay.isFullScreenMode()) {
+					deviceDisplay.paintControls(currentSurface.getGraphics());
 				}
 			}
+		}
 
-			if (graphicsSurface != null && graphicsSurface.getImage() != null) {
-				if (deviceDisplay.isFullScreenMode()) {
-					fireDisplayRepaint(
-							graphicsSurface, x, y, width, height);
-				} else {
-					fireDisplayRepaint(
-							graphicsSurface, 0, 0, graphicsSurface.getImage().getWidth(), graphicsSurface.getImage().getHeight());
-				}
-				repaint();
+					if (currentSurface != null && currentSurface.getImage() != null) {
+			if (deviceDisplay.isFullScreenMode()) {
+				fireDisplayRepaint(
+						currentSurface, x, y, width, height);
+			} else {
+				fireDisplayRepaint(
+						currentSurface, 0, 0, currentSurface.getImage().getWidth(), currentSurface.getImage().getHeight());
 			}
+			repaint();
+		}
 		}
 	}
 

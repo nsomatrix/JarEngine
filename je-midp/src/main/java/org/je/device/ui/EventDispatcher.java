@@ -22,6 +22,9 @@ public class EventDispatcher implements Runnable {
 	private Object serviceRepaintsLock = new Object();
 	
 	private long lastPaintEventTime = 0;
+	
+	// High-precision timing for smoother frame pacing
+	private static final boolean USE_NANOSECOND_TIMING = true;
 
 	public EventDispatcher() {
 	}
@@ -34,16 +37,26 @@ public class EventDispatcher implements Runnable {
 				if (head != null) {
 					event = head;
 
-					if (maxFps > 0 && event instanceof PaintEvent) {
-						long difference = System.currentTimeMillis() - lastPaintEventTime;
-						if (difference < (1000 / maxFps)) {
-							event = null;
-							try {
-								wait((1000 / maxFps) - difference);
-							} catch (InterruptedException e) {
-							}
+									if (maxFps > 0 && event instanceof PaintEvent) {
+					long currentTime, targetInterval, difference;
+					if (USE_NANOSECOND_TIMING) {
+						currentTime = System.nanoTime() / 1000000; // Convert to milliseconds
+						targetInterval = 1000 / maxFps;
+						difference = currentTime - lastPaintEventTime;
+					} else {
+						currentTime = System.currentTimeMillis();
+						targetInterval = 1000 / maxFps;
+						difference = currentTime - lastPaintEventTime;
+					}
+					
+					if (difference < targetInterval) {
+						event = null;
+						try {
+							wait(targetInterval - difference);
+						} catch (InterruptedException e) {
 						}
 					}
+				}
 					
 					if (event != null) {
 						head = event.next;
@@ -67,7 +80,8 @@ public class EventDispatcher implements Runnable {
 					// Frame skipping check
 					if (PerformanceManager.shouldSkipPaintFrame()) {
 						// Skip this frame but release any threads waiting in serviceRepaints()
-						lastPaintEventTime = System.currentTimeMillis();
+						lastPaintEventTime = USE_NANOSECOND_TIMING ? 
+							System.nanoTime() / 1000000 : System.currentTimeMillis();
 						// Clear scheduled paint reference so subsequent paints can enqueue
 						synchronized (this) { scheduledPaintEvent = null; }
 						// Notify potential waiters that the (skipped) repaint cycle ended
@@ -78,7 +92,8 @@ public class EventDispatcher implements Runnable {
 						synchronized (this) {
 							scheduledPaintEvent = null;
 						}
-						lastPaintEventTime = System.currentTimeMillis();
+						lastPaintEventTime = USE_NANOSECOND_TIMING ? 
+							System.nanoTime() / 1000000 : System.currentTimeMillis();
 						post(event);
 						serviceRepaintsLock.notifyAll();
 					}					
